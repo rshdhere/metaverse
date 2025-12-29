@@ -1,0 +1,8 @@
+{
+  "name": "metaverse",
+  "version": "1.0.0",
+  "description": "A 2-D Metaverse which counters the logic of webrtc, websockets and k8s with gitops",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
