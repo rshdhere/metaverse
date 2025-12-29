@@ -15,14 +15,18 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host             string `koanf:"env" validate:"required"`
-	Port             int    `koanf:"env" validate:"required"`
-	User             string `koanf:"env" validate:"required"`
-	Password         string `koanf:"env" validate:"required"`
-	Name             string `koanf:"env" validate:"required"`
-	SSLMode          string `koanf:"env" validate:"required"`
-	MaxOpenConns     int    `koanf:"env" validate:"required"`
-	MaxIdleConns     int    `koanf:"env" validate:"required"`
-	ConnMaxLifetime  int    `koanf:"env" validate:"required"`
-	ConnIdleLifetime int    `koanf:"env" validate:"required"`
+	Host             string `koanf:"host" validate:"required"`
+	Port             int    `koanf:"port" validate:"required"`
+	User             string `koanf:"user" validate:"required"`
+	Password         string `koanf:"password"`
+	Name             string `koanf:"name" validate:"required"`
+	SSLMode          string `koanf:"ssl_mode" validate:"required"`
+	MaxOpenConns     int    `koanf:"max_open_conns" validate:"required"`
+	MaxIdleConns     int    `koanf:"max_idle_conns" validate:"required"`
+	ConnMaxLifetime  int    `koanf:"conns_max_life_time" validate:"required"`
+	ConnIdleLifetime int    `koanf:"conns_max_life_time" validate:"required"`
+}
+
+type AuthConfig struct {
+	SecretKey string `koanf:"secret_key" validate:"required"`
 }
