@@ -18,7 +18,14 @@ type LoggingConfig struct {
 
 type NewRelicConfig struct {
 	LicenseKey                string `koanf:"license_key" validate:"required"`
-	AppLogForwardingEnabled   bool   `koanf:"app_log_forwarding_enabled" validate:"required"`
-	DistributedTracingEnabled bool   `koanf:"distributed_tracing_enabled" validate:"required"`
-	DebugLogging              bool   `koanf:"debug_logging" validate:"required"`
+	AppLogForwardingEnabled   bool   `koanf:"app_log_forwarding_enabled"`
+	DistributedTracingEnabled bool   `koanf:"distributed_tracing_enabled"`
+	DebugLogging              bool   `koanf:"debug_logging"`
+}
+
+type HealthChecksConfig struct {
+	Enabled  bool          `koanf:"enabled"`
+	Interval time.Duration `koanf:"interval" validate:"min=1s"`
+	Timeout  time.Duration `koanf:"timeout" validate:"min=1s"`
+	Checks   []string      `koanf:"checks"`
 }
