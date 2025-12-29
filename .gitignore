@@ -36,4 +36,4 @@ yarn-error.log*
 /build
 
 # To skip pushing the binary to Github
-metaverse
+/metaverse
