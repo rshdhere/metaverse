@@ -4,5 +4,13 @@
   "description": "A 2-D Metaverse which counters the logic of webrtc, websockets and k8s with gitops",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  }
+  },
+  "packageManager": "bun@1.2.13",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+
 }
