@@ -15,3 +15,10 @@ type LoggingConfig struct {
 	Format             string        `koanf:"format" validate:"required"`
 	SlowQueryThreshold time.Duration `koanf:"slow_query_threshold"`
 }
+
+type NewRelicConfig struct {
+	LicenseKey                string `koanf:"license_key" validate:"required"`
+	AppLogForwardingEnabled   bool   `koanf:"app_log_forwarding_enabled" validate:"required"`
+	DistributedTracingEnabled bool   `koanf:"distributed_tracing_enabled" validate:"required"`
+	DebugLogging              bool   `koanf:"debug_logging" validate:"required"`
+}
