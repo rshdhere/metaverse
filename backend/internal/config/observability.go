@@ -77,3 +77,21 @@ func (c *ObservabilityConfig) Validate() error {
 
 	return nil
 }
+
+func (c *ObservabilityConfig) GetLogLevel() string {
+	switch c.Environment {
+	case "production":
+		if c.Logging.Level == "" {
+			return "info"
+		}
+	case "development":
+		if c.Logging.Level == "" {
+			return "debug"
+		}
+	}
+	return c.Logging.Level
+}
+
+func (c *ObservabilityConfig) IsProduction() bool {
+	return c.Environment == "production"
+}
