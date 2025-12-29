@@ -3,11 +3,11 @@ package config
 import "time"
 
 type ObservabilityConfig struct {
-	ServiceName string `koanf:"service_name" validate:"required"`
-	Environment string `koanf:"environment" validate:"required"`
-	Logging     string `koanf:"logging" validate:"required"`
-	NewRelic    string `koanf:"new_relic" validate:"required"`
-	HealthCheck string `koanf:"health_checks" validate:"required"`
+	ServiceName string             `koanf:"service_name" validate:"required"`
+	Environment string             `koanf:"environment" validate:"required"`
+	Logging     LoggingConfig      `koanf:"logging" validate:"required"`
+	NewRelic    NewRelicConfig     `koanf:"new_relic" validate:"required"`
+	HealthCheck HealthChecksConfig `koanf:"health_checks" validate:"required"`
 }
 
 type LoggingConfig struct {
