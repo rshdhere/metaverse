@@ -1,9 +1,21 @@
 package config
 
+import (
+	"os"
+	"strings"
+
+	"github.com/go-playground/validator/v10"
+	_ "github.com/joho/godotenv/autoload"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/v2"
+	"github.com/rs/zerolog"
+)
+
 type Config struct {
 	Primary  Primary        `koanf:"primary" validate:"required"`
 	Server   ServerConfig   `koanf:"server" validate:"required"`
 	Database DatabaseConfig `koanf:"database" validate:"required"`
+	Redis    RedisConfig    `koanf:"redis" validate:"required"`
 	Auth     AuthConfig     `koanf:"auth" validate:"required"`
 }
 
@@ -34,4 +46,39 @@ type DatabaseConfig struct {
 
 type AuthConfig struct {
 	SecretKey string `koanf:"secret_key" validate:"required"`
+}
+
+type RedisConfig struct {
+	Address string `koanf:"address" validate:"required"`
+}
+
+func LoadConfig() (*Config, error) {
+	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Timestamp().Logger()
+
+	k := koanf.New(".")
+
+	err := k.Load(env.Provider("METAVERSE_", ".", func(s string) string {
+		return strings.ToLower(strings.TrimPrefix(s, "METAVERSE_"))
+	}), nil)
+
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not load initial environment variables")
+	}
+
+	mainConfig := &Config{}
+
+	err = k.Unmarshal("", mainConfig)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("could not unmarshal main config")
+	}
+
+	validate := validator.New()
+
+	err = validate.Struct(mainConfig)
+
+	if err != nil {
+		logger.Fatal().Err(err).Msg("config validation failed")
+	}
+
+	return mainConfig, err
 }
