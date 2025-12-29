@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "description": "A 2-D Metaverse which counters the logic of webrtc, websockets and k8s with gitops",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "format:check": "turbo run format:check",
+    "format:fix": "turbo run format:fix",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rimraf node_modules"
   },
   "packageManager": "bun@1.2.13",
   "engines": {
