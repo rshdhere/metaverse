@@ -34,3 +34,6 @@ yarn-error.log*
 # Production build
 /dist
 /build
+
+# To skip pushing the binary to Github
+metaverse
