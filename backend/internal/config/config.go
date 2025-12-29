@@ -13,3 +13,16 @@ type ServerConfig struct {
 	IdleTimeout        int      `koanf:"idle_timeout" validate:"required"`
 	CORSAllowedOrigins []string `koanf:"cors_allowed_origins" validate:"required"`
 }
+
+type DatabaseConfig struct {
+	Host             string `koanf:"env" validate:"required"`
+	Port             int    `koanf:"env" validate:"required"`
+	User             string `koanf:"env" validate:"required"`
+	Password         string `koanf:"env" validate:"required"`
+	Name             string `koanf:"env" validate:"required"`
+	SSLMode          string `koanf:"env" validate:"required"`
+	MaxOpenConns     int    `koanf:"env" validate:"required"`
+	MaxIdleConns     int    `koanf:"env" validate:"required"`
+	ConnMaxLifetime  int    `koanf:"env" validate:"required"`
+	ConnIdleLifetime int    `koanf:"env" validate:"required"`
+}
