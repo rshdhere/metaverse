@@ -127,3 +127,16 @@ func NewLoggerWithService(cfg *config.MonitoringConfig, loggerService *LoggerSer
 
 	return logger
 }
+
+func WithTraceContext(logger zerolog.Logger, txn *newrelic.Transaction) zerolog.Logger {
+	if txn == nil {
+		return logger
+	}
+
+	metadata := txn.GetTraceMetadata()
+
+	return logger.With().
+		Str("trace.id", metadata.TraceID).
+		Str("span.id", metadata.SpanID).
+		Logger()
+}
