@@ -173,3 +173,18 @@ func NewPgxLogger(level zerolog.Level) zerolog.Logger {
 		Str("component", "database").
 		Logger()
 }
+
+func GetPgxTraceLogLevel(level zerolog.Level) int {
+	switch level {
+	case zerolog.DebugLevel:
+		return 6 // tracelog.LogLevelDebug
+	case zerolog.InfoLevel:
+		return 4 // tracelog.LogLevelInfo
+	case zerolog.WarnLevel:
+		return 3 // tracelog.LogLevelWarn
+	case zerolog.ErrorLevel:
+		return 2 // tracelog.LogLevelError
+	default:
+		return 0 // tracelog.LogLevelNone
+	}
+}
