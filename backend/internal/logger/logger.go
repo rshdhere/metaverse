@@ -2,11 +2,14 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
+	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/zerologWriter"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/pkgerrors"
 	"github.com/rshdhere/metaverse/internal/config"
 )
 
@@ -69,5 +72,58 @@ func NewLogger(level string, isProd bool) zerolog.Logger {
 }
 
 func NewLoggerWithConfig(cfg *config.MonitoringConfig) zerolog.Logger {
-	return NewLoggerWithService()
+	return NewLoggerWithService(cfg, nil)
+}
+
+func NewLoggerWithService(cfg *config.MonitoringConfig, loggerService *LoggerService) zerolog.Logger {
+	var logLevel zerolog.Level
+	level := cfg.GetLogLevel()
+
+	switch level {
+	case "debug":
+		logLevel = zerolog.DebugLevel
+	case "info":
+		logLevel = zerolog.InfoLevel
+	case "warn":
+		logLevel = zerolog.WarnLevel
+	case "error":
+		logLevel = zerolog.ErrorLevel
+	default:
+		logLevel = zerolog.InfoLevel
+	}
+
+	zerolog.TimeFieldFormat = "2006-01-02 15:04:05"
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+
+	var writer io.Writer
+
+	var baseWriter io.Writer
+	if cfg.IsProduction() && cfg.Logging.Format == "json" {
+
+		baseWriter = os.Stdout
+
+		if loggerService != nil && loggerService.nrApp != nil {
+			nrWriter := zerologWriter.New(baseWriter, loggerService.nrApp)
+			writer = nrWriter
+		} else {
+			writer = baseWriter
+		}
+	} else {
+		consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "2006-01-02 15:04:05"}
+		writer = consoleWriter
+	}
+
+	logger := zerolog.New(writer).
+		Level(logLevel).
+		With().
+		Timestamp().
+		Str("service", cfg.ServiceName).
+		Str("environment", cfg.Environment).
+		Logger()
+
+	if !cfg.IsProduction() {
+		logger = logger.With().Stack().Logger()
+	}
+
+	return logger
 }
