@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rshdhere/metaverse/internal/config"
@@ -40,4 +41,14 @@ func NewLoggerService(cfg *config.MonitoringConfig) *LoggerService {
 	service.nrApp = app
 	fmt.Printf("Newrelic initialized for app: %s\n", cfg.ServiceName)
 	return service
+}
+
+func (ls *LoggerService) Shutdown() {
+	if ls.nrApp != nil {
+		ls.nrApp.Shutdown(10 * time.Second)
+	}
+}
+
+func (ls *LoggerService) GetApplication() *newrelic.Application {
+	return ls.nrApp
 }
