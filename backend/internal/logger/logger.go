@@ -18,4 +18,12 @@ func NewLoggerService(cfg *config.MonitoringConfig) *LoggerService {
 		fmt.Println("Newrelic license-key not provided, skipping initialization")
 		return service
 	}
+
+	var ConfigOptions []newrelic.ConfigOption
+	ConfigOptions = append(ConfigOptions,
+		newrelic.ConfigAppName(cfg.ServiceName),
+		newrelic.ConfigLicense(cfg.NewRelic.LicenseKey),
+		newrelic.ConfigAppLogMetricsEnabled(cfg.NewRelic.AppLogForwardingEnabled),
+		newrelic.ConfigDistributedTracerEnabled(cfg.NewRelic.DistributedTracingEnabled),
+	)
 }
