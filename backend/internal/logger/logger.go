@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rshdhere/metaverse/internal/config"
@@ -26,4 +27,17 @@ func NewLoggerService(cfg *config.MonitoringConfig) *LoggerService {
 		newrelic.ConfigAppLogMetricsEnabled(cfg.NewRelic.AppLogForwardingEnabled),
 		newrelic.ConfigDistributedTracerEnabled(cfg.NewRelic.DistributedTracingEnabled),
 	)
+
+	if cfg.NewRelic.DebugLogging {
+		ConfigOptions = append(ConfigOptions, newrelic.ConfigDebugLogger(os.Stdout))
+	}
+
+	app, err := newrelic.NewApplication(ConfigOptions...)
+	if err != nil {
+		fmt.Printf("Failed to initialize Newrelic : %v/n", err)
+	}
+
+	service.nrApp = app
+	fmt.Printf("Newrelic initialized for app: %s\n", cfg.ServiceName)
+	return service
 }
