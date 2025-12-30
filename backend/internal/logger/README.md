@@ -2,3 +2,4 @@
 
  - `LoggerService` struct manages newrelic integrations and logger creation
  - `Shutdown` is for graceful shutdown
+ - `GetApplication` is a getter function

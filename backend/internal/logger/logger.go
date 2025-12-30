@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/rs/zerolog"
 	"github.com/rshdhere/metaverse/internal/config"
 )
 
@@ -51,4 +52,18 @@ func (ls *LoggerService) Shutdown() {
 
 func (ls *LoggerService) GetApplication() *newrelic.Application {
 	return ls.nrApp
+}
+
+func NewLogger(level string, isProd bool) zerolog.Logger {
+	return NewLoggerWithService(&config.MonitoringConfig{
+		Logging: config.LoggingConfig{
+			Level: level,
+		},
+		Environment: func() string {
+			if isProd {
+				return "production"
+			}
+			return "development"
+		}(),
+	}, nil)
 }
