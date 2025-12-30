@@ -67,3 +67,7 @@ func NewLogger(level string, isProd bool) zerolog.Logger {
 		}(),
 	}, nil)
 }
+
+func NewLoggerWithConfig(cfg *config.MonitoringConfig) zerolog.Logger {
+	return NewLoggerWithService()
+}
