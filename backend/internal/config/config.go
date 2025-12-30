@@ -12,12 +12,12 @@ import (
 )
 
 type Config struct {
-	Primary       Primary              `koanf:"primary" validate:"required"`
-	Server        ServerConfig         `koanf:"server" validate:"required"`
-	Database      DatabaseConfig       `koanf:"database" validate:"required"`
-	Redis         RedisConfig          `koanf:"redis" validate:"required"`
-	Auth          AuthConfig           `koanf:"auth" validate:"required"`
-	Observability *ObservabilityConfig `koanf:"observability"`
+	Primary    Primary           `koanf:"primary" validate:"required"`
+	Server     ServerConfig      `koanf:"server" validate:"required"`
+	Database   DatabaseConfig    `koanf:"database" validate:"required"`
+	Redis      RedisConfig       `koanf:"redis" validate:"required"`
+	Auth       AuthConfig        `koanf:"auth" validate:"required"`
+	Monitoring *MonitoringConfig `koanf:"monitoring"`
 }
 
 type Primary struct {
@@ -81,15 +81,15 @@ func LoadConfig() (*Config, error) {
 		logger.Fatal().Err(err).Msg("config validation failed")
 	}
 
-	if mainConfig.Observability == nil {
-		mainConfig.Observability = DefaultObservabilityConfig()
+	if mainConfig.Monitoring == nil {
+		mainConfig.Monitoring = DefaultMonitoringConfig()
 	}
 
-	mainConfig.Observability.ServiceName = "metaverse"
-	mainConfig.Observability.Environment = mainConfig.Primary.Env
+	mainConfig.Monitoring.ServiceName = "metaverse"
+	mainConfig.Monitoring.Environment = mainConfig.Primary.Env
 
-	if err := mainConfig.Observability.Validate(); err != nil {
-		logger.Fatal().Err(err).Msg("invalid observability config")
+	if err := mainConfig.Monitoring.Validate(); err != nil {
+		logger.Fatal().Err(err).Msg("invalid monitoring config")
 	}
 
 	return mainConfig, err

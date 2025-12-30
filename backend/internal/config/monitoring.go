@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type ObservabilityConfig struct {
+type MonitoringConfig struct {
 	ServiceName  string             `koanf:"service_name" validate:"required"`
 	Environment  string             `koanf:"environment" validate:"required"`
 	Logging      LoggingConfig      `koanf:"logging" validate:"required"`
@@ -33,8 +33,8 @@ type HealthChecksConfig struct {
 	Checks   []string      `koanf:"checks"`
 }
 
-func DefaultObservabilityConfig() *ObservabilityConfig {
-	return &ObservabilityConfig{
+func DefaultMonitoringConfig() *MonitoringConfig {
+	return &MonitoringConfig{
 		ServiceName: "metaverse",
 		Environment: "development",
 		Logging: LoggingConfig{
@@ -57,7 +57,7 @@ func DefaultObservabilityConfig() *ObservabilityConfig {
 	}
 }
 
-func (c *ObservabilityConfig) Validate() error {
+func (c *MonitoringConfig) Validate() error {
 	if c.ServiceName == "" {
 		return fmt.Errorf("service_name is required")
 	}
@@ -76,7 +76,7 @@ func (c *ObservabilityConfig) Validate() error {
 	return nil
 }
 
-func (c *ObservabilityConfig) GetLogLevel() string {
+func (c *MonitoringConfig) GetLogLevel() string {
 	switch c.Environment {
 	case "production":
 		if c.Logging.Level == "" {
@@ -90,6 +90,6 @@ func (c *ObservabilityConfig) GetLogLevel() string {
 	return c.Logging.Level
 }
 
-func (c *ObservabilityConfig) IsProduction() bool {
+func (c *MonitoringConfig) IsProduction() bool {
 	return c.Environment == "production"
 }
