@@ -62,7 +62,6 @@ func (c *ObservabilityConfig) Validate() error {
 		return fmt.Errorf("service_name is required")
 	}
 
-	// Validate log level
 	validLevels := map[string]bool{
 		"debug": true, "info": true, "warn": true, "error": true,
 	}
@@ -70,7 +69,6 @@ func (c *ObservabilityConfig) Validate() error {
 		return fmt.Errorf("invalid logging level: %s (must be one of: debug, info, warn, error)", c.Logging.Level)
 	}
 
-	// Validate slow query threshold
 	if c.Logging.SlowQueryThreshold < 0 {
 		return fmt.Errorf("logging slow_query_threshold must be non-negative")
 	}

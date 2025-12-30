@@ -81,16 +81,13 @@ func LoadConfig() (*Config, error) {
 		logger.Fatal().Err(err).Msg("config validation failed")
 	}
 
-	// Set default observability config if not provided
 	if mainConfig.Observability == nil {
 		mainConfig.Observability = DefaultObservabilityConfig()
 	}
 
-	// Override service name and environment from primary config
 	mainConfig.Observability.ServiceName = "metaverse"
 	mainConfig.Observability.Environment = mainConfig.Primary.Env
 
-	// Validate observability config
 	if err := mainConfig.Observability.Validate(); err != nil {
 		logger.Fatal().Err(err).Msg("invalid observability config")
 	}

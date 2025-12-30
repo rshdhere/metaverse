@@ -1,5 +1,6 @@
 # Metaverse's Backend
 
  - https://golangci-lint.run/docs/configuration/file/
- - Taskfile is the modern alternative to Make
- - internal/config : this contains all the structs
+ - Taskfile is the modern alternative to Makefile
+ - internal/config : contains all the structs as primary source of truth
+ - observability : for monitoring, logging, and health-checks
