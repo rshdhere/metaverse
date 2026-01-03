@@ -28,7 +28,7 @@ func (mt *multiTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data
 	return ctx
 }
 
-func (mt *multiTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) context.Context {
+func (mt *multiTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
 	for _, tracer := range mt.tracers {
 		if t, ok := tracer.(interface {
 			TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) context.Context
@@ -36,5 +36,4 @@ func (mt *multiTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data p
 			ctx = t.TraceQueryEnd(ctx, conn, data)
 		}
 	}
-	return ctx
 }
