@@ -113,3 +113,9 @@ func New(cfg *config.Config, logger *zerolog.Logger, loggerService *loggerConfig
 
 	return database, nil
 }
+
+func (db *Database) Close() error {
+	db.Log.Info().Msg("closing database connection pool")
+	db.Pool.Close()
+	return nil
+}
