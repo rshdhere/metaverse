@@ -42,6 +42,7 @@ func (mt *multiTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data
 
 func (mt *multiTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
 	for _, tracer := range mt.tracers {
+		// not every tracer needs to implement every tracing method - type assertion
 		if t, ok := tracer.(interface {
 			TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData)
 		}); ok {
