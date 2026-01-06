@@ -1,3 +1,5 @@
 # Metaverse
 
- - project right now is paused, will not be actively maintained for few months
+> [!CAUTION]
+> The development of **Metaverse** has been paused, will be resumed in few months
+
