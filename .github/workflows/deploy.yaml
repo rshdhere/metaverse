@@ -49,10 +49,10 @@ jobs:
             # ---------- Bun ----------
             echo "Ensuring Bun is available..."
             export BUN_INSTALL="$HOME/.bun"
-            export PATH="$BUN_INSTALL/bin:$PATH"
+            export PATH="$BUN_INSTALL/bin:/usr/local/bin:/usr/bin:$PATH"
             if ! command -v bun >/dev/null 2>&1; then
               curl -fsSL https://bun.sh/install | bash
-              export PATH="$BUN_INSTALL/bin:$PATH"
+              export PATH="$BUN_INSTALL/bin:/usr/local/bin:/usr/bin:$PATH"
             fi
 
             echo "Bun version: $(bun --version)"
@@ -80,17 +80,19 @@ jobs:
             bun run build || echo "Server build skipped"
             cd "$APP_DIR"
 
-            # ---------- PM2 ----------
-            echo "Checking PM2..."
-            if ! command -v pm2 >/dev/null 2>&1; then
-              echo "PM2 not found on VPS. Install it once manually."
+            # ---------- PM2 (ABSOLUTE PATH) ----------
+            PM2_BIN="/usr/bin/pm2"
+
+            echo "Checking PM2 at $PM2_BIN..."
+            if [ ! -x "$PM2_BIN" ]; then
+              echo "PM2 not found at $PM2_BIN"
               exit 1
             fi
 
             echo "Reloading PM2 services..."
-            pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
-            pm2 save
-            pm2 status
+            $PM2_BIN reload ecosystem.config.cjs || $PM2_BIN start ecosystem.config.cjs
+            $PM2_BIN save
+            $PM2_BIN status
 
             # ==================================================
             # GO WORLD WEBSOCKET (apps/world)
