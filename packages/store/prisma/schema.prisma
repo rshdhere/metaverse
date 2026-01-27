@@ -45,3 +45,60 @@ model EmailVerificationToken {
   @@index([token])
   @@index([email])
 }
+
+model Space {
+  id        String          @id @unique @default(cuid())
+  name      String
+  width     Int
+  height    Int?
+  thumbnail String?
+  elements  spaceElements[]
+}
+
+model spaceElements {
+  id        String  @id @unique @default(cuid())
+  elementId String
+  spaceId   String
+  x         Int
+  y         Int
+  element   Element @relation(fields: [elementId], references: [id])
+  space     Space   @relation(fields: [spaceId], references: [id])
+}
+
+model Element {
+  id            String          @id @unique @default(cuid())
+  width         Int
+  height        Int
+  imageUrl      String
+  spaceElements spaceElements[]
+  mapElements   mapElements[]
+}
+
+model Map {
+  id       String        @id @unique @default(cuid())
+  width    Int
+  height   Int
+  name     String
+  elements mapElements[]
+}
+
+model mapElements {
+  id        String   @id @unique @default(cuid())
+  mapId     String
+  elementId String?
+  x         Int?
+  y         Int?
+  map       Map      @relation(fields: [mapId], references: [id])
+  element   Element? @relation(fields: [elementId], references: [id])
+}
+
+model Avatar {
+  id       String  @id @unique @default(cuid())
+  imageUrl String?
+  name     String?
+}
+
+enum Role {
+  Admin
+  User
+}
