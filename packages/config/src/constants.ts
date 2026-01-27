@@ -13,18 +13,19 @@ export const BACKEND_URL = isProduction
 // Frontend
 export const FRONTEND_PORT = 3001;
 export const FRONTEND_URL = isProduction
-  ? "https://game.raashed.xyz"
+  ? "https://metaverse.raashed.xyz"
   : `http://localhost:${FRONTEND_PORT}`;
 
 // WebSocket (World Server)
 export const WS_PORT = 8083;
 export const WS_URL = isProduction
-  ? "https://game.raashed.xyz/ws"
+  ? "wss://game.raashed.xyz/ws"
   : `ws://localhost:${WS_PORT}/ws`;
 
 // CORS allowed origins
 export const CORS_ORIGINS = [
   "http://localhost:3001",
+  "https://metaverse.raashed.xyz",
   "https://game.raashed.xyz",
   "https://raashed.xyz",
 ];

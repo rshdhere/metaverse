@@ -12,9 +12,10 @@ import (
 )
 
 var allowedOrigins = map[string]bool{
-	"http://localhost:3001":      true,
-	"https://game.raashed.xyz":   true,
-	"https://raashed.xyz":        true,
+	"http://localhost:3001":           true,
+	"https://metaverse.raashed.xyz":   true,
+	"https://game.raashed.xyz":        true,
+	"https://raashed.xyz":             true,
 }
 
 var upgrader = websocket.Upgrader{
