@@ -9,6 +9,10 @@ const server = createHTTPServer({
   middleware: cors({
     origin: CORS_ORIGINS,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   }),
   router: appRouter,
   createContext,
