@@ -124,15 +124,15 @@ export default function ArenaPage() {
                 bootstrap.network.setMyAvatarName?.(finalAvatar);
               }
 
-              // Join the public lobby via WebSocket
-              await bootstrap.network.joinOrCreatePublic?.();
-
-              // Launch the office game scene
+              // Launch the office game scene FIRST (so event listeners are registered)
               if (active && typeof bootstrap.launchGame === "function") {
                 const launched = bootstrap.launchGame();
                 if (launched) {
                   setLoggedIn(true);
                   setGameInitialized(true);
+
+                  // Now join the public lobby via WebSocket AFTER scene is ready
+                  await bootstrap.network.joinOrCreatePublic?.();
                 }
               }
             } catch (error) {

@@ -138,15 +138,16 @@ export default function Auth() {
         if (bootstrap && typeof bootstrap.setPendingAvatarName === "function") {
           bootstrap.setPendingAvatarName(avatarName || "adam");
         }
+        // Launch game FIRST so event listeners are registered
+        if (bootstrap && typeof bootstrap.launchGame === "function") {
+          bootstrap.launchGame();
+        }
         // Apply auth and join using the shared Phaser Network instance so movement sync works
         if (bootstrap?.network) {
           bootstrap.network.applyAuth?.(pendingToken, username);
           await bootstrap.network.joinOrCreatePublic?.();
         } else {
           await network.joinOrCreatePublic();
-        }
-        if (bootstrap && typeof bootstrap.launchGame === "function") {
-          bootstrap.launchGame();
         }
         if (active) setLoggedIn(true);
       } catch {
