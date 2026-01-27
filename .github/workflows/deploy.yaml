@@ -50,6 +50,7 @@ jobs:
             echo "Ensuring Bun is available..."
             export BUN_INSTALL="$HOME/.bun"
             export PATH="$BUN_INSTALL/bin:/usr/local/bin:/usr/bin:$PATH"
+
             if ! command -v bun >/dev/null 2>&1; then
               curl -fsSL https://bun.sh/install | bash
               export PATH="$BUN_INSTALL/bin:/usr/local/bin:/usr/bin:$PATH"
@@ -57,7 +58,7 @@ jobs:
 
             echo "Bun version: $(bun --version)"
 
-            # ---------- Install JS deps ----------
+            # ---------- Install Dependencies ----------
             echo "Installing dependencies..."
             bun install
 
@@ -80,22 +81,22 @@ jobs:
             bun run build || echo "Server build skipped"
             cd "$APP_DIR"
 
-            # ---------- PM2 (ABSOLUTE PATH) ----------
-            PM2_BIN="/usr/bin/pm2"
+            # ---------- PM2 (dynamic path, Bun-safe) ----------
+            echo "Resolving PM2 binary..."
+            PM2_BIN="$(command -v pm2 || true)"
 
-            echo "Checking PM2 at $PM2_BIN..."
-            if [ ! -x "$PM2_BIN" ]; then
-              echo "PM2 not found at $PM2_BIN"
+            if [ -z "$PM2_BIN" ]; then
+              echo "PM2 not found in PATH"
               exit 1
             fi
 
-            echo "Reloading PM2 services..."
+            echo "Using PM2 at $PM2_BIN"
             $PM2_BIN reload ecosystem.config.cjs || $PM2_BIN start ecosystem.config.cjs
             $PM2_BIN save
             $PM2_BIN status
 
             # ==================================================
-            # GO WORLD WEBSOCKET (apps/world)
+            # GO WORLD WEBSOCKET
             # ==================================================
             echo "Deploying Go World WebSocket..."
 
@@ -107,10 +108,8 @@ jobs:
             echo "Building world-server..."
             GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o world-server
 
-            echo "Restarting world systemd service..."
+            echo "Restarting world service..."
             sudo systemctl restart world
-
-            echo "World service status:"
             sudo systemctl status world --no-pager
 
             cd "$APP_DIR"
