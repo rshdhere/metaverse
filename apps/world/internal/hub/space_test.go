@@ -77,3 +77,42 @@ func TestSpaceIsValidPosition(t *testing.T) {
 		})
 	}
 }
+
+func TestSpaceIsColliding(t *testing.T) {
+	space := NewSpace("test-space", 10, 10)
+	
+	// Add a static element
+	space.Elements["5,5"] = true
+
+	// Add a user
+	user := &Client{UserID: "user1", X: 2, Y: 2}
+	space.AddUser(user)
+
+	tests := []struct {
+		name     string
+		x        int
+		y        int
+		expected bool // true = collision
+	}{
+		// No collision
+		{"empty spot", 0, 0, false},
+		{"near element", 5, 4, false},
+		{"near user", 2, 3, false},
+
+		// Collisions
+		{"out of bounds negative", -1, 0, true},
+		{"out of bounds large", 10, 10, true}, // 0-9 is valid
+		{"static element", 5, 5, true},
+		{"user collision", 2, 2, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := space.IsColliding(tt.x, tt.y)
+			if result != tt.expected {
+				t.Errorf("IsColliding(%d, %d) = %v; want %v",
+					tt.x, tt.y, result, tt.expected)
+			}
+		})
+	}
+}

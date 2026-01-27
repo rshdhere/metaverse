@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -9,17 +10,19 @@ type Space struct {
 	ID      string
 	Width   int
 	Height  int
-	Users   map[string]*Client // userID -> Client
-	mu      sync.RWMutex
+	Users    map[string]*Client // userID -> Client
+	Elements map[string]bool    // "x,y" -> true if occupied by static element
+	mu       sync.RWMutex
 }
 
 // NewSpace creates a new Space instance
 func NewSpace(id string, width, height int) *Space {
 	return &Space{
-		ID:     id,
-		Width:  width,
-		Height: height,
-		Users:  make(map[string]*Client),
+		ID:       id,
+		Width:    width,
+		Height:   height,
+		Users:    make(map[string]*Client),
+		Elements: make(map[string]bool),
 	}
 }
 
@@ -74,6 +77,41 @@ func (s *Space) IsEmpty() bool {
 func (s *Space) IsValidPosition(x, y int) bool {
 	return x >= 0 && x < s.Width && y >= 0 && y < s.Height
 }
+
+// IsColliding checks if a position is occupied by a user or static element
+// Returns true if colliding, false if free
+func (s *Space) IsColliding(x, y int) bool {
+	// Check bounds
+	if !s.IsValidPosition(x, y) {
+		return true
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Check static elements
+	// Using a simple "x,y" string key for now
+	key := posKey(x, y)
+	if s.Elements[key] {
+		return true
+	}
+
+	// Check other users
+	for _, user := range s.Users {
+		ux, uy := user.GetPosition()
+		if ux == x && uy == y {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Helper to generate key for position map
+func posKey(x, y int) string {
+	return fmt.Sprintf("%d,%d", x, y)
+}
+
 
 // IsValidMove checks if a movement is valid (at most 1 block in any direction)
 func IsValidMove(oldX, oldY, newX, newY int) bool {

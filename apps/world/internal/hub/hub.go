@@ -141,8 +141,15 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	}
 
 	// Generate spawn position (random within space bounds)
-	spawnX := rand.Intn(space.Width)
-	spawnY := rand.Intn(space.Height)
+	// Make sure spawn doesn't collide
+	var spawnX, spawnY int
+	for {
+		spawnX = rand.Intn(space.Width)
+		spawnY = rand.Intn(space.Height)
+		if !space.IsColliding(spawnX, spawnY) {
+			break
+		}
+	}
 	client.SetPosition(spawnX, spawnY)
 
 	// Add user to space
@@ -193,21 +200,33 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 	newX, newY := payload.X, payload.Y
 
 	// Validate movement
-	validPosition := space.IsValidPosition(newX, newY)
+	// 1. Check if move distance is valid (step size)
 	validMove := IsValidMove(oldX, oldY, newX, newY)
 
-	if !validPosition || !validMove {
-		// Send movement-rejected
+	// 2. Check collision (walls, elements, users)
+	// We check IsColliding on the NEW position
+	// Note: IsColliding checks bounds and elements/users.
+	// However, we should temporarily exclude CURRENT user from check in IsColliding?
+	// Actually IsColliding checks against s.Users. The current user IS in s.Users.
+	// So IsColliding(newX, newY) will return true if the user moves to their OWN position (which is fine? or no?)
+	// Wait, the user is currently at oldX, oldY in the map.
+	// If newX, newY != oldX, oldY, then IsColliding won't find THIS user at newX, newY (unless there's ANOTHER user there).
+	// So it should be fine.
+	
+	isColliding := space.IsColliding(newX, newY)
+	
+	if !validMove || isColliding {
+		// Send movement-rejected with WHERE THEY SHOULD BE (old position)
 		rejectMsg := messages.BaseMessage{
 			Type: messages.TypeMovementRejected,
-			Payload: messages.MovementPayload{
+			Payload: messages.MovementRejectedPayload{
 				X: oldX,
 				Y: oldY,
 			},
 		}
 		client.SendJSON(rejectMsg)
-		log.Printf("Movement rejected for user %s: from (%d,%d) to (%d,%d)", 
-			client.UserID, oldX, oldY, newX, newY)
+		log.Printf("Movement rejected for user %s: from (%d,%d) to (%d,%d). Colliding: %v, ValidMove: %v", 
+			client.UserID, oldX, oldY, newX, newY, isColliding, validMove)
 		return
 	}
 
