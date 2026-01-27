@@ -1,0 +1,20 @@
+{
+  "name": "@repo/validators",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./user": "./src/user/index.ts"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "zod": "^4.3.5"
+  }
+}

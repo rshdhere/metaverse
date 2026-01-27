@@ -1,0 +1,23 @@
+{
+  "name": "@repo/config",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./constants": "./src/constants.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@repo/store",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./index.ts",
+    "./generated/prisma": "./generated/prisma/index.js"
+  },
+  "scripts": {
+    "prisma:studio": "bunx prisma studio",
+    "prisma:deploy": "bunx prisma migrate deploy",
+    "prisma:format": "bunx prisma format",
+    "prisma:migrate": "bunx prisma migrate dev",
+    "prisma:generate": "bunx prisma generate",
+    "prisma:validate": "bunx prisma validate"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "@types/ws": "^8.18.1",
+    "prisma": "^7.2.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "@prisma/client-runtime-utils": "^7.2.0",
+    "@repo/config": "workspace:*",
+    "ws": "^8.19.0"
+  }
+}

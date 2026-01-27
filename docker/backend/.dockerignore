@@ -1,0 +1,7 @@
+node_modules
+.next
+dist
+.git
+.turbo
+bun.lockb
+.env*

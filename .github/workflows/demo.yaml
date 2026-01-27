@@ -1,0 +1,18 @@
+name: Demo CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Demo placeholder
+        run: echo "Demo CI workflow - actual CI will be added in the future"

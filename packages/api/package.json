@@ -1,0 +1,38 @@
+{
+  "name": "@repo/api",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./trpc": {
+      "types": "./src/trpc.ts",
+      "import": "./src/trpc.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "@types/jsonwebtoken": "^9.0.10"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@repo/config": "workspace:*",
+    "@repo/store": "workspace:*",
+    "@repo/validators": "workspace:*",
+    "@trpc/client": "^11.8.1",
+    "@trpc/server": "^11.8.1",
+    "jsonwebtoken": "^9.0.3",
+    "resend": "^4.1.2",
+    "zod": "^3.24.1"
+  }
+}

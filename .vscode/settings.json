@@ -1,0 +1,48 @@
+{
+    /**
+     * ESLint
+     * Use ESLint as the source of truth for fixes.
+     */
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    },
+  
+    /**
+     * ESLint v9 flat config support (correct key)
+     */
+    "eslint.useFlatConfig": true,
+  
+    /**
+     * Validate only languages ESLint actually handles.
+     */
+    "eslint.validate": [
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact"
+    ],
+  
+    /**
+     * Formatting
+     * Prettier formats, ESLint fixes.
+     */
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+  
+    /**
+     * Language-specific formatters
+     */
+    "[prisma]": {
+      "editor.defaultFormatter": "Prisma.prisma",
+      "editor.formatOnSave": true,
+      "editor.tabSize": 2
+    },
+  
+    /**
+     * Workspace consistency
+     */
+    "npm.packageManager": "bun",
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true
+  }
+  
