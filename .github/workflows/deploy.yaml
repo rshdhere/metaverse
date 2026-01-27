@@ -61,7 +61,7 @@ jobs:
 
             # ---------- Install Dependencies ----------
             echo "Installing dependencies..."
-            bun install --frozen-lockfile
+            bun install
 
             # ---------- Prisma Setup ----------
             echo "Running Prisma migrations..."
