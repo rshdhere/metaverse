@@ -321,6 +321,7 @@ export default class Game extends Phaser.Scene {
 
   // function to add new player to the otherPlayer group
   private handlePlayerJoined(newPlayer: IPlayer, id: string) {
+    console.log("🎮 Game.handlePlayerJoined called:", { id, newPlayer });
     // Derive texture from the incoming anim prefix (e.g., "lucy_idle_down")
     const animKey = newPlayer.anim || "adam_idle_down";
     const texture = (animKey.split("_")[0] || "adam").toLowerCase();
@@ -338,6 +339,10 @@ export default class Game extends Phaser.Scene {
     ).otherPlayer(newPlayer.x, newPlayer.y, texture, id, newPlayer.name || "");
     this.otherPlayers.add(otherPlayer);
     this.otherPlayerMap.set(id, otherPlayer);
+    console.log(
+      "✅ OtherPlayer added to map, total:",
+      this.otherPlayerMap.size,
+    );
   }
 
   // function to remove the player who left from the otherPlayer group

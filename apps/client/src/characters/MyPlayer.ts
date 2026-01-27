@@ -17,7 +17,7 @@ type Chair = {
 };
 type Computer = { openDialog: (playerId: string, network: Network) => void };
 
-import { phaserEvents, Event } from "../services/Network";
+import { phaserEvents, Event } from "../events/EventCenter";
 import { ItemType } from "../../types/Items";
 type NavKeys = Phaser.Types.Input.Keyboard.CursorKeys & {
   W?: Phaser.Input.Keyboard.Key;

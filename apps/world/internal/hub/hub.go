@@ -255,10 +255,15 @@ func (h *Hub) broadcastToSpace(spaceID string, message interface{}, excludeUserI
 	h.mu.RUnlock()
 
 	if !exists {
+		log.Printf("⚠️ broadcastToSpace: space %s does not exist", spaceID)
 		return
 	}
 
-	for _, client := range space.GetUsers(excludeUserID) {
+	recipients := space.GetUsers(excludeUserID)
+	log.Printf("📢 Broadcasting to space %s: %d recipients (excluding %s)", spaceID, len(recipients), excludeUserID)
+	
+	for _, client := range recipients {
+		log.Printf("  → Sending to user %s", client.UserID)
 		client.SendJSON(message)
 	}
 }

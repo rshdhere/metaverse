@@ -2,34 +2,7 @@ import { IPlayer } from "../../types/IOfficeState";
 import { ItemType } from "../../types/Items";
 import { getTrpcClient } from "../../app/lib/trpc";
 import { WS_URL } from "@repo/config/constants";
-
-// Lightweight event bus to align with client API without importing Phaser deps here
-type EventCallback = (...args: any[]) => void;
-class SimpleEvents {
-  private listeners = new Map<string, Set<EventCallback>>();
-  on(event: string, cb: EventCallback) {
-    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
-    this.listeners.get(event)!.add(cb);
-  }
-  off(event: string, cb: EventCallback) {
-    this.listeners.get(event)?.delete(cb);
-  }
-  emit(event: string, ...args: any[]) {
-    this.listeners.get(event)?.forEach((cb) => cb(...args));
-  }
-}
-
-export const phaserEvents = new SimpleEvents();
-
-export enum Event {
-  PLAYER_JOINED = "PLAYER_JOINED",
-  PLAYER_LEFT = "PLAYER_LEFT",
-  PLAYER_UPDATED = "PLAYER_UPDATED",
-  MY_PLAYER_READY = "MY_PLAYER_READY",
-  MY_PLAYER_NAME_CHANGE = "MY_PLAYER_NAME_CHANGE",
-  MY_PLAYER_TEXTURE_CHANGE = "MY_PLAYER_TEXTURE_CHANGE",
-  PLAYER_DISCONNECTED = "PLAYER_DISCONNECTED",
-}
+import { phaserEvents, Event } from "../events/EventCenter";
 
 export default class Network {
   private ws?: WebSocket;
@@ -93,6 +66,7 @@ export default class Network {
   private handleWsMessage(evt: MessageEvent) {
     try {
       const data = JSON.parse(evt.data);
+      console.log("📨 WS Message received:", data.type, data.payload);
       switch (data.type) {
         case "space-joined": {
           const sessionId = data.payload?.sessionId;
@@ -130,6 +104,14 @@ export default class Network {
         case "user-join": {
           const { userId, x, y, avatarName, name } = data.payload;
           const uid = userId;
+          console.log("👤 user-join received:", {
+            uid,
+            x,
+            y,
+            avatarName,
+            name,
+            alreadyKnown: this.knownUsers.has(uid),
+          });
           if (!uid) break;
           if (!this.knownUsers.has(uid)) {
             this.knownUsers.add(uid);
@@ -141,6 +123,7 @@ export default class Network {
               anim: `${avatar}_idle_down`,
               name: name || "",
             } as any;
+            console.log("🎮 Emitting PLAYER_JOINED for:", uid, other);
             phaserEvents.emit(Event.PLAYER_JOINED, other, uid);
           }
           break;
