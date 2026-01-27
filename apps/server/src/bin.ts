@@ -6,7 +6,7 @@ import { appRouter } from "./index";
 
 const server = createHTTPServer({
   middleware: cors({
-    origin: ["http://localhost:3000", "https://yourdomain.com"],
+    origin: ["http://localhost:3001", "https://yourdomain.com"],
     credentials: true,
   }),
   router: appRouter,
