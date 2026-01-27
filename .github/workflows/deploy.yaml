@@ -33,12 +33,10 @@ jobs:
             echo "Starting Metaverse deployment"
             echo "=========================================="
 
-            # ---------- Load shell environment ----------
-            echo "Loading shell environment..."
+            # ---------- Load shell ----------
             [ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc" || true
 
             # ---------- Git Pull ----------
-            echo "Fetching latest code..."
             git fetch origin
             git checkout main
             git pull origin main
@@ -49,8 +47,24 @@ jobs:
               exit 1
             fi
 
+            # ---------- Node + npm (FOR PM2 ONLY) ----------
+            if ! command -v node >/dev/null 2>&1; then
+              echo "Installing Node.js..."
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+
+            echo "Node: $(node --version)"
+            echo "npm: $(npm --version)"
+
+            # ---------- PM2 (FORCE INSTALL) ----------
+            echo "Installing PM2..."
+            sudo npm install -g pm2
+
+            echo "PM2 version:"
+            pm2 --version
+
             # ---------- Bun ----------
-            echo "Ensuring Bun is available..."
             export BUN_INSTALL="$HOME/.bun"
             export PATH="$BUN_INSTALL/bin:$PATH"
 
@@ -59,36 +73,31 @@ jobs:
               export PATH="$BUN_INSTALL/bin:$PATH"
             fi
 
-            echo "Bun version: $(bun --version)"
+            echo "Bun: $(bun --version)"
 
             # ---------- Install deps ----------
-            echo "Installing dependencies..."
             bun install
 
             # ---------- Prisma ----------
-            echo "Running Prisma migrations..."
             cd packages/store
             bunx prisma migrate deploy || true
             bunx prisma generate || true
             cd "$APP_DIR"
 
             # ---------- Build Client ----------
-            echo "Building client..."
             cd apps/client
             bun run build
             cd "$APP_DIR"
 
             # ---------- Server ----------
-            echo "Server is Bun-native and has no build step. Skipping."
+            echo "Server is Bun-native, no build step."
 
-            # ---------- PM2 ----------
-            echo "Reloading PM2 processes..."
+            # ---------- PM2 reload ----------
             pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
             pm2 save
             pm2 status
 
             # ---------- Go World WS ----------
-            echo "Deploying World WebSocket..."
             cd apps/world
             go version
             GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o world-server
