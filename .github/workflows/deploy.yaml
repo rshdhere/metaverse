@@ -78,11 +78,8 @@ jobs:
             bun run build
             cd "$APP_DIR"
 
-            # ---------- Build Server ----------
-            echo "Building server..."
-            cd apps/server
-            bun run build || true
-            cd "$APP_DIR"
+            # ---------- Server ----------
+            echo "Server is Bun-native and has no build step. Skipping."
 
             # ---------- PM2 ----------
             echo "Reloading PM2 processes..."
