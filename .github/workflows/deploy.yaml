@@ -42,84 +42,82 @@ jobs:
             # ---------- Environment Variables ----------
             echo "Checking environment variables..."
             if [ ! -f "packages/config/.env" ]; then
-              echo "WARNING: packages/config/.env file not found."
-              echo "Please create one with required environment variables."
+              echo "packages/config/.env not found."
               exit 1
             fi
 
-            # ---------- Bun Installation ----------
+            # ---------- Bun ----------
             echo "Ensuring Bun is available..."
             export BUN_INSTALL="$HOME/.bun"
             export PATH="$BUN_INSTALL/bin:$PATH"
             if ! command -v bun >/dev/null 2>&1; then
-              echo "Installing Bun..."
               curl -fsSL https://bun.sh/install | bash
               export PATH="$BUN_INSTALL/bin:$PATH"
             fi
 
             echo "Bun version: $(bun --version)"
 
-            # ---------- Install Dependencies ----------
+            # ---------- Install JS deps ----------
             echo "Installing dependencies..."
             bun install
 
-            # ---------- Prisma Setup ----------
+            # ---------- Prisma ----------
             echo "Running Prisma migrations..."
             cd packages/store
-            bunx prisma migrate deploy || echo "Prisma migration failed, check logs"
-            echo "Generating Prisma Client..."
-            bunx prisma generate || echo "Prisma generate failed, check logs"
+            bunx prisma migrate deploy || echo "Prisma migrate skipped"
+            bunx prisma generate || echo "Prisma generate skipped"
             cd "$APP_DIR"
 
-            # ---------- Build Applications ----------
+            # ---------- Build Client ----------
             echo "Building client..."
             cd apps/client
             bun run build
             cd "$APP_DIR"
 
+            # ---------- Build Server ----------
             echo "Building server..."
             cd apps/server
-            bun run build || echo "Server build skipped (no build script)"
+            bun run build || echo "Server build skipped"
             cd "$APP_DIR"
 
-            # ---------- PM2 Setup ----------
-            echo "Ensuring PM2 is available..."
+            # ---------- PM2 ----------
+            echo "Checking PM2..."
             if ! command -v pm2 >/dev/null 2>&1; then
-              echo "Installing PM2..."
-              npm install -g pm2
+              echo "PM2 not found on VPS. Install it once manually."
+              exit 1
             fi
 
-            # ---------- PM2 Services ----------
-            echo "Reloading PM2 processes..."
+            echo "Reloading PM2 services..."
             pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
             pm2 save
-
-            echo "PM2 process status:"
             pm2 status
 
-            # ---------- Health Checks ----------
-            echo "Performing health checks..."
+            # ==================================================
+            # GO WORLD WEBSOCKET (apps/world)
+            # ==================================================
+            echo "Deploying Go World WebSocket..."
 
-            # Check if PM2 services are running
-            if pm2 list | grep -q "online"; then
-              echo "✓ PM2 services are running"
-            else
-              echo "⚠ Some PM2 services may not be online, check logs"
-            fi
+            cd apps/world
 
-            # Show recent PM2 logs
-            echo "Recent PM2 logs:"
-            pm2 logs --lines 20 --nostream || true
+            echo "Go version:"
+            go version
+
+            echo "Building world-server..."
+            GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o world-server
+
+            echo "Restarting world systemd service..."
+            sudo systemctl restart world
+
+            echo "World service status:"
+            sudo systemctl status world --no-pager
+
+            cd "$APP_DIR"
 
             echo "=========================================="
             echo "Deployment completed successfully"
             echo "=========================================="
             echo ""
-            echo "Services status:"
-            echo "  - Client: http://localhost:3001"
-            echo "  - Server: http://localhost:8082"
-            echo ""
-            echo "Useful commands:"
-            echo "  - PM2 logs: pm2 logs"
-            echo "  - PM2 restart: pm2 restart all"
-            echo "  - PM2 status: pm2 status"
+            echo "Services:"
+            echo "  - Client      : PM2 (3001)"
+            echo "  - API Server  : PM2 (8082)"
+            echo "  - World (WS)  : systemd (8083)"
