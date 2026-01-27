@@ -1,108 +1,33 @@
-import { describe, it, expect, beforeEach, mock, spyOn } from "bun:test";
-import { TRPCError } from "@trpc/server";
-import jwt from "jsonwebtoken";
-import type { Context } from "../trpc.js";
+/**
+ * User Authentication Unit Tests
+ *
+ * Purpose: Pure router behavior tests
+ * Contains: signup, login, verifyEmail, resendVerification
+ *
+ * These tests:
+ * - Mock Prisma hard
+ * - Assert exact TRPCError codes/messages
+ * - Are fast and deterministic
+ */
 
-// Create mock functions
-const mockPrismaClient = {
-  user: {
-    findFirst: mock(() => Promise.resolve(null)),
-    findUnique: mock(() => Promise.resolve(null)),
-    create: mock(() =>
-      Promise.resolve({
-        id: "user-123",
-        email: "test@example.com",
-        emailVerified: false,
-      }),
-    ),
-    update: mock(() =>
-      Promise.resolve({
-        id: "user-123",
-        email: "test@example.com",
-        emailVerified: true,
-      }),
-    ),
-  },
-  account: {
-    findUnique: mock(() => Promise.resolve(null)),
-    create: mock(() =>
-      Promise.resolve({
-        id: "account-123",
-        userId: "user-123",
-        provider: "github",
-      }),
-    ),
-    update: mock(() => Promise.resolve({ id: "account-123" })),
-  },
-  emailVerificationToken: {
-    findUnique: mock(() => Promise.resolve(null)),
-    create: mock(() =>
-      Promise.resolve({
-        id: "token-123",
-        token: "test-token",
-        email: "test@example.com",
-      }),
-    ),
-    delete: mock(() => Promise.resolve({ id: "token-123" })),
-    deleteMany: mock(() => Promise.resolve({ count: 1 })),
-  },
-};
-
-const mockSendVerificationEmail = mock(() =>
-  Promise.resolve({ success: true }),
-);
-
-// Mock modules before importing userRouter
-mock.module("@repo/store", () => ({
-  prismaClient: mockPrismaClient,
-}));
-
-mock.module("../email.js", () => ({
-  sendVerificationEmail: mockSendVerificationEmail,
-}));
-
-// Mock global fetch
-const mockFetch = mock(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({}),
-  } as Response),
-);
-
-global.fetch = mockFetch as typeof fetch;
-
-// Mock jwt.sign
-const mockJwtSign = spyOn(jwt, "sign").mockImplementation(
-  () => "mock-jwt-token",
-);
-
-// Import userRouter after mocks are set up
-import { userRouter } from "./user.js";
-
-// Helper to create a caller
-function createCaller() {
-  const ctx: Context = { user: null };
-  return userRouter.createCaller(ctx);
-}
+import { describe, it, expect, beforeEach } from "bun:test";
+import {
+  mockPrismaClient,
+  mockSendVerificationEmail,
+  mockJwtSign,
+  createCaller,
+  resetAllMocks,
+  TRPCError,
+} from "./_setup/authTestSetup.js";
 
 describe("userRouter", () => {
   beforeEach(() => {
-    // Reset all mocks before each test
-    mockPrismaClient.user.findFirst.mockClear();
-    mockPrismaClient.user.findUnique.mockClear();
-    mockPrismaClient.user.create.mockClear();
-    mockPrismaClient.user.update.mockClear();
-    mockPrismaClient.account.findUnique.mockClear();
-    mockPrismaClient.account.create.mockClear();
-    mockPrismaClient.account.update.mockClear();
-    mockPrismaClient.emailVerificationToken.findUnique.mockClear();
-    mockPrismaClient.emailVerificationToken.create.mockClear();
-    mockPrismaClient.emailVerificationToken.delete.mockClear();
-    mockPrismaClient.emailVerificationToken.deleteMany.mockClear();
-    mockSendVerificationEmail.mockClear();
-    mockFetch.mockClear();
-    mockJwtSign.mockClear();
+    resetAllMocks();
   });
+
+  // ==========================================================================
+  // SIGNUP TESTS
+  // ==========================================================================
 
   describe("signup", () => {
     it("should successfully create a new user", async () => {
@@ -219,6 +144,10 @@ describe("userRouter", () => {
     });
   });
 
+  // ==========================================================================
+  // VERIFY EMAIL TESTS
+  // ==========================================================================
+
   describe("verifyEmail", () => {
     it("should successfully verify email and return JWT token", async () => {
       const caller = createCaller();
@@ -272,7 +201,7 @@ describe("userRouter", () => {
 
       try {
         await caller.verifyEmail({ token: "invalid-token" });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("NOT_FOUND");
@@ -300,7 +229,7 @@ describe("userRouter", () => {
 
       try {
         await caller.verifyEmail({ token });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("BAD_REQUEST");
@@ -327,7 +256,7 @@ describe("userRouter", () => {
 
       try {
         await caller.verifyEmail({ token });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("NOT_FOUND");
@@ -341,6 +270,10 @@ describe("userRouter", () => {
       await expect(caller.verifyEmail({ token: "" })).rejects.toThrow();
     });
   });
+
+  // ==========================================================================
+  // RESEND VERIFICATION TESTS
+  // ==========================================================================
 
   describe("resendVerification", () => {
     it("should successfully resend verification email", async () => {
@@ -411,7 +344,7 @@ describe("userRouter", () => {
 
       try {
         await caller.resendVerification({ email });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("BAD_REQUEST");
@@ -427,6 +360,10 @@ describe("userRouter", () => {
       ).rejects.toThrow();
     });
   });
+
+  // ==========================================================================
+  // LOGIN TESTS
+  // ==========================================================================
 
   describe("login", () => {
     it("should successfully login and return JWT token", async () => {
@@ -460,7 +397,7 @@ describe("userRouter", () => {
           email: "nonexistent@example.com",
           password: "Test123!@#",
         });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("NOT_FOUND");
@@ -481,7 +418,7 @@ describe("userRouter", () => {
           email: "test@example.com",
           password: "Test123!@#",
         });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("NOT_FOUND");
@@ -505,7 +442,7 @@ describe("userRouter", () => {
           email: "test@example.com",
           password,
         });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("FORBIDDEN");
@@ -531,7 +468,7 @@ describe("userRouter", () => {
           email: "test@example.com",
           password: "Test123!@#",
         });
-        expect(false).toBe(true); // Should not reach here
+        expect(false).toBe(true);
       } catch (error) {
         expect(error).toBeInstanceOf(TRPCError);
         expect((error as TRPCError).code).toBe("UNAUTHORIZED");
@@ -548,295 +485,6 @@ describe("userRouter", () => {
           password: "Test123!@#",
         }),
       ).rejects.toThrow();
-    });
-  });
-
-  describe("githubAuth", () => {
-    const mockCode = "github-auth-code";
-    const mockAccessToken = "github-access-token";
-    const mockGithubUser = {
-      id: 12345,
-      login: "testuser",
-      name: "Test User",
-      email: "test@example.com",
-      avatar_url: "https://avatar.url",
-    };
-    const mockGithubEmails = [
-      {
-        email: "test@example.com",
-        primary: true,
-        verified: true,
-        visibility: "public",
-      },
-    ];
-
-    beforeEach(() => {
-      // Reset fetch mock
-      mockFetch.mockClear();
-    });
-
-    it("should successfully authenticate with GitHub and create new user", async () => {
-      const caller = createCaller();
-
-      // Mock GitHub token exchange
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: mockAccessToken,
-            token_type: "bearer",
-            scope: "user:email",
-          }),
-      } as Response);
-
-      // Mock GitHub user fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockGithubUser),
-      } as Response);
-
-      // Mock GitHub emails fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockGithubEmails),
-      } as Response);
-
-      mockPrismaClient.account.findUnique.mockResolvedValueOnce(null);
-      mockPrismaClient.user.findUnique.mockResolvedValueOnce(null);
-      mockPrismaClient.user.create.mockResolvedValueOnce({
-        id: "user-123",
-        email: mockGithubUser.email,
-        name: mockGithubUser.name,
-        avatarUrl: mockGithubUser.avatar_url,
-        emailVerified: true,
-      });
-      mockPrismaClient.account.create.mockResolvedValueOnce({
-        id: "account-123",
-        userId: "user-123",
-        provider: "github",
-        providerAccountId: "12345",
-      });
-
-      const result = await caller.githubAuth({ code: mockCode });
-
-      expect(result).toEqual({ token: "mock-jwt-token" });
-      expect(mockFetch).toHaveBeenCalledTimes(3);
-      expect(mockPrismaClient.user.create).toHaveBeenCalled();
-      expect(mockJwtSign).toHaveBeenCalled();
-    });
-
-    it("should link GitHub account to existing user", async () => {
-      const caller = createCaller();
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: mockAccessToken,
-            token_type: "bearer",
-            scope: "user:email",
-          }),
-      } as Response);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockGithubUser),
-      } as Response);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockGithubEmails),
-      } as Response);
-
-      mockPrismaClient.account.findUnique.mockResolvedValueOnce(null);
-      mockPrismaClient.user.findUnique.mockResolvedValueOnce({
-        id: "existing-user-123",
-        email: mockGithubUser.email,
-        name: "Existing User",
-        avatarUrl: null,
-      });
-
-      mockPrismaClient.account.create.mockResolvedValueOnce({
-        id: "account-123",
-        userId: "existing-user-123",
-        provider: "github",
-      });
-
-      mockPrismaClient.user.update.mockResolvedValueOnce({
-        id: "existing-user-123",
-        email: mockGithubUser.email,
-        name: "Existing User",
-        avatarUrl: mockGithubUser.avatar_url,
-      });
-
-      const result = await caller.githubAuth({ code: mockCode });
-
-      expect(result).toEqual({ token: "mock-jwt-token" });
-      expect(mockPrismaClient.account.create).toHaveBeenCalled();
-      expect(mockPrismaClient.user.update).toHaveBeenCalled();
-    });
-
-    it("should update existing GitHub account", async () => {
-      const caller = createCaller();
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: mockAccessToken,
-            token_type: "bearer",
-            scope: "user:email",
-          }),
-      } as Response);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockGithubUser),
-      } as Response);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockGithubEmails),
-      } as Response);
-
-      mockPrismaClient.account.findUnique.mockResolvedValueOnce({
-        id: "account-123",
-        userId: "user-123",
-        provider: "github",
-        providerAccountId: "12345",
-        user: {
-          id: "user-123",
-          email: mockGithubUser.email,
-          name: "Old Name",
-          avatarUrl: "old-avatar",
-        },
-      });
-
-      mockPrismaClient.user.update.mockResolvedValueOnce({
-        id: "user-123",
-        email: mockGithubUser.email,
-        name: mockGithubUser.name,
-        avatarUrl: mockGithubUser.avatar_url,
-      });
-
-      mockPrismaClient.account.update.mockResolvedValueOnce({
-        id: "account-123",
-      });
-
-      const result = await caller.githubAuth({ code: mockCode });
-
-      expect(result).toEqual({ token: "mock-jwt-token" });
-      expect(mockPrismaClient.user.update).toHaveBeenCalled();
-      expect(mockPrismaClient.account.update).toHaveBeenCalled();
-    });
-
-    it("should throw BAD_REQUEST error if GitHub token exchange fails", async () => {
-      const caller = createCaller();
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            error: "bad_verification_code",
-            error_description: "The code passed is incorrect or expired",
-          }),
-      } as Response);
-
-      try {
-        await caller.githubAuth({ code: mockCode });
-        expect(false).toBe(true); // Should not reach here
-      } catch (error) {
-        expect(error).toBeInstanceOf(TRPCError);
-        expect((error as TRPCError).code).toBe("BAD_REQUEST");
-      }
-    });
-
-    it("should throw INTERNAL_SERVER_ERROR if GitHub user fetch fails", async () => {
-      const caller = createCaller();
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: mockAccessToken,
-            token_type: "bearer",
-            scope: "user:email",
-          }),
-      } as Response);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({}),
-      } as Response);
-
-      try {
-        await caller.githubAuth({ code: mockCode });
-        expect(false).toBe(true); // Should not reach here
-      } catch (error) {
-        expect(error).toBeInstanceOf(TRPCError);
-        expect((error as TRPCError).code).toBe("INTERNAL_SERVER_ERROR");
-        expect((error as TRPCError).message).toBe(
-          "Failed to fetch GitHub user profile",
-        );
-      }
-    });
-
-    it("should handle missing email from GitHub", async () => {
-      const caller = createCaller();
-      const githubUserNoEmail = {
-        ...mockGithubUser,
-        email: null,
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: mockAccessToken,
-            token_type: "bearer",
-            scope: "user:email",
-          }),
-      } as Response);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(githubUserNoEmail),
-      } as Response);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: () => Promise.resolve({}),
-      } as Response);
-
-      mockPrismaClient.account.findUnique.mockResolvedValueOnce(null);
-      mockPrismaClient.user.findUnique.mockResolvedValueOnce(null);
-      mockPrismaClient.user.create.mockResolvedValueOnce({
-        id: "user-123",
-        email: `github_${githubUserNoEmail.id}@placeholder.local`,
-        name: githubUserNoEmail.name,
-        avatarUrl: githubUserNoEmail.avatar_url,
-        emailVerified: false,
-      });
-
-      const result = await caller.githubAuth({ code: mockCode });
-
-      expect(result).toEqual({ token: "mock-jwt-token" });
-      expect(mockPrismaClient.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            email: `github_${githubUserNoEmail.id}@placeholder.local`,
-            emailVerified: false,
-          }),
-        }),
-      );
-    });
-
-    it("should validate input", async () => {
-      const caller = createCaller();
-
-      await expect(caller.githubAuth({ code: "" })).rejects.toThrow();
     });
   });
 });
