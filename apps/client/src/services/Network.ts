@@ -310,23 +310,10 @@ export default class Network {
   }
 
   private async getOrCreateDefaultSpace(): Promise<string> {
-    const client = getTrpcClient();
-    try {
-      // Try to get user's spaces
-      const { spaces } = await client.space.getAll.query();
-      if (spaces.length > 0) {
-        return spaces[0].id;
-      }
-
-      // If no spaces, create one
-      const { spaceId } = await client.space.create.mutate({
-        name: "Welcome Area",
-        dimensions: "50x50",
-      });
-      return spaceId;
-    } catch (e) {
-      console.error("Failed to get/create space:", e);
-      throw e;
-    }
+    // Use a fixed public space ID so ALL users join the same room
+    // This ensures multiplayer works - everyone sees each other
+    const PUBLIC_SPACE_ID = "public-lobby";
+    console.log("🏠 Joining shared public space:", PUBLIC_SPACE_ID);
+    return PUBLIC_SPACE_ID;
   }
 }
