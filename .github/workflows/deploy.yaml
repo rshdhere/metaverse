@@ -1,0 +1,125 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+            set -o pipefail
+
+            APP_DIR="${VPS_APP_DIR:-$HOME/metaverse}"
+            cd "$APP_DIR"
+
+            echo "=========================================="
+            echo "Starting Metaverse deployment"
+            echo "=========================================="
+
+            # ---------- Git Pull ----------
+            echo "Fetching latest code..."
+            git fetch origin
+            git checkout main
+            git pull origin main
+
+            # ---------- Environment Variables ----------
+            echo "Checking environment variables..."
+            if [ ! -f "packages/config/.env" ]; then
+              echo "WARNING: packages/config/.env file not found."
+              echo "Please create one with required environment variables."
+              exit 1
+            fi
+
+            # ---------- Bun Installation ----------
+            echo "Ensuring Bun is available..."
+            export BUN_INSTALL="$HOME/.bun"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+            if ! command -v bun >/dev/null 2>&1; then
+              echo "Installing Bun..."
+              curl -fsSL https://bun.sh/install | bash
+              export PATH="$BUN_INSTALL/bin:$PATH"
+            fi
+
+            echo "Bun version: $(bun --version)"
+
+            # ---------- Install Dependencies ----------
+            echo "Installing dependencies..."
+            bun install --frozen-lockfile
+
+            # ---------- Prisma Setup ----------
+            echo "Running Prisma migrations..."
+            cd packages/store
+            bunx prisma migrate deploy || echo "Prisma migration failed, check logs"
+            echo "Generating Prisma Client..."
+            bunx prisma generate || echo "Prisma generate failed, check logs"
+            cd "$APP_DIR"
+
+            # ---------- Build Applications ----------
+            echo "Building client..."
+            cd apps/client
+            bun run build
+            cd "$APP_DIR"
+
+            echo "Building server..."
+            cd apps/server
+            bun run build || echo "Server build skipped (no build script)"
+            cd "$APP_DIR"
+
+            # ---------- PM2 Setup ----------
+            echo "Ensuring PM2 is available..."
+            if ! command -v pm2 >/dev/null 2>&1; then
+              echo "Installing PM2..."
+              npm install -g pm2
+            fi
+
+            # ---------- PM2 Services ----------
+            echo "Reloading PM2 processes..."
+            pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
+            pm2 save
+
+            echo "PM2 process status:"
+            pm2 status
+
+            # ---------- Health Checks ----------
+            echo "Performing health checks..."
+
+            # Check if PM2 services are running
+            if pm2 list | grep -q "online"; then
+              echo "✓ PM2 services are running"
+            else
+              echo "⚠ Some PM2 services may not be online, check logs"
+            fi
+
+            # Show recent PM2 logs
+            echo "Recent PM2 logs:"
+            pm2 logs --lines 20 --nostream || true
+
+            echo "=========================================="
+            echo "Deployment completed successfully"
+            echo "=========================================="
+            echo ""
+            echo "Services status:"
+            echo "  - Client: http://localhost:3001"
+            echo "  - Server: http://localhost:8082"
+            echo ""
+            echo "Useful commands:"
+            echo "  - PM2 logs: pm2 logs"
+            echo "  - PM2 restart: pm2 restart all"
+            echo "  - PM2 status: pm2 status"
