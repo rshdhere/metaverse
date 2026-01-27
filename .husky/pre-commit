@@ -1,2 +1,3 @@
 bun test
+cd apps/world && go test ./... && cd ../..
 bun run lint-staged

@@ -12,6 +12,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:go": "cd apps/world && go test ./...",
+    "test:all": "bun run test && bun run test:go",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "prepare": "husky"
