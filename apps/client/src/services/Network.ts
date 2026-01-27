@@ -1,6 +1,7 @@
 import { IPlayer } from "../../types/IOfficeState";
 import { ItemType } from "../../types/Items";
 import { getTrpcClient } from "../../app/lib/trpc";
+import { WS_URL } from "@repo/config/constants";
 
 // Lightweight event bus to align with client API without importing Phaser deps here
 type EventCallback = (...args: any[]) => void;
@@ -45,17 +46,8 @@ export default class Network {
   >();
 
   constructor() {
-    const wsProtocol =
-      typeof window !== "undefined" && window.location.protocol === "https:"
-        ? "wss:"
-        : "ws:";
-    // Use env var if available, otherwise fallback to localhost:8083/ws (world server WebSocket endpoint)
-    this.wsEndpoint =
-      (typeof window !== "undefined" &&
-        (process.env.NEXT_PUBLIC_WS_URL as string)) ||
-      (typeof window !== "undefined"
-        ? `${wsProtocol}//${window.location.hostname}:8083/ws`
-        : "ws://localhost:8083/ws");
+    // Use WS_URL from config (automatically handles dev vs production)
+    this.wsEndpoint = WS_URL;
 
     if (typeof window !== "undefined") {
       this.connectWebSocket();

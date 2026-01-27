@@ -11,12 +11,22 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var allowedOrigins = map[string]bool{
+	"http://localhost:3001":      true,
+	"https://game.raashed.xyz":   true,
+	"https://raashed.xyz":        true,
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	// Allow connections from any origin (configure for production)
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		// Allow if origin is in whitelist or empty (same-origin)
+		if origin == "" {
+			return true
+		}
+		return allowedOrigins[origin]
 	},
 }
 

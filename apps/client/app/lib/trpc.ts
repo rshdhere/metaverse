@@ -11,8 +11,8 @@ import { logout, isTokenExpired } from "./auth";
 export const trpc = createTRPCReact<AppRouter>();
 
 function getApiUrl() {
-  // Use environment variable or default from config
-  return process.env.NEXT_PUBLIC_API_URL || BACKEND_URL;
+  // BACKEND_URL is already environment-aware (dev vs production)
+  return BACKEND_URL;
 }
 
 export function getTrpcClient() {

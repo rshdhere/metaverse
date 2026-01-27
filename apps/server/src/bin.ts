@@ -2,11 +2,12 @@ import { createHTTPServer } from "@trpc/server/adapters/standalone";
 import cors from "cors";
 import { createContext } from "@repo/api/trpc";
 import { BACKEND_PORT } from "@repo/config";
+import { CORS_ORIGINS } from "@repo/config/constants";
 import { appRouter } from "./index";
 
 const server = createHTTPServer({
   middleware: cors({
-    origin: ["http://localhost:3001", "https://yourdomain.com"],
+    origin: CORS_ORIGINS,
     credentials: true,
   }),
   router: appRouter,
