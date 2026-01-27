@@ -160,8 +160,9 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	joinedMsg := messages.BaseMessage{
 		Type: messages.TypeSpaceJoined,
 		Payload: messages.SpaceJoinedPayload{
-			Spawn: messages.Position{X: spawnX, Y: spawnY},
-			Users: existingUsers,
+			SessionID: client.UserID,
+			Spawn:     messages.Position{X: spawnX, Y: spawnY},
+			Users:     existingUsers,
 		},
 	}
 	client.SendJSON(joinedMsg)

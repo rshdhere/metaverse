@@ -24,8 +24,9 @@ type JoinPayload struct {
 
 // SpaceJoinedPayload is sent to client after successful join
 type SpaceJoinedPayload struct {
-	Spawn Position   `json:"spawn"`
-	Users []UserInfo `json:"users"`
+	SessionID string     `json:"sessionId"`
+	Spawn     Position   `json:"spawn"`
+	Users     []UserInfo `json:"users"`
 }
 
 // UserJoinPayload is broadcast when a new user joins
