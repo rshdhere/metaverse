@@ -12,10 +12,14 @@ model User {
   email         String    @unique
   passwordHash  String?
   emailVerified Boolean   @default(false)
+  role          Role      @default(User)
   name          String?
   avatarUrl     String?
+  avatarId      String?
   isActive      Boolean   @default(true)
   accounts      Account[]
+  spaces        Space[]
+  avatar        Avatar?   @relation(fields: [avatarId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -52,6 +56,8 @@ model Space {
   width     Int
   height    Int?
   thumbnail String?
+  creatorId String
+  creator   User            @relation(fields: [creatorId], references: [id])
   elements  spaceElements[]
 }
 
@@ -70,6 +76,7 @@ model Element {
   width         Int
   height        Int
   imageUrl      String
+  static        Boolean         @default(true)
   spaceElements spaceElements[]
   mapElements   mapElements[]
 }
@@ -79,6 +86,7 @@ model Map {
   width    Int
   height   Int
   name     String
+  thumbnail String
   elements mapElements[]
 }
 
@@ -96,6 +104,7 @@ model Avatar {
   id       String  @id @unique @default(cuid())
   imageUrl String?
   name     String?
+  users    User[]
 }
 
 enum Role {

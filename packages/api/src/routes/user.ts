@@ -1,7 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { router, publicProcedure, JWT_SECRET } from "../trpc.js";
+import {
+  router,
+  publicProcedure,
+  protectedProcedure,
+  JWT_SECRET,
+} from "../trpc.js";
 import {
   userOutputValidation,
   userInputValidation,
@@ -266,6 +271,41 @@ export const userRouter = router({
       });
 
       return { token };
+    }),
+
+  updateMetadata: protectedProcedure
+    .input(z.object({ avatarId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await prismaClient.user.update({
+        where: { id: ctx.user.userId },
+        data: {
+          avatarId: input.avatarId,
+        },
+      });
+      return { success: true };
+    }),
+
+  getBulkMetadata: publicProcedure
+    .input(z.object({ ids: z.array(z.string()) }))
+    .query(async ({ input }) => {
+      const users = await prismaClient.user.findMany({
+        where: {
+          id: {
+            in: input.ids,
+          },
+        },
+        select: {
+          id: true,
+          avatar: true,
+        },
+      });
+
+      return {
+        avatars: users.map((u) => ({
+          userId: u.id,
+          imageUrl: u.avatar?.imageUrl,
+        })),
+      };
     }),
 
   githubAuth: publicProcedure
