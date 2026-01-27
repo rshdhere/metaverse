@@ -9,7 +9,7 @@ import { useAppState } from "./providers/AppStateProvider";
 export default function App() {
   const { loggedIn, computerDialogOpen, roomJoined } = useAppState();
 
-  let ui: JSX.Element;
+  let ui: React.ReactNode;
   if (loggedIn) {
     ui = computerDialogOpen ? <ComputerDialog /> : <MobileVirtualJoystick />;
   } else if (roomJoined) {
