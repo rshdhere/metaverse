@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-export default function AuthCallbackPage() {
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const token = searchParams.get("token");
+    const email = searchParams.get("email");
     const state = searchParams.get("state");
     const error = searchParams.get("error");
 
@@ -43,15 +44,23 @@ export default function AuthCallbackPage() {
     // Clear the saved state
     sessionStorage.removeItem("oauth_state");
 
-    // Store the token
+    // Store the token, email, and avatar name
     localStorage.setItem("token", token);
+    localStorage.setItem("authToken", token);
+    if (email) {
+      localStorage.setItem("username", email);
+    }
+    // Set default avatar if not already set
+    if (!localStorage.getItem("avatarName")) {
+      localStorage.setItem("avatarName", "adam");
+    }
 
     toast.success("Welcome!", {
       description: "You have been signed in with GitHub successfully.",
     });
 
-    // Redirect to home after a short delay to show the toast
-    setTimeout(() => router.push("/"), 1500);
+    // Redirect to space catalog after a short delay to show the toast
+    setTimeout(() => router.push("/space"), 1500);
   }, [searchParams, router]);
 
   // Only show a loading spinner while processing
@@ -59,5 +68,19 @@ export default function AuthCallbackPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100" />
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-4">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100" />
+        </div>
+      }
+    >
+      <CallbackContent />
+    </Suspense>
   );
 }

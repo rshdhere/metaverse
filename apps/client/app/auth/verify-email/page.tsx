@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ function getErrorMessage(error: { message: string }): string {
   return error.message;
 }
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
@@ -31,6 +31,8 @@ export default function VerifyEmailPage() {
   const verifyEmail = trpc.user.verifyEmail.useMutation({
     onSuccess: (data) => {
       localStorage.setItem("token", data.token);
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("username", data.user.email);
       setStatus("success");
       toast.success("Email verified!", {
         description: "Your account is now active.",
@@ -161,5 +163,19 @@ export default function VerifyEmailPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-4">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900 dark:border-gray-700 dark:border-t-gray-100" />
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

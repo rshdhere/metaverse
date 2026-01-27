@@ -179,7 +179,13 @@ describe("userRouter", () => {
 
       const result = await caller.verifyEmail({ token });
 
-      expect(result).toEqual({ token: "mock-jwt-token" });
+      expect(result).toEqual({
+        token: "mock-jwt-token",
+        user: {
+          id: "user-123",
+          email: "test@example.com",
+        },
+      });
       expect(
         mockPrismaClient.emailVerificationToken.findUnique,
       ).toHaveBeenCalledWith({
@@ -381,7 +387,13 @@ describe("userRouter", () => {
 
       const result = await caller.login({ email, password });
 
-      expect(result).toEqual({ token: "mock-jwt-token" });
+      expect(result).toEqual({
+        token: "mock-jwt-token",
+        user: {
+          id: "user-123",
+          email: "test@example.com",
+        },
+      });
       expect(mockPrismaClient.user.findFirst).toHaveBeenCalledWith({
         where: { email },
       });

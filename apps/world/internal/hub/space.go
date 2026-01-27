@@ -74,13 +74,13 @@ func (s *Space) IsEmpty() bool {
 }
 
 // IsValidPosition checks if a position is within bounds
-func (s *Space) IsValidPosition(x, y int) bool {
-	return x >= 0 && x < s.Width && y >= 0 && y < s.Height
+func (s *Space) IsValidPosition(x, y float64) bool {
+	return x >= 0 && x < float64(s.Width) && y >= 0 && y < float64(s.Height)
 }
 
 // IsColliding checks if a position is occupied by a user or static element
 // Returns true if colliding, false if free
-func (s *Space) IsColliding(x, y int) bool {
+func (s *Space) IsColliding(x, y float64) bool {
 	// Check bounds
 	if !s.IsValidPosition(x, y) {
 		return true
@@ -107,21 +107,21 @@ func (s *Space) IsColliding(x, y int) bool {
 	return false
 }
 
-// Helper to generate key for position map
-func posKey(x, y int) string {
-	return fmt.Sprintf("%d,%d", x, y)
+// Helper to generate key for position map (rounds to nearest int)
+func posKey(x, y float64) string {
+	return fmt.Sprintf("%d,%d", int(x), int(y))
 }
 
 
 // IsValidMove checks if a movement is valid (at most 1 block in any direction)
-func IsValidMove(oldX, oldY, newX, newY int) bool {
+func IsValidMove(oldX, oldY, newX, newY float64) bool {
 	dx := abs(newX - oldX)
 	dy := abs(newY - oldY)
 	// Allow movement of at most 1 block total (including diagonal)
 	return dx <= 1 && dy <= 1 && (dx + dy) <= 1
 }
 
-func abs(x int) int {
+func abs(x float64) float64 {
 	if x < 0 {
 		return -x
 	}

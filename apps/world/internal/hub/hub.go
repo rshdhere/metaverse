@@ -142,10 +142,10 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 
 	// Generate spawn position (random within space bounds)
 	// Make sure spawn doesn't collide
-	var spawnX, spawnY int
+	var spawnX, spawnY float64
 	for {
-		spawnX = rand.Intn(space.Width)
-		spawnY = rand.Intn(space.Height)
+		spawnX = float64(rand.Intn(space.Width))
+		spawnY = float64(rand.Intn(space.Height))
 		if !space.IsColliding(spawnX, spawnY) {
 			break
 		}
@@ -177,7 +177,7 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	}
 	h.broadcastToSpace(payload.SpaceID, userJoinMsg, client.UserID)
 
-	log.Printf("User %s joined space %s at (%d, %d)", client.UserID, payload.SpaceID, spawnX, spawnY)
+	log.Printf("User %s joined space %s at (%f, %f)", client.UserID, payload.SpaceID, spawnX, spawnY)
 }
 
 // handleMovement processes a movement request
@@ -225,7 +225,7 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 			},
 		}
 		client.SendJSON(rejectMsg)
-		log.Printf("Movement rejected for user %s: from (%d,%d) to (%d,%d). Colliding: %v, ValidMove: %v", 
+		log.Printf("Movement rejected for user %s: from (%f,%f) to (%f,%f). Colliding: %v, ValidMove: %v", 
 			client.UserID, oldX, oldY, newX, newY, isColliding, validMove)
 		return
 	}
@@ -244,7 +244,7 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 	}
 	h.broadcastToSpace(client.SpaceID, moveMsg, client.UserID)
 
-	log.Printf("User %s moved from (%d,%d) to (%d,%d)", client.UserID, oldX, oldY, newX, newY)
+	log.Printf("User %s moved from (%f,%f) to (%f,%f)", client.UserID, oldX, oldY, newX, newY)
 }
 
 // broadcastToSpace sends a message to all users in a space except the sender

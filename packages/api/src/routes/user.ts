@@ -174,7 +174,13 @@ export const userRouter = router({
         expiresIn: "1h",
       });
 
-      return { token: jwtToken };
+      return {
+        token: jwtToken,
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+      };
     }),
 
   resendVerification: publicProcedure
@@ -270,7 +276,13 @@ export const userRouter = router({
         expiresIn: "1h",
       });
 
-      return { token };
+      return {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+      };
     }),
 
   updateMetadata: protectedProcedure
@@ -470,6 +482,12 @@ export const userRouter = router({
         expiresIn: "1h",
       });
 
-      return { token };
+      return {
+        token,
+        user: {
+          id: user.id,
+          email: user.email || "",
+        },
+      };
     }),
 });

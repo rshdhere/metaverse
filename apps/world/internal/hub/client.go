@@ -31,8 +31,8 @@ type Client struct {
 	UserID  string
 	Role    string
 	SpaceID string
-	X       int
-	Y       int
+	X       float64
+	Y       float64
 	mu      sync.Mutex
 }
 
@@ -46,7 +46,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 }
 
 // SetPosition updates the client's position
-func (c *Client) SetPosition(x, y int) {
+func (c *Client) SetPosition(x, y float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.X = x
@@ -54,7 +54,7 @@ func (c *Client) SetPosition(x, y int) {
 }
 
 // GetPosition returns the client's current position
-func (c *Client) GetPosition() (int, int) {
+func (c *Client) GetPosition() (float64, float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.X, c.Y

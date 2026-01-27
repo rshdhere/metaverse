@@ -30,22 +30,22 @@ type SpaceJoinedPayload struct {
 
 // UserJoinPayload is broadcast when a new user joins
 type UserJoinPayload struct {
-	UserID string `json:"userId"`
-	X      int    `json:"x"`
-	Y      int    `json:"y"`
+	UserID string  `json:"userId"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
 }
 
 // MovementPayload is used for movement requests and broadcasts
 type MovementPayload struct {
-	X      int    `json:"x"`
-	Y      int    `json:"y"`
-	UserID string `json:"userId,omitempty"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	UserID string  `json:"userId,omitempty"`
 }
 
 // MovementRejectedPayload is sent when a movement is blocked
 type MovementRejectedPayload struct {
-	X int `json:"x"`
-	Y int `json:"y"`
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
 }
 
 // UserLeftPayload is broadcast when a user leaves
@@ -55,8 +55,8 @@ type UserLeftPayload struct {
 
 // Position represents x,y coordinates
 type Position struct {
-	X int `json:"x"`
-	Y int `json:"y"`
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
 }
 
 // UserInfo represents user data for space listing
@@ -82,8 +82,8 @@ type UserInfo struct {
 	// But later "Join event" has x,y.
 	// I will keep X,Y in UserInfo because it logicially makes sense, 
 	// and if the frontend ignores it, it's fine.
-	X      int    `json:"x,omitempty"` // Making omitempty just in case
-	Y      int    `json:"y,omitempty"` // Making omitempty just in case
+	X      float64 `json:"x,omitempty"` // Making omitempty just in case
+	Y      float64 `json:"y,omitempty"` // Making omitempty just in case
 }
 
 // IncomingMessage for parsing client messages
@@ -98,6 +98,6 @@ type IncomingPayload struct {
 	SpaceID string `json:"spaceId,omitempty"`
 	Token   string `json:"token,omitempty"`
 	// For movement
-	X      int    `json:"x,omitempty"`
-	Y      int    `json:"y,omitempty"`
+	X      float64 `json:"x,omitempty"`
+	Y      float64 `json:"y,omitempty"`
 }

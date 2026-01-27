@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { trpc, getTrpcClient, createQueryClient } from "@/lib/trpc";
@@ -14,7 +14,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <TokenMonitor />
-        {children}
+        {children as any}
         <Toaster
           position="bottom-right"
           richColors

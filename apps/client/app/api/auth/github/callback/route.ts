@@ -204,9 +204,9 @@ export async function GET(request: NextRequest) {
       expiresIn: "1h",
     });
 
-    // Redirect to callback page with token
+    // Redirect to callback page with token and email
     return NextResponse.redirect(
-      `${FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}&state=${encodeURIComponent(state || "")}`,
+      `${FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}&state=${encodeURIComponent(state || "")}`,
     );
   } catch (err) {
     console.error("GitHub OAuth error:", err);

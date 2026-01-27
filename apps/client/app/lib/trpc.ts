@@ -5,7 +5,7 @@ import { httpBatchLink } from "@trpc/client";
 import { TRPCClientError } from "@trpc/client";
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import { BACKEND_URL } from "@repo/config/constants";
-import type { AppRouter } from "server";
+import type { AppRouter } from "@repo/api";
 import { logout, isTokenExpired } from "./auth";
 
 export const trpc = createTRPCReact<AppRouter>();

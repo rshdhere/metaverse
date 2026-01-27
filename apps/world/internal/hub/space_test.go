@@ -5,10 +5,10 @@ import "testing"
 func TestIsValidMove(t *testing.T) {
 	tests := []struct {
 		name     string
-		oldX     int
-		oldY     int
-		newX     int
-		newY     int
+		oldX     float64
+		oldY     float64
+		newX     float64
+		newY     float64
 		expected bool
 	}{
 		// Valid moves
@@ -37,7 +37,7 @@ func TestIsValidMove(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := IsValidMove(tt.oldX, tt.oldY, tt.newX, tt.newY)
 			if result != tt.expected {
-				t.Errorf("IsValidMove(%d, %d, %d, %d) = %v; want %v",
+				t.Errorf("IsValidMove(%f, %f, %f, %f) = %v; want %v",
 					tt.oldX, tt.oldY, tt.newX, tt.newY, result, tt.expected)
 			}
 		})
@@ -49,8 +49,8 @@ func TestSpaceIsValidPosition(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		x        int
-		y        int
+		x        float64
+		y        float64
 		expected bool
 	}{
 		// Valid positions
@@ -71,7 +71,7 @@ func TestSpaceIsValidPosition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := space.IsValidPosition(tt.x, tt.y)
 			if result != tt.expected {
-				t.Errorf("IsValidPosition(%d, %d) = %v; want %v",
+				t.Errorf("IsValidPosition(%f, %f) = %v; want %v",
 					tt.x, tt.y, result, tt.expected)
 			}
 		})
@@ -90,8 +90,8 @@ func TestSpaceIsColliding(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		x        int
-		y        int
+		x        float64
+		y        float64
 		expected bool // true = collision
 	}{
 		// No collision
@@ -110,7 +110,7 @@ func TestSpaceIsColliding(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := space.IsColliding(tt.x, tt.y)
 			if result != tt.expected {
-				t.Errorf("IsColliding(%d, %d) = %v; want %v",
+				t.Errorf("IsColliding(%f, %f) = %v; want %v",
 					tt.x, tt.y, result, tt.expected)
 			}
 		})

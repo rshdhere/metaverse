@@ -60,7 +60,13 @@ describe("githubAuth", () => {
 
     const result = await caller.githubAuth({ code: mockCode });
 
-    expect(result).toEqual({ token: "mock-jwt-token" });
+    expect(result).toEqual({
+      token: "mock-jwt-token",
+      user: {
+        id: "user-123",
+        email: "test@example.com",
+      },
+    });
     expect(mockFetch).toHaveBeenCalledTimes(3);
     expect(mockPrismaClient.user.create).toHaveBeenCalled();
     expect(mockJwtSign).toHaveBeenCalled();
@@ -96,7 +102,13 @@ describe("githubAuth", () => {
 
     const result = await caller.githubAuth({ code: mockCode });
 
-    expect(result).toEqual({ token: "mock-jwt-token" });
+    expect(result).toEqual({
+      token: "mock-jwt-token",
+      user: {
+        id: "existing-user-123",
+        email: "test@example.com",
+      },
+    });
     expect(mockPrismaClient.account.create).toHaveBeenCalled();
     expect(mockPrismaClient.user.update).toHaveBeenCalled();
   });
@@ -134,7 +146,13 @@ describe("githubAuth", () => {
 
     const result = await caller.githubAuth({ code: mockCode });
 
-    expect(result).toEqual({ token: "mock-jwt-token" });
+    expect(result).toEqual({
+      token: "mock-jwt-token",
+      user: {
+        id: "user-123",
+        email: "test@example.com",
+      },
+    });
     expect(mockPrismaClient.user.update).toHaveBeenCalled();
     expect(mockPrismaClient.account.update).toHaveBeenCalled();
   });
@@ -199,7 +217,13 @@ describe("githubAuth", () => {
 
     const result = await caller.githubAuth({ code: mockCode });
 
-    expect(result).toEqual({ token: "mock-jwt-token" });
+    expect(result).toEqual({
+      token: "mock-jwt-token",
+      user: {
+        id: "user-123",
+        email: "github_12345@placeholder.local",
+      },
+    });
     expect(mockPrismaClient.user.create).toHaveBeenCalled();
   });
 

@@ -24,6 +24,10 @@ export const userInputValidation = z
 
 export const userOutputValidation = z.object({
   token: z.string(),
+  user: z.object({
+    id: z.string(),
+    email: z.string(),
+  }),
 });
 
 // GitHub OAuth input validation
