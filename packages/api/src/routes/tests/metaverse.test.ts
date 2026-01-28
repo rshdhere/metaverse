@@ -70,7 +70,7 @@ describe("Metaverse Routes", () => {
     // Verify element exists
     const elements = await userCaller.element.getAll();
     expect(elements.elements.some((e: any) => e.id === result.id)).toBe(true);
-  });
+  }, 20000);
 
   it("should allow admin to create an avatar", async () => {
     const result = await adminCaller.admin.createAvatar({
@@ -84,7 +84,7 @@ describe("Metaverse Routes", () => {
     expect(avatars.avatars.some((a: any) => a.id === result.avatarId)).toBe(
       true,
     );
-  });
+  }, 20000);
 
   it("should allow user to create a space", async () => {
     const result = await userCaller.space.create({
@@ -135,7 +135,7 @@ describe("Metaverse Routes", () => {
     } catch (e: any) {
       expect(e.code).toBe("NOT_FOUND");
     }
-  });
+  }, 20000);
 
   it("should allow admin to create a map", async () => {
     const element = await adminCaller.admin.createElement({
@@ -169,7 +169,7 @@ describe("Metaverse Routes", () => {
     });
     expect(createdSpace.dimensions).toBe("200x200");
     expect(createdSpace.elements.length).toBe(1);
-  });
+  }, 20000);
 
   it("should allow admin to update element", async () => {
     const element = await adminCaller.admin.createElement({

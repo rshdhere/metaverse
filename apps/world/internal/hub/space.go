@@ -34,10 +34,16 @@ func (s *Space) AddUser(client *Client) {
 }
 
 // RemoveUser removes a user from the space
-func (s *Space) RemoveUser(userID string) {
+// RemoveUser removes a user from the space
+// Returns true if the user was actually removed (matched the client)
+func (s *Space) RemoveUser(client *Client) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.Users, userID)
+	if existing, ok := s.Users[client.UserID]; ok && existing == client {
+		delete(s.Users, client.UserID)
+		return true
+	}
+	return false
 }
 
 // GetUsers returns a slice of all users in the space except the given userID

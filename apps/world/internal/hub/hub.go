@@ -57,35 +57,50 @@ func (h *Hub) Run() {
 // handleDisconnect handles client disconnection
 func (h *Hub) handleDisconnect(client *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	if _, ok := h.Clients[client]; ok {
 		delete(h.Clients, client)
 		close(client.Send)
 	}
 
-	// If client was in a space, remove them and notify others
-	if client.SpaceID != "" {
-		if space, exists := h.Spaces[client.SpaceID]; exists {
-			space.RemoveUser(client.UserID)
+	spaceID := client.SpaceID
+	userID := client.UserID
+	var space *Space
+	if spaceID != "" {
+		space = h.Spaces[spaceID]
+	}
+	// Release lock before doing anything that might take a long time or acquire other locks
+	// specifically checking space logic which might interact with broadcast
+	h.mu.Unlock()
 
+	if space != nil {
+		// If client was in a space, remove them and notify others
+		// This now returns true only if THIS client was the one in the space
+		removed := space.RemoveUser(client)
+
+		if removed {
 			// Broadcast user-left to remaining users
 			leaveMsg := messages.BaseMessage{
 				Type: messages.TypeUserLeft,
 				Payload: messages.UserLeftPayload{
-					UserID: client.UserID,
+					UserID: userID,
 				},
 			}
-			h.broadcastToSpace(client.SpaceID, leaveMsg, client.UserID)
+			h.broadcastToSpace(spaceID, leaveMsg, userID)
 
 			// Clean up empty spaces
 			if space.IsEmpty() {
-				delete(h.Spaces, client.SpaceID)
-				log.Printf("Space %s removed (empty)", client.SpaceID)
+				h.mu.Lock()
+				// Double check existence under lock
+				if _, ok := h.Spaces[spaceID]; ok && space.IsEmpty() {
+					delete(h.Spaces, spaceID)
+					log.Printf("Space %s removed (empty)", spaceID)
+				}
+				h.mu.Unlock()
 			}
 		}
 	}
-	log.Printf("Client %s disconnected", client.UserID)
+	log.Printf("Client %s disconnected", userID)
 }
 
 // ProcessMessage handles incoming messages from clients
