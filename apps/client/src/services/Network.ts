@@ -83,6 +83,23 @@ export default class Network {
   }
 
   /**
+   * Full reset for re-joining a space after returning to the arena.
+   * This clears ALL state including join flags, allowing a fresh join.
+   */
+  resetForRejoin() {
+    console.log("🔄 Network.resetForRejoin() - Full state reset for rejoin");
+    this.knownUsers.clear();
+    this.userSnapshots.clear();
+    this.eventQueue = [];
+    this.createdPlayers.clear();
+    this.hasJoinedSpace = false;
+    this.joinInProgress = false;
+    this.gameSceneReady = false;
+    this.currentPosition = null;
+    this.currentSpaceId = null;
+  }
+
+  /**
    * Retrieve last saved position from localStorage.
    * Returns null if no valid position exists or if it's too old (>24 hours).
    */

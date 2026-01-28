@@ -86,6 +86,7 @@ export default function ArenaPage() {
             setMyAvatarName?: (name: string) => void;
             applyAuth?: (token: string, username?: string) => void;
             joinOrCreatePublic?: () => Promise<void>;
+            resetForRejoin?: () => void;
           };
         };
         type WindowGame = { scene?: { keys?: Record<string, SceneBootstrap> } };
@@ -117,6 +118,9 @@ export default function ArenaPage() {
               if (bootstrap.setPendingAvatarName) {
                 bootstrap.setPendingAvatarName(finalAvatar);
               }
+
+              // Reset network state for fresh join
+              bootstrap.network.resetForRejoin?.();
 
               // Apply auth to the shared Phaser network instance
               if (token && displayName) {
