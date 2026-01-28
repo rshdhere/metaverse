@@ -4,6 +4,17 @@ import { getTrpcClient } from "../../app/lib/trpc";
 import { WS_URL } from "@repo/config/constants";
 import { phaserEvents, Event } from "../events/EventCenter";
 
+// Types for queued events
+type QueuedEvent =
+  | { type: "PLAYER_JOINED"; player: IPlayer; id: string }
+  | { type: "PLAYER_LEFT"; id: string }
+  | {
+      type: "PLAYER_UPDATED";
+      field: string;
+      value: number | string;
+      id: string;
+    };
+
 export default class Network {
   private ws?: WebSocket;
   mySessionId!: string;
@@ -18,12 +29,106 @@ export default class Network {
     { x: number; y: number; name?: string }
   >();
 
+  // Event queue for buffering events until Game scene is ready
+  private eventQueue: QueuedEvent[] = [];
+  private gameSceneReady = false;
+
+  // Track players that have been successfully created in the Game scene
+  private createdPlayers = new Set<string>();
+
   constructor() {
     // Use WS_URL from config (automatically handles dev vs production)
     this.wsEndpoint = WS_URL;
 
     if (typeof window !== "undefined") {
       this.connectWebSocket();
+    }
+  }
+
+  /**
+   * Reset all state when joining a new space or reconnecting.
+   * This ensures no stale data causes issues.
+   */
+  resetState() {
+    console.log("🔄 Network.resetState() - Clearing all player state");
+    this.knownUsers.clear();
+    this.userSnapshots.clear();
+    this.eventQueue = [];
+    this.createdPlayers.clear();
+    // Note: gameSceneReady is NOT reset, as the scene is still ready
+  }
+
+  /**
+   * Called by Game scene when it has finished registering event listeners.
+   * Flushes all queued events to ensure no player joins are missed.
+   */
+  setGameSceneReady() {
+    if (this.gameSceneReady) {
+      // Already ready - but still flush any pending events
+      console.log(
+        `🎯 Game scene already ready. Flushing ${this.eventQueue.length} pending events.`,
+      );
+    } else {
+      console.log(
+        `🎯 Game scene now ready. Flushing ${this.eventQueue.length} queued events.`,
+      );
+      this.gameSceneReady = true;
+    }
+
+    // Always flush queued events
+    this.flushEventQueue();
+  }
+
+  /**
+   * Flush all queued events in order.
+   */
+  private flushEventQueue() {
+    while (this.eventQueue.length > 0) {
+      const event = this.eventQueue.shift()!;
+      this.emitEvent(event);
+    }
+  }
+
+  /**
+   * Emit an event immediately if Game scene is ready, otherwise queue it.
+   */
+  private queueOrEmit(event: QueuedEvent) {
+    if (this.gameSceneReady) {
+      this.emitEvent(event);
+    } else {
+      console.log(`📦 Queuing event (scene not ready):`, event.type, event.id);
+      this.eventQueue.push(event);
+    }
+  }
+
+  /**
+   * Actually emit the event to Phaser event system.
+   * Includes deduplication for PLAYER_JOINED events.
+   */
+  private emitEvent(event: QueuedEvent) {
+    switch (event.type) {
+      case "PLAYER_JOINED":
+        // Prevent duplicate player creation
+        if (this.createdPlayers.has(event.id)) {
+          console.log("⏭️ Player already created, skipping:", event.id);
+          return;
+        }
+        console.log("🎮 Emitting PLAYER_JOINED:", event.id, event.player);
+        this.createdPlayers.add(event.id);
+        phaserEvents.emit(Event.PLAYER_JOINED, event.player, event.id);
+        break;
+      case "PLAYER_LEFT":
+        this.createdPlayers.delete(event.id);
+        phaserEvents.emit(Event.PLAYER_LEFT, event.id);
+        break;
+      case "PLAYER_UPDATED":
+        phaserEvents.emit(
+          Event.PLAYER_UPDATED,
+          event.field,
+          event.value,
+          event.id,
+        );
+        break;
     }
   }
 
@@ -71,6 +176,10 @@ export default class Network {
         case "space-joined": {
           const sessionId = data.payload?.sessionId;
           console.log("📥 space-joined received, sessionId:", sessionId);
+
+          // Reset state to clear any stale player data from previous join attempts
+          this.resetState();
+
           if (sessionId && typeof sessionId === "string") {
             this.mySessionId = sessionId;
           }
@@ -85,37 +194,21 @@ export default class Network {
           console.log("📋 Existing users in space:", users.length, users);
           users.forEach((u) => {
             const uid = u.id || u.userId;
-            console.log("👤 Processing existing user:", {
-              uid,
-              x: u.x,
-              y: u.y,
-              name: u.name,
-              avatarName: u.avatarName,
-            });
-            if (!uid) {
-              console.log("⚠️ Skipping user with no id");
-              return;
-            }
+            if (!uid) return;
             if (!this.knownUsers.has(uid)) {
               this.knownUsers.add(uid);
               const x = u.x ?? 0;
               const y = u.y ?? 0;
               this.userSnapshots.set(uid, { x, y, name: u.name || "" });
               const avatar = (u.avatarName || "adam").toLowerCase();
-              const other: IPlayer = {
+              const player: IPlayer = {
                 x,
                 y,
                 anim: `${avatar}_idle_down`,
                 name: u.name || "",
-              } as any;
-              console.log(
-                "🎮 Emitting PLAYER_JOINED for existing user:",
-                uid,
-                other,
-              );
-              phaserEvents.emit(Event.PLAYER_JOINED, other, uid);
-            } else {
-              console.log("⏭️ User already known, skipping:", uid);
+              } as IPlayer;
+              // Queue or emit immediately based on Game scene readiness
+              this.queueOrEmit({ type: "PLAYER_JOINED", player, id: uid });
             }
           });
           break;
@@ -123,27 +216,20 @@ export default class Network {
         case "user-join": {
           const { userId, x, y, avatarName, name } = data.payload;
           const uid = userId;
-          console.log("user-join received:", {
-            uid,
-            x,
-            y,
-            avatarName,
-            name,
-            alreadyKnown: this.knownUsers.has(uid),
-          });
+          console.log("user-join received:", { uid, x, y, avatarName, name });
           if (!uid) break;
           if (!this.knownUsers.has(uid)) {
             this.knownUsers.add(uid);
             this.userSnapshots.set(uid, { x, y, name: name || "" });
             const avatar = (avatarName || "adam").toLowerCase();
-            const other: IPlayer = {
+            const player: IPlayer = {
               x,
               y,
               anim: `${avatar}_idle_down`,
               name: name || "",
-            } as any;
-            console.log("🎮 Emitting PLAYER_JOINED for:", uid, other);
-            phaserEvents.emit(Event.PLAYER_JOINED, other, uid);
+            } as IPlayer;
+            // Queue or emit immediately based on Game scene readiness
+            this.queueOrEmit({ type: "PLAYER_JOINED", player, id: uid });
           }
           break;
         }
@@ -153,15 +239,33 @@ export default class Network {
             const prev = this.userSnapshots.get(userId);
             this.userSnapshots.set(userId, { x, y, name: prev?.name });
           }
-          phaserEvents.emit(Event.PLAYER_UPDATED, "x", x, userId);
-          phaserEvents.emit(Event.PLAYER_UPDATED, "y", y, userId);
+          // Movement updates are emitted immediately (player already exists)
+          // But still use queue system for consistency
+          this.queueOrEmit({
+            type: "PLAYER_UPDATED",
+            field: "x",
+            value: x,
+            id: userId,
+          });
+          this.queueOrEmit({
+            type: "PLAYER_UPDATED",
+            field: "y",
+            value: y,
+            id: userId,
+          });
           if (typeof anim === "string" && anim.length > 0) {
-            phaserEvents.emit(Event.PLAYER_UPDATED, "anim", anim, userId);
+            this.queueOrEmit({
+              type: "PLAYER_UPDATED",
+              field: "anim",
+              value: anim,
+              id: userId,
+            });
           }
           break;
         }
         case "movement-rejected": {
           const { x, y } = data.payload;
+          // Movement rejection goes directly to correct my own position
           phaserEvents.emit(Event.PLAYER_UPDATED, "x", x, this.mySessionId);
           phaserEvents.emit(Event.PLAYER_UPDATED, "y", y, this.mySessionId);
           break;
@@ -169,7 +273,6 @@ export default class Network {
         case "join-error": {
           const { error } = data.payload;
           console.error("Failed to join space:", error);
-          // Emit an event so UI can show the error
           phaserEvents.emit("JOIN_ERROR", error);
           break;
         }
@@ -177,7 +280,7 @@ export default class Network {
           const { userId } = data.payload;
           if (this.knownUsers.has(userId)) this.knownUsers.delete(userId);
           this.userSnapshots.delete(userId);
-          phaserEvents.emit(Event.PLAYER_LEFT, userId);
+          this.queueOrEmit({ type: "PLAYER_LEFT", id: userId });
           break;
         }
         default:

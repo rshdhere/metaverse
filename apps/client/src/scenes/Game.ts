@@ -255,7 +255,10 @@ export default class Game extends Phaser.Scene {
     this.network.onPlayerUpdated(this.handlePlayerUpdated, this);
     // Chat removed: no onChatMessageAdded subscription
 
-    // Notify Bootstrap that the Game scene is ready to receive events
+    // Signal that Game scene is ready - this flushes the event queue
+    this.network.setGameSceneReady();
+
+    // Also notify Bootstrap so the async launchGame() can resolve
     const bootstrapScene = this.scene.get("bootstrap") as unknown as {
       notifyGameSceneReady?: () => void;
     };
@@ -330,6 +333,13 @@ export default class Game extends Phaser.Scene {
   // function to add new player to the otherPlayer group
   private handlePlayerJoined(newPlayer: IPlayer, id: string) {
     console.log("🎮 Game.handlePlayerJoined called:", { id, newPlayer });
+
+    // Guard: Prevent duplicate player creation
+    if (this.otherPlayerMap.has(id)) {
+      console.log("⚠️ Player already exists in map, skipping:", id);
+      return;
+    }
+
     // Derive texture from the incoming anim prefix (e.g., "lucy_idle_down")
     const animKey = newPlayer.anim || "adam_idle_down";
     const texture = (animKey.split("_")[0] || "adam").toLowerCase();
@@ -348,7 +358,7 @@ export default class Game extends Phaser.Scene {
     this.otherPlayers.add(otherPlayer);
     this.otherPlayerMap.set(id, otherPlayer);
     console.log(
-      "✅ OtherPlayer added to map, total:",
+      "✅ OtherPlayer created and added to map, total:",
       this.otherPlayerMap.size,
     );
   }
