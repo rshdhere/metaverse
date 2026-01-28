@@ -36,13 +36,89 @@ export default class Network {
   // Track players that have been successfully created in the Game scene
   private createdPlayers = new Set<string>();
 
+  // Prevent multiple join attempts
+  private joinInProgress = false;
+  private hasJoinedSpace = false;
+
+  // Current position tracking for persistence
+  private currentPosition: { x: number; y: number } | null = null;
+  private currentSpaceId: string | null = null;
+
   constructor() {
     // Use WS_URL from config (automatically handles dev vs production)
     this.wsEndpoint = WS_URL;
 
     if (typeof window !== "undefined") {
       this.connectWebSocket();
+
+      // Save position to localStorage when tab is closing
+      window.addEventListener("beforeunload", () => {
+        this.savePositionToStorage();
+      });
+
+      // Also save on visibility change (mobile browsers)
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          this.savePositionToStorage();
+        }
+      });
     }
+  }
+
+  /**
+   * Save current position to localStorage for persistence across tab closes.
+   */
+  private savePositionToStorage() {
+    if (this.currentPosition && this.currentSpaceId && this.mySessionId) {
+      const positionData = {
+        x: this.currentPosition.x,
+        y: this.currentPosition.y,
+        spaceId: this.currentSpaceId,
+        userId: this.mySessionId,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem("lastPlayerPosition", JSON.stringify(positionData));
+      console.log("💾 Position saved:", positionData);
+    }
+  }
+
+  /**
+   * Retrieve last saved position from localStorage.
+   * Returns null if no valid position exists or if it's too old (>24 hours).
+   */
+  getLastPosition(spaceId: string): { x: number; y: number } | null {
+    try {
+      const saved = localStorage.getItem("lastPlayerPosition");
+      if (!saved) return null;
+
+      const data = JSON.parse(saved);
+      // Only use position if it's for the same space and less than 24 hours old
+      if (
+        data.spaceId === spaceId &&
+        data.userId === this.mySessionId &&
+        Date.now() - data.timestamp < 24 * 60 * 60 * 1000
+      ) {
+        console.log("📍 Restored last position:", data.x, data.y);
+        return { x: data.x, y: data.y };
+      }
+    } catch {
+      // Invalid data, ignore
+    }
+    return null;
+  }
+
+  /**
+   * Update current position (called by MyPlayer during movement).
+   */
+  updatePosition(x: number, y: number) {
+    this.currentPosition = { x, y };
+  }
+
+  /**
+   * Set the current space ID for position persistence.
+   */
+  setCurrentSpaceId(spaceId: string) {
+    this.currentSpaceId = spaceId;
   }
 
   /**
@@ -55,7 +131,8 @@ export default class Network {
     this.userSnapshots.clear();
     this.eventQueue = [];
     this.createdPlayers.clear();
-    // Note: gameSceneReady is NOT reset, as the scene is still ready
+    // Note: gameSceneReady, joinInProgress, hasJoinedSpace are NOT reset here
+    // as we want to preserve connection state across space-joined events
   }
 
   /**
@@ -290,47 +367,66 @@ export default class Network {
   }
 
   async joinOrCreatePublic() {
-    if (!this.token) {
-      const fallback =
-        this.username || `guest-${Math.random().toString(36).slice(2, 8)}`;
-      await this.signInOrUp(fallback);
+    // Prevent multiple concurrent join attempts
+    if (this.joinInProgress) {
+      console.log("⏸️ Join already in progress, skipping duplicate request");
+      return;
     }
 
-    // Try to get existing space or create default
-    const spaceId = await this.getOrCreateDefaultSpace();
-
-    // Wait for WebSocket to be open (with timeout)
-    const maxWaitMs = 5000;
-    const pollInterval = 100;
-    let waited = 0;
-
-    while (
-      (!this.ws || this.ws.readyState !== WebSocket.OPEN) &&
-      waited < maxWaitMs
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-      waited += pollInterval;
+    // Prevent re-joining if already joined (unless explicitly reset)
+    if (this.hasJoinedSpace) {
+      console.log("✅ Already joined space, skipping duplicate join");
+      return;
     }
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.token) {
-      console.log("📤 Sending join request for space:", spaceId);
-      this.ws.send(
-        JSON.stringify({
-          type: "join",
-          payload: {
-            spaceId,
-            token: this.token,
-            name: this.username || "Guest",
-            avatarName: this.myAvatarName,
-          },
-        }),
-      );
-    } else {
-      console.error("Cannot join space: WebSocket not connected or no token");
-      console.error("  - WS exists:", !!this.ws);
-      console.error("  - WS readyState:", this.ws?.readyState);
-      console.error("  - Has token:", !!this.token);
-      phaserEvents.emit("JOIN_ERROR", "WebSocket connection failed");
+    this.joinInProgress = true;
+
+    try {
+      if (!this.token) {
+        const fallback =
+          this.username || `guest-${Math.random().toString(36).slice(2, 8)}`;
+        await this.signInOrUp(fallback);
+      }
+
+      // Try to get existing space or create default
+      const spaceId = await this.getOrCreateDefaultSpace();
+
+      // Wait for WebSocket to be open (with timeout)
+      const maxWaitMs = 5000;
+      const pollInterval = 100;
+      let waited = 0;
+
+      while (
+        (!this.ws || this.ws.readyState !== WebSocket.OPEN) &&
+        waited < maxWaitMs
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        waited += pollInterval;
+      }
+
+      if (this.ws && this.ws.readyState === WebSocket.OPEN && this.token) {
+        console.log("📤 Sending join request for space:", spaceId);
+        this.ws.send(
+          JSON.stringify({
+            type: "join",
+            payload: {
+              spaceId,
+              token: this.token,
+              name: this.username || "Guest",
+              avatarName: this.myAvatarName,
+            },
+          }),
+        );
+        this.hasJoinedSpace = true;
+      } else {
+        console.error("Cannot join space: WebSocket not connected or no token");
+        console.error("  - WS exists:", !!this.ws);
+        console.error("  - WS readyState:", this.ws?.readyState);
+        console.error("  - Has token:", !!this.token);
+        phaserEvents.emit("JOIN_ERROR", "WebSocket connection failed");
+      }
+    } finally {
+      this.joinInProgress = false;
     }
     phaserEvents.emit(Event.MY_PLAYER_READY);
   }

@@ -101,6 +101,17 @@ export default class Game extends Phaser.Scene {
       (typeof this.network.getMyAvatarName === "function"
         ? this.network.getMyAvatarName()
         : "adam") || "adam";
+
+    // Try to restore last position, or use default spawn point
+    const DEFAULT_SPAWN_X = 705;
+    const DEFAULT_SPAWN_Y = 500;
+    const lastPosition = this.network.getLastPosition("public-lobby");
+    const spawnX = lastPosition?.x ?? DEFAULT_SPAWN_X;
+    const spawnY = lastPosition?.y ?? DEFAULT_SPAWN_Y;
+
+    // Set the space ID for position persistence
+    this.network.setCurrentSpaceId("public-lobby");
+
     this.myPlayer = (
       this.add as unknown as {
         myPlayer: (
@@ -111,7 +122,11 @@ export default class Game extends Phaser.Scene {
           frame?: string | number,
         ) => MyPlayer;
       }
-    ).myPlayer(705, 500, avatarName, this.network.mySessionId);
+    ).myPlayer(spawnX, spawnY, avatarName, this.network.mySessionId);
+
+    // Initialize position tracking with spawn position
+    this.network.updatePosition(spawnX, spawnY);
+
     const initialName =
       (typeof this.network.getUsername === "function"
         ? this.network.getUsername()

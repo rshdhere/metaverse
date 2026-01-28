@@ -188,12 +188,15 @@ export default class MyPlayer extends Player {
         this.playContainerBody?.velocity.setLength(speed);
 
         // update animation according to velocity and send new location and anim to server
-        if (vx !== 0 || vy !== 0)
+        if (vx !== 0 || vy !== 0) {
           network.updatePlayer(
             this.x,
             this.y,
             this.anims.currentAnim?.key ?? "",
           );
+          // Track position for persistence across tab closes
+          network.updatePosition(this.x, this.y);
+        }
         if (vx > 0) {
           this.play(`${this.playerTexture}_run_right`, true);
         } else if (vx < 0) {
