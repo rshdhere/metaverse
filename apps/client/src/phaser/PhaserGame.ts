@@ -30,4 +30,12 @@ export function ensurePhaser() {
   return phaserGame;
 }
 
+export function destroyPhaserGame() {
+  if (phaserGame) {
+    phaserGame.destroy(true);
+    phaserGame = null;
+    (window as unknown as { game?: Phaser.Game }).game = undefined;
+  }
+}
+
 export default ensurePhaser;
