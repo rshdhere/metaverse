@@ -133,10 +133,9 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	// Get or create space (in production, you'd fetch dimensions from database)
 	space, exists := h.Spaces[payload.SpaceID]
 	if !exists {
-		// Default space dimensions - in production these would come from the database
-		// Based on the test: "dimensions": "100x200"
-		// Increasing to 3200x3200 to support pixel coordinates
-		space = NewSpace(payload.SpaceID, 3200, 3200)
+		// Default space dimensions - matching client map (40x32 width, 30x32 height)
+		// "width":40, "height":30 in map.json, tile size 32
+		space = NewSpace(payload.SpaceID, 1280, 960)
 		h.Spaces[payload.SpaceID] = space
 		log.Printf("Created new space: %s", payload.SpaceID)
 	}
@@ -144,22 +143,30 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	// Get existing users before adding the new one
 	existingUsers := make([]messages.UserInfo, 0)
 	for _, u := range space.GetAllUsers() {
+		ux, uy := u.GetPosition()
+		log.Printf("📋 Existing user: %s at (%f, %f), Name: %s, Avatar: %s", u.UserID, ux, uy, u.Name, u.AvatarName)
 		existingUsers = append(existingUsers, messages.UserInfo{
 			UserID:     u.UserID,
-			X:          u.X,
-			Y:          u.Y,
+			X:          ux,
+			Y:          uy,
 			Name:       u.Name,
 			AvatarName: u.AvatarName,
 		})
 	}
+	log.Printf("📊 Total existing users to send: %d", len(existingUsers))
 
-	// Generate spawn position (random within space bounds)
-	// Make sure spawn doesn't collide
+	// Generate spawn position near the game's visible area
+	// The client's MyPlayer spawns at (705, 500), so spawn others nearby
+	// Use a central spawn point with small random offset to avoid stacking
 	var spawnX, spawnY float64
-	for {
-		spawnX = float64(rand.Intn(space.Width))
-		spawnY = float64(rand.Intn(space.Height))
-		if !space.IsColliding(spawnX, spawnY) {
+	centerX := 705.0
+	centerY := 500.0
+	maxAttempts := 100
+	for i := 0; i < maxAttempts; i++ {
+		// Random offset: -50 to +50 from center
+		spawnX = centerX + float64(rand.Intn(101)-50)
+		spawnY = centerY + float64(rand.Intn(101)-50)
+		if !space.IsColliding(spawnX, spawnY, "") {
 			break
 		}
 	}
@@ -229,7 +236,7 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 	// If newX, newY != oldX, oldY, then IsColliding won't find THIS user at newX, newY (unless there's ANOTHER user there).
 	// So it should be fine.
 	
-	isColliding := space.IsColliding(newX, newY)
+	isColliding := space.IsColliding(newX, newY, client.UserID)
 	
 	if !validMove || isColliding {
 		// Send movement-rejected with WHERE THEY SHOULD BE (old position)

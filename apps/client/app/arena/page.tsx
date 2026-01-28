@@ -126,7 +126,7 @@ export default function ArenaPage() {
 
               // Launch the office game scene FIRST (so event listeners are registered)
               if (active && typeof bootstrap.launchGame === "function") {
-                const launched = bootstrap.launchGame();
+                const launched = await bootstrap.launchGame();
                 if (launched) {
                   setLoggedIn(true);
                   setGameInitialized(true);

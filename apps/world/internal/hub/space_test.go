@@ -111,7 +111,7 @@ func TestSpaceIsColliding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := space.IsColliding(tt.x, tt.y)
+			result := space.IsColliding(tt.x, tt.y, "")
 			if result != tt.expected {
 				t.Errorf("IsColliding(%f, %f) = %v; want %v",
 					tt.x, tt.y, result, tt.expected)

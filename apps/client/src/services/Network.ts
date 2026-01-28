@@ -70,6 +70,7 @@ export default class Network {
       switch (data.type) {
         case "space-joined": {
           const sessionId = data.payload?.sessionId;
+          console.log("📥 space-joined received, sessionId:", sessionId);
           if (sessionId && typeof sessionId === "string") {
             this.mySessionId = sessionId;
           }
@@ -81,9 +82,20 @@ export default class Network {
             avatarName?: string;
             name?: string;
           }> = data.payload?.users ?? [];
+          console.log("📋 Existing users in space:", users.length, users);
           users.forEach((u) => {
             const uid = u.id || u.userId;
-            if (!uid) return;
+            console.log("👤 Processing existing user:", {
+              uid,
+              x: u.x,
+              y: u.y,
+              name: u.name,
+              avatarName: u.avatarName,
+            });
+            if (!uid) {
+              console.log("⚠️ Skipping user with no id");
+              return;
+            }
             if (!this.knownUsers.has(uid)) {
               this.knownUsers.add(uid);
               const x = u.x ?? 0;
@@ -96,7 +108,14 @@ export default class Network {
                 anim: `${avatar}_idle_down`,
                 name: u.name || "",
               } as any;
+              console.log(
+                "🎮 Emitting PLAYER_JOINED for existing user:",
+                uid,
+                other,
+              );
               phaserEvents.emit(Event.PLAYER_JOINED, other, uid);
+            } else {
+              console.log("⏭️ User already known, skipping:", uid);
             }
           });
           break;

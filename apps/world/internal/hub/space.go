@@ -80,7 +80,7 @@ func (s *Space) IsValidPosition(x, y float64) bool {
 
 // IsColliding checks if a position is occupied by a user or static element
 // Returns true if colliding, false if free
-func (s *Space) IsColliding(x, y float64) bool {
+func (s *Space) IsColliding(x, y float64, excludeUserID string) bool {
 	// Check bounds
 	if !s.IsValidPosition(x, y) {
 		return true
@@ -98,6 +98,9 @@ func (s *Space) IsColliding(x, y float64) bool {
 
 	// Check other users
 	for _, user := range s.Users {
+		if user.UserID == excludeUserID {
+			continue
+		}
 		ux, uy := user.GetPosition()
 		if ux == x && uy == y {
 			return true

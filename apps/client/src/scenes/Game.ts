@@ -254,6 +254,14 @@ export default class Game extends Phaser.Scene {
     // listen for position/anim updates
     this.network.onPlayerUpdated(this.handlePlayerUpdated, this);
     // Chat removed: no onChatMessageAdded subscription
+
+    // Notify Bootstrap that the Game scene is ready to receive events
+    const bootstrapScene = this.scene.get("bootstrap") as unknown as {
+      notifyGameSceneReady?: () => void;
+    };
+    if (bootstrapScene?.notifyGameSceneReady) {
+      bootstrapScene.notifyGameSceneReady();
+    }
   }
 
   private handleItemSelectorOverlap(
@@ -367,6 +375,14 @@ export default class Game extends Phaser.Scene {
     value: number | string,
     id: string,
   ) {
+    // If it's ME, it means the server rejected my movement and sent me back
+    if (this.network && id === this.network.mySessionId) {
+      console.log("⚠️ Server corrected my position:", field, value);
+      if (field === "x") this.myPlayer.x = value as number;
+      if (field === "y") this.myPlayer.y = value as number;
+      return;
+    }
+
     const otherPlayer = this.otherPlayerMap.get(id);
     otherPlayer?.updateOtherPlayer(field, value);
   }

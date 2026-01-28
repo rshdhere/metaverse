@@ -5,6 +5,7 @@ export default class Bootstrap extends Phaser.Scene {
   private preloadComplete = false;
   network!: Network;
   private pendingAvatarName?: string;
+  private gameSceneReadyResolve?: () => void;
 
   constructor() {
     super("bootstrap");
@@ -94,7 +95,15 @@ export default class Bootstrap extends Phaser.Scene {
     return this.preloadComplete;
   }
 
-  launchGame() {
+  // Called by Game scene when it's fully ready
+  notifyGameSceneReady() {
+    if (this.gameSceneReadyResolve) {
+      this.gameSceneReadyResolve();
+      this.gameSceneReadyResolve = undefined;
+    }
+  }
+
+  async launchGame(): Promise<boolean> {
     if (!this.preloadComplete) {
       console.warn("Cannot launch game - preload not complete");
       return false;
@@ -114,12 +123,24 @@ export default class Bootstrap extends Phaser.Scene {
       this.network.setMyAvatarName(this.pendingAvatarName);
     }
 
+    // Create a promise that resolves when the Game scene is fully ready
+    const gameReadyPromise = new Promise<void>((resolve) => {
+      this.gameSceneReadyResolve = resolve;
+    });
+
     // Launch the game scene with the office map
     this.scene.launch("game", {
       network: this.network,
     });
 
-    console.log("Game scene launched successfully");
+    // Wait for Game scene to signal it's ready (with timeout)
+    const timeoutPromise = new Promise<void>((resolve) => {
+      setTimeout(resolve, 2000); // 2 second timeout
+    });
+
+    await Promise.race([gameReadyPromise, timeoutPromise]);
+
+    console.log("Game scene launched and ready");
     return true;
   }
 }
