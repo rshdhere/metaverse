@@ -99,16 +99,6 @@ export default class Network {
               phaserEvents.emit(Event.PLAYER_JOINED, other, uid);
             }
           });
-          // Set my spawn position
-          if (data.payload?.spawn) {
-            console.log("📍 Spawn position received:", data.payload.spawn);
-            phaserEvents.emit(
-              Event.MY_PLAYER_SET_POSITION,
-              data.payload.spawn.x,
-              data.payload.spawn.y,
-            );
-          }
-          phaserEvents.emit(Event.MY_PLAYER_READY);
           break;
         }
         case "user-join": {
@@ -153,8 +143,8 @@ export default class Network {
         }
         case "movement-rejected": {
           const { x, y } = data.payload;
-          console.warn("⚠️ Movement rejected, correcting position to:", x, y);
-          phaserEvents.emit(Event.MY_PLAYER_SET_POSITION, x, y);
+          phaserEvents.emit(Event.PLAYER_UPDATED, "x", x, this.mySessionId);
+          phaserEvents.emit(Event.PLAYER_UPDATED, "y", y, this.mySessionId);
           break;
         }
         case "join-error": {
@@ -220,7 +210,7 @@ export default class Network {
       console.error("  - Has token:", !!this.token);
       phaserEvents.emit("JOIN_ERROR", "WebSocket connection failed");
     }
-    // phaserEvents.emit(Event.MY_PLAYER_READY); // Removed: we emit this on space-joined now
+    phaserEvents.emit(Event.MY_PLAYER_READY);
   }
 
   async createRoom(
