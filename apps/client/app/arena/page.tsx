@@ -197,14 +197,25 @@ export default function ArenaPage() {
   }
 
   return (
-    <div className="fixed inset-0">
+    <div className="fixed inset-0" style={{ backgroundColor: "#2d3250" }}>
       {/* Phaser canvas container */}
-      <div id="phaser-container" style={{ position: "fixed", inset: 0 }} />
+      <div
+        id="phaser-container"
+        style={{
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "#2d3250",
+          zIndex: 0,
+        }}
+      />
       <PhaserGameWrapper />
 
       {/* UI overlay - only show when game is initialized */}
       {gameInitialized && (
-        <div className="absolute top-0 left-0 h-full w-full z-0 pointer-events-none">
+        <div
+          className="absolute top-0 left-0 h-full w-full pointer-events-none"
+          style={{ zIndex: 10 }}
+        >
           {computerDialogOpen ? <ComputerDialog /> : <MobileVirtualJoystick />}
         </div>
       )}
