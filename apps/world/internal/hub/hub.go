@@ -135,7 +135,8 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	if !exists {
 		// Default space dimensions - in production these would come from the database
 		// Based on the test: "dimensions": "100x200"
-		space = NewSpace(payload.SpaceID, 100, 200)
+		// Increasing to 3200x3200 to support pixel coordinates
+		space = NewSpace(payload.SpaceID, 3200, 3200)
 		h.Spaces[payload.SpaceID] = space
 		log.Printf("Created new space: %s", payload.SpaceID)
 	}
