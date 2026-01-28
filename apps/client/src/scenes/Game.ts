@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 
 // import { debugDraw } from '../utils/debug'
 import { createCharacterAnims } from "../anims/CharacterAnims";
+import { Event, phaserEvents } from "../events/EventCenter";
 
 import Item from "../items/Item";
 import Chair from "../items/Chair";
@@ -253,7 +254,22 @@ export default class Game extends Phaser.Scene {
     // WebRTC removed
     // listen for position/anim updates
     this.network.onPlayerUpdated(this.handlePlayerUpdated, this);
+    phaserEvents.on(
+      Event.MY_PLAYER_SET_POSITION,
+      this.handleMyPlayerSetPosition,
+      this,
+    );
     // Chat removed: no onChatMessageAdded subscription
+  }
+
+  private handleMyPlayerSetPosition(x: number, y: number) {
+    if (this.myPlayer) {
+      this.myPlayer.x = x;
+      this.myPlayer.y = y;
+      this.myPlayer.playerContainer.x = x;
+      this.myPlayer.playerContainer.y = y - 30;
+      console.log("📍 Teleported myPlayer to:", x, y);
+    }
   }
 
   private handleItemSelectorOverlap(

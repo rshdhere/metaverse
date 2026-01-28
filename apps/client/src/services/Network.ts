@@ -99,6 +99,16 @@ export default class Network {
               phaserEvents.emit(Event.PLAYER_JOINED, other, uid);
             }
           });
+          // Set my spawn position
+          if (data.payload?.spawn) {
+            console.log("📍 Spawn position received:", data.payload.spawn);
+            phaserEvents.emit(
+              Event.MY_PLAYER_SET_POSITION,
+              data.payload.spawn.x,
+              data.payload.spawn.y,
+            );
+          }
+          phaserEvents.emit(Event.MY_PLAYER_READY);
           break;
         }
         case "user-join": {
@@ -143,8 +153,8 @@ export default class Network {
         }
         case "movement-rejected": {
           const { x, y } = data.payload;
-          phaserEvents.emit(Event.PLAYER_UPDATED, "x", x, this.mySessionId);
-          phaserEvents.emit(Event.PLAYER_UPDATED, "y", y, this.mySessionId);
+          console.warn("⚠️ Movement rejected, correcting position to:", x, y);
+          phaserEvents.emit(Event.MY_PLAYER_SET_POSITION, x, y);
           break;
         }
         case "join-error": {
@@ -181,8 +191,11 @@ export default class Network {
     const maxWaitMs = 5000;
     const pollInterval = 100;
     let waited = 0;
-    
-    while ((!this.ws || this.ws.readyState !== WebSocket.OPEN) && waited < maxWaitMs) {
+
+    while (
+      (!this.ws || this.ws.readyState !== WebSocket.OPEN) &&
+      waited < maxWaitMs
+    ) {
       await new Promise((resolve) => setTimeout(resolve, pollInterval));
       waited += pollInterval;
     }
@@ -207,7 +220,7 @@ export default class Network {
       console.error("  - Has token:", !!this.token);
       phaserEvents.emit("JOIN_ERROR", "WebSocket connection failed");
     }
-    phaserEvents.emit(Event.MY_PLAYER_READY);
+    // phaserEvents.emit(Event.MY_PLAYER_READY); // Removed: we emit this on space-joined now
   }
 
   async createRoom(
