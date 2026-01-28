@@ -16,20 +16,23 @@ func TestIsValidMove(t *testing.T) {
 		{"move left 1", 5, 5, 4, 5, true},
 		{"move up 1", 5, 5, 5, 4, true},
 		{"move down 1", 5, 5, 5, 6, true},
-		{"stay in place", 5, 5, 5, 5, true},
 
-		// Invalid moves - too far
-		{"move right 2", 5, 5, 7, 5, false},
-		{"move left 2", 5, 5, 3, 5, false},
-		{"move up 2", 5, 5, 5, 3, false},
-		{"move down 2", 5, 5, 5, 7, false},
+		// Moves within new limit (20)
+		{"move right 2", 5, 5, 7, 5, true},
+		{"move left 2", 5, 5, 3, 5, true},
+		{"move up 2", 5, 5, 5, 3, true},
+		{"move down 2", 5, 5, 5, 7, true},
 
-		// Invalid moves - diagonal (dx + dy > 1)
-		{"diagonal move", 5, 5, 6, 6, false},
-		{"diagonal move opposite", 5, 5, 4, 4, false},
+		// Diagonal moves (now allowed)
+		{"diagonal move", 5, 5, 6, 6, true},
+		{"diagonal move opposite", 5, 5, 4, 4, true},
+		
+		// Large valid move
+		{"large valid move", 5, 5, 25, 25, true},
 
-		// Edge cases
-		{"large move", 5, 5, 100, 100, false},
+		// Invalid moves - too far (>20)
+		{"move right 21", 5, 5, 26, 5, false},
+		{"move extreme", 5, 5, 100, 100, false},
 		{"move from origin", 0, 0, 1, 0, true},
 	}
 
