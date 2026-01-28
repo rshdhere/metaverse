@@ -4,6 +4,7 @@ package messages
 const (
 	TypeJoin             = "join"
 	TypeSpaceJoined      = "space-joined"
+	TypeJoinError        = "join-error"
 	TypeUserJoin         = "user-join"
 	TypeMovement         = "movement"
 	TypeMovementRejected = "movement-rejected"
@@ -31,9 +32,11 @@ type SpaceJoinedPayload struct {
 
 // UserJoinPayload is broadcast when a new user joins
 type UserJoinPayload struct {
-	UserID string  `json:"userId"`
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
+	UserID     string  `json:"userId"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	Name       string  `json:"name,omitempty"`
+	AvatarName string  `json:"avatarName,omitempty"`
 }
 
 // MovementPayload is used for movement requests and broadcasts
@@ -41,6 +44,7 @@ type MovementPayload struct {
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
 	UserID string  `json:"userId,omitempty"`
+	Anim   string  `json:"anim,omitempty"`
 }
 
 // MovementRejectedPayload is sent when a movement is blocked
@@ -52,6 +56,11 @@ type MovementRejectedPayload struct {
 // UserLeftPayload is broadcast when a user leaves
 type UserLeftPayload struct {
 	UserID string `json:"userId"`
+}
+
+// JoinErrorPayload is sent when a join request fails
+type JoinErrorPayload struct {
+	Error string `json:"error"`
 }
 
 // Position represents x,y coordinates
@@ -83,8 +92,10 @@ type UserInfo struct {
 	// But later "Join event" has x,y.
 	// I will keep X,Y in UserInfo because it logicially makes sense, 
 	// and if the frontend ignores it, it's fine.
-	X      float64 `json:"x,omitempty"` // Making omitempty just in case
-	Y      float64 `json:"y,omitempty"` // Making omitempty just in case
+	X          float64 `json:"x,omitempty"`
+	Y          float64 `json:"y,omitempty"`
+	Name       string  `json:"name,omitempty"`
+	AvatarName string  `json:"avatarName,omitempty"`
 }
 
 // IncomingMessage for parsing client messages
@@ -99,6 +110,10 @@ type IncomingPayload struct {
 	SpaceID string `json:"spaceId,omitempty"`
 	Token   string `json:"token,omitempty"`
 	// For movement
-	X      float64 `json:"x,omitempty"`
-	Y      float64 `json:"y,omitempty"`
+	X          float64 `json:"x,omitempty"`
+	Y          float64 `json:"y,omitempty"`
+	Anim       string  `json:"anim,omitempty"`
+	// User details
+	Name       string `json:"name,omitempty"`
+	AvatarName string `json:"avatarName,omitempty"`
 }

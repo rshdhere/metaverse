@@ -112,12 +112,22 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	claims, err := auth.ValidateToken(payload.Token)
 	if err != nil {
 		log.Printf("Invalid token: %v", err)
+		// Send error response to client
+		errorMsg := messages.BaseMessage{
+			Type: messages.TypeJoinError,
+			Payload: messages.JoinErrorPayload{
+				Error: "Invalid or expired token",
+			},
+		}
+		client.SendJSON(errorMsg)
 		return
 	}
 
 	client.UserID = claims.UserID
 	client.Role = claims.Role
 	client.SpaceID = payload.SpaceID
+	client.Name = payload.Name
+	client.AvatarName = payload.AvatarName
 
 	h.mu.Lock()
 	// Get or create space (in production, you'd fetch dimensions from database)
@@ -134,9 +144,11 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	existingUsers := make([]messages.UserInfo, 0)
 	for _, u := range space.GetAllUsers() {
 		existingUsers = append(existingUsers, messages.UserInfo{
-			UserID: u.UserID,
-			X:      u.X,
-			Y:      u.Y,
+			UserID:     u.UserID,
+			X:          u.X,
+			Y:          u.Y,
+			Name:       u.Name,
+			AvatarName: u.AvatarName,
 		})
 	}
 
@@ -171,9 +183,11 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	userJoinMsg := messages.BaseMessage{
 		Type: messages.TypeUserJoin,
 		Payload: messages.UserJoinPayload{
-			UserID: client.UserID,
-			X:      spawnX,
-			Y:      spawnY,
+			UserID:     client.UserID,
+			X:          spawnX,
+			Y:          spawnY,
+			Name:       client.Name,
+			AvatarName: client.AvatarName,
 		},
 	}
 	h.broadcastToSpace(payload.SpaceID, userJoinMsg, client.UserID)
@@ -234,6 +248,8 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 	// Update position
 	client.SetPosition(newX, newY)
 
+	client.Anim = payload.Anim
+
 	// Broadcast movement to other users
 	moveMsg := messages.BaseMessage{
 		Type: messages.TypeMovement,
@@ -241,6 +257,7 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 			X:      newX,
 			Y:      newY,
 			UserID: client.UserID,
+			Anim:   client.Anim,
 		},
 	}
 	h.broadcastToSpace(client.SpaceID, moveMsg, client.UserID)

@@ -117,8 +117,8 @@ func posKey(x, y float64) string {
 func IsValidMove(oldX, oldY, newX, newY float64) bool {
 	dx := abs(newX - oldX)
 	dy := abs(newY - oldY)
-	// Allow movement of at most 1 block total (including diagonal)
-	return dx <= 1 && dy <= 1 && (dx + dy) <= 1
+	// Allow movement of at most 20 blocks total (relaxed for pixel movement)
+	return dx <= 20 && dy <= 20
 }
 
 func abs(x float64) float64 {

@@ -30,10 +30,13 @@ type Client struct {
 	Send    chan []byte
 	UserID  string
 	Role    string
-	SpaceID string
-	X       float64
-	Y       float64
-	mu      sync.Mutex
+	SpaceID    string
+	X          float64
+	Y          float64
+	Name       string
+	AvatarName string
+	Anim       string
+	mu         sync.Mutex
 }
 
 // NewClient creates a new client instance

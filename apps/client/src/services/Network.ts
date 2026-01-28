@@ -46,27 +46,27 @@ export default class Network {
     if (!this.wsEndpoint) return;
 
     try {
-      console.log(`🌐 Connecting to WebSocket: ${this.wsEndpoint}`);
+      console.log(`Connecting to WebSocket: ${this.wsEndpoint}`);
       this.ws = new WebSocket(this.wsEndpoint);
       this.ws.onopen = () => {
-        console.log("✅ WebSocket connected successfully");
+        console.log("WebSocket connected successfully");
       };
       this.ws.onmessage = (evt) => this.handleWsMessage(evt);
       this.ws.onclose = () => {
-        console.log("🔌 WebSocket disconnected");
+        console.log("WebSocket disconnected");
       };
       this.ws.onerror = (error) => {
-        console.error("❌ WebSocket error:", error);
+        console.error("WebSocket error:", error);
       };
     } catch (error) {
-      console.error("❌ Failed to create WebSocket:", error);
+      console.error("Failed to create WebSocket:", error);
     }
   }
 
   private handleWsMessage(evt: MessageEvent) {
     try {
       const data = JSON.parse(evt.data);
-      console.log("📨 WS Message received:", data.type, data.payload);
+      console.log("WS Message received:", data.type, data.payload);
       switch (data.type) {
         case "space-joined": {
           const sessionId = data.payload?.sessionId;
@@ -104,7 +104,7 @@ export default class Network {
         case "user-join": {
           const { userId, x, y, avatarName, name } = data.payload;
           const uid = userId;
-          console.log("👤 user-join received:", {
+          console.log("user-join received:", {
             uid,
             x,
             y,
@@ -147,6 +147,13 @@ export default class Network {
           phaserEvents.emit(Event.PLAYER_UPDATED, "y", y, this.mySessionId);
           break;
         }
+        case "join-error": {
+          const { error } = data.payload;
+          console.error("Failed to join space:", error);
+          // Emit an event so UI can show the error
+          phaserEvents.emit("JOIN_ERROR", error);
+          break;
+        }
         case "user-left": {
           const { userId } = data.payload;
           if (this.knownUsers.has(userId)) this.knownUsers.delete(userId);
@@ -170,13 +177,35 @@ export default class Network {
     // Try to get existing space or create default
     const spaceId = await this.getOrCreateDefaultSpace();
 
+    // Wait for WebSocket to be open (with timeout)
+    const maxWaitMs = 5000;
+    const pollInterval = 100;
+    let waited = 0;
+    
+    while ((!this.ws || this.ws.readyState !== WebSocket.OPEN) && waited < maxWaitMs) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      waited += pollInterval;
+    }
+
     if (this.ws && this.ws.readyState === WebSocket.OPEN && this.token) {
+      console.log("📤 Sending join request for space:", spaceId);
       this.ws.send(
         JSON.stringify({
           type: "join",
-          payload: { spaceId, token: this.token },
+          payload: {
+            spaceId,
+            token: this.token,
+            name: this.username || "Guest",
+            avatarName: this.myAvatarName,
+          },
         }),
       );
+    } else {
+      console.error("Cannot join space: WebSocket not connected or no token");
+      console.error("  - WS exists:", !!this.ws);
+      console.error("  - WS readyState:", this.ws?.readyState);
+      console.error("  - Has token:", !!this.token);
+      phaserEvents.emit("JOIN_ERROR", "WebSocket connection failed");
     }
     phaserEvents.emit(Event.MY_PLAYER_READY);
   }
