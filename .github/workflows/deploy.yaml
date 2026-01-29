@@ -39,6 +39,7 @@ jobs:
             # ---------- Git Pull ----------
             git fetch origin
             git checkout main
+            git reset --hard origin/main
             git pull origin main
 
             # ---------- Env ----------
