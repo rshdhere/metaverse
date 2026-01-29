@@ -34,13 +34,11 @@ export default function Home() {
           rotation={30}
         />
       </div>
-      <div className="relative z-10 flex flex-col items-center gap-6 p-4">
-        <h1 className="text-4xl font-bold tracking-tight text-white">
-          Your workspace, reimagined in the{" "}
-          <span className="font-instrument-serif italic font-normal">
-            metaverse
-          </span>
-          .
+      <div className="relative z-10 flex flex-col items-center gap-10 p-4 max-w-7xl mx-auto text-center">
+        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white leading-[1.1]">
+          Your workspace, reimagined
+          <br className="hidden md:block" />
+          in the <span className="font-instrument-serif">metaverse</span>.
         </h1>
 
         {isLoggedIn ? (
@@ -49,13 +47,13 @@ export default function Home() {
             <div className="flex gap-4">
               <Link
                 href="/arena"
-                className="rounded-lg bg-[#33ac96] px-6 py-3 text-sm font-bold text-gray-900 shadow-[0_0_20px_rgba(51,172,150,0.4)] transition-transform hover:scale-105 hover:shadow-[0_0_30px_rgba(51,172,150,0.6)]"
+                className="rounded-lg bg-white px-8 py-3 text-sm font-bold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-transform hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.3)]"
               >
                 Join Arena
               </Link>
               <Link
                 href="/space"
-                className="rounded-lg border border-[#33ac96]/30 bg-[#33ac96]/10 px-6 py-3 text-sm font-medium text-[#33ac96] hover:bg-[#33ac96]/20 transition-all"
+                className="rounded-lg border border-white/10 bg-white/5 px-8 py-3 text-sm font-medium text-white hover:bg-white/10 transition-all"
               >
                 View Spaces
               </Link>
@@ -71,13 +69,13 @@ export default function Home() {
           <div className="flex gap-4">
             <Link
               href="/login"
-              className="rounded-lg border border-gray-700 bg-gray-800/50 px-6 py-3 text-sm font-medium hover:bg-gray-800 hover:border-gray-600 transition-all"
+              className="rounded-lg border border-gray-800 bg-gray-950/50 px-8 py-3 text-sm font-medium text-gray-300 hover:bg-gray-900 hover:text-white hover:border-gray-700 transition-all"
             >
               Log in
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg bg-[#33ac96] px-6 py-3 text-sm font-bold text-gray-900 shadow-[0_0_20px_rgba(51,172,150,0.4)] transition-transform hover:scale-105 hover:shadow-[0_0_30px_rgba(51,172,150,0.6)]"
+              className="rounded-lg bg-white px-8 py-3 text-sm font-bold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-transform hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.3)]"
             >
               Sign up
             </Link>
