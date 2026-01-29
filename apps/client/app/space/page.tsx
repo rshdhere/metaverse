@@ -1,16 +1,53 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Beams from "@/components/Beams";
+import { Loader } from "@/components/ui/loader";
 
 export default function SpacesCatalogPage() {
   const router = useRouter();
+  const [isReady, setIsReady] = useState(false);
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-[#1a1d2e] to-[#2d3250]">
-      <div className="w-[92vw] max-w-[1280px]">
-        <h1 className="text-2xl text-[#eee] mb-6">Spaces</h1>
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-950">
+      {/* Loader - shown while background is loading */}
+      <div
+        className={`absolute inset-0 z-20 flex items-center justify-center bg-gray-950 transition-opacity duration-500 ${
+          isReady ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+      >
+        <Loader size="lg" />
+      </div>
+
+      {/* Background */}
+      <div
+        className={`absolute inset-0 z-0 h-full w-full transition-opacity duration-500 ${
+          isReady ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <Beams
+          beamWidth={3}
+          beamHeight={30}
+          beamNumber={20}
+          lightColor="#ffffff"
+          speed={2}
+          noiseIntensity={1.75}
+          scale={0.2}
+          rotation={30}
+          onReady={() => setIsReady(true)}
+        />
+      </div>
+
+      {/* Content */}
+      <div
+        className={`relative z-10 w-[92vw] max-w-[1280px] transition-opacity duration-500 ${
+          isReady ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <h1 className="text-2xl text-white mb-6">Spaces</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <button
-            className="group relative rounded-xl overflow-hidden shadow-[0_0_5px_#0000006f] bg-[#222639] border border-[#30344a] cursor-pointer"
+            className="group relative rounded-xl overflow-hidden shadow-[0_0_5px_#0000006f] bg-[#222639]/80 backdrop-blur-sm border border-white/10 cursor-pointer"
             onClick={() => router.push("/space/100xlabs")}
             aria-label="Open 100xlabs space"
           >
@@ -32,7 +69,7 @@ export default function SpacesCatalogPage() {
             </div>
           </button>
           <button
-            className="group relative rounded-xl overflow-hidden shadow-[0_0_5px_#0000006f] bg-[#222639] border border-[#30344a] cursor-pointer"
+            className="group relative rounded-xl overflow-hidden shadow-[0_0_5px_#0000006f] bg-[#222639]/80 backdrop-blur-sm border border-white/10 cursor-pointer"
             onClick={() => alert("Under construction")}
             aria-label="Haven Studios (under construction)"
           >

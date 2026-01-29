@@ -97,11 +97,7 @@ export default function Home() {
           <div className="flex flex-col items-center gap-4">
             <p className="text-sm text-gray-400">You are logged in</p>
             <div className="flex gap-4">
-              <Button
-                asChild
-                size="lg"
-                className="rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)]"
-              >
+              <Button asChild size="lg" className="rounded-lg">
                 <Link href="/arena">Join Arena</Link>
               </Button>
               <Button
@@ -115,7 +111,7 @@ export default function Home() {
             </div>
             <button
               onClick={handleLogout}
-              className="text-sm text-gray-500 hover:text-white transition-colors underline decoration-dotted underline-offset-4"
+              className="text-sm text-gray-500 hover:text-white transition-colors underline decoration-dotted underline-offset-4 cursor-pointer"
             >
               Log out
             </button>
