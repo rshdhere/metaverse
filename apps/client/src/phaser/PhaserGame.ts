@@ -1,6 +1,5 @@
-"use client";
 import * as Phaser from "phaser";
-import Bootstrap from "../scenes/Bootstrap";
+import Preloader from "../scenes/Preloader";
 import Game from "../scenes/Game";
 
 let phaserGame: Phaser.Game | null = null;
@@ -23,7 +22,7 @@ export function ensurePhaser() {
       arcade: { gravity: { x: 0, y: 0 }, debug: false },
     },
     autoFocus: true,
-    scene: [Bootstrap, Game],
+    scene: [Preloader, Game],
   };
   phaserGame = new Phaser.Game(config);
   (window as unknown as { game?: Phaser.Game }).game = phaserGame;

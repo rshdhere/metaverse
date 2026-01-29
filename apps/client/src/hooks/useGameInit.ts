@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import ensurePhaser from "../phaser/PhaserGame";
 import { useAppState } from "../providers/AppStateProvider";
 
-export default function useBootstrap() {
+export default function useGameInit() {
   const { setLobbyJoined } = useAppState();
   useEffect(() => {
     ensurePhaser();

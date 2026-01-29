@@ -273,12 +273,12 @@ export default class Game extends Phaser.Scene {
     // Signal that Game scene is ready - this flushes the event queue
     this.network.setGameSceneReady();
 
-    // Also notify Bootstrap so the async launchGame() can resolve
-    const bootstrapScene = this.scene.get("bootstrap") as unknown as {
+    // Also notify Preloader so the async launchGame() can resolve
+    const preloaderScene = this.scene.get("preloader") as unknown as {
       notifyGameSceneReady?: () => void;
     };
-    if (bootstrapScene?.notifyGameSceneReady) {
-      bootstrapScene.notifyGameSceneReady();
+    if (preloaderScene?.notifyGameSceneReady) {
+      preloaderScene.notifyGameSceneReady();
     }
   }
 

@@ -1,11 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Alert from "@mui/material/Alert";
-import IconButton from "@mui/material/IconButton";
-import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppState } from "../providers/AppStateProvider";
 import Network from "../services/Network";
 
@@ -121,31 +120,31 @@ export default function Auth() {
     (async () => {
       try {
         // Launch the Phaser game scene like @client/
-        type SceneBootstrap = {
-          launchGame?: () => void;
+        type ScenePreloader = {
+          launchGame?: () => boolean;
+          isReady?: () => boolean;
           setPendingAvatarName?: (name: string) => void;
-        } & {
           network?: {
             setMyAvatarName?: (name: string) => void;
             applyAuth?: (token: string, username?: string) => void;
             joinOrCreatePublic?: () => Promise<void>;
           };
         };
-        type WindowGame = { scene?: { keys?: Record<string, SceneBootstrap> } };
+        type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
         const game = (window as unknown as { game?: WindowGame }).game;
-        const bootstrap = game?.scene?.keys?.bootstrap;
+        const preloader = game?.scene?.keys?.preloader;
         // Ensure the shared Phaser side receives the chosen avatar
-        if (bootstrap && typeof bootstrap.setPendingAvatarName === "function") {
-          bootstrap.setPendingAvatarName(avatarName || "adam");
+        if (preloader && typeof preloader.setPendingAvatarName === "function") {
+          preloader.setPendingAvatarName(avatarName || "adam");
         }
         // Launch game FIRST so event listeners are registered
-        if (bootstrap && typeof bootstrap.launchGame === "function") {
-          bootstrap.launchGame();
+        if (preloader && typeof preloader.launchGame === "function") {
+          preloader.launchGame();
         }
         // Apply auth and join using the shared Phaser Network instance so movement sync works
-        if (bootstrap?.network) {
-          bootstrap.network.applyAuth?.(pendingToken, username);
-          await bootstrap.network.joinOrCreatePublic?.();
+        if (preloader?.network) {
+          preloader.network.applyAuth?.(pendingToken, username);
+          await preloader.network.joinOrCreatePublic?.();
         } else {
           await network.joinOrCreatePublic();
         }
@@ -178,30 +177,43 @@ export default function Auth() {
           <h2 className="text-[#eee] m-0">
             {isSignUp ? "Create Account" : "Sign in to continue"}
           </h2>
-          {error && <Alert severity="error">{error}</Alert>}
-          <TextField
-            autoFocus
-            fullWidth
-            label="Username"
-            variant="outlined"
-            color="secondary"
-            onInput={(e) => setUser((e.target as HTMLInputElement).value)}
-          />
-          <TextField
-            fullWidth
-            type="password"
-            label="Password"
-            variant="outlined"
-            color="secondary"
-            onInput={(e) => setPass((e.target as HTMLInputElement).value)}
-          />
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="username" className="text-white">
+              Username
+            </Label>
+            <Input
+              id="username"
+              autoFocus
+              className="bg-secondary text-secondary-foreground"
+              onInput={(e) => setUser((e.target as HTMLInputElement).value)}
+            />
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="password" className="text-white">
+              Password
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              className="bg-secondary text-secondary-foreground"
+              onInput={(e) => setPass((e.target as HTMLInputElement).value)}
+            />
+          </div>
 
           {isSignUp && !authSuccess && (
             <div className="flex flex-col gap-4 items-center my-5 w-full">
               <p className={subtitleClass}>Select your avatar</p>
               <div className="flex items-center gap-3">
-                <IconButton
-                  color="secondary"
+                <Button
+                  variant="secondary"
+                  size="icon"
                   aria-label="previous avatar"
                   onClick={() =>
                     setSelectedAvatarIndex((prev) =>
@@ -210,15 +222,16 @@ export default function Auth() {
                   }
                   disabled={displayAvatars.length <= 1}
                 >
-                  <ArrowBackIosIcon />
-                </IconButton>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
                 <div className="w-40 h-[220px] rounded-lg bg-[#dbdbe0] flex justify-center items-center overflow-hidden">
                   <span className="text-[#222] text-xl capitalize">
                     {displayAvatars[selectedAvatarIndex]?.name || "Avatar"}
                   </span>
                 </div>
-                <IconButton
-                  color="secondary"
+                <Button
+                  variant="secondary"
+                  size="icon"
                   aria-label="next avatar"
                   onClick={() =>
                     setSelectedAvatarIndex((prev) =>
@@ -227,8 +240,8 @@ export default function Auth() {
                   }
                   disabled={displayAvatars.length <= 1}
                 >
-                  <ArrowForwardIosIcon />
-                </IconButton>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
               <p className={subtitleClass}>
                 {displayAvatars[selectedAvatarIndex]?.name || "Unknown"}
@@ -264,29 +277,25 @@ export default function Auth() {
             }}
           >
             <Button
-              variant="text"
-              color="secondary"
+              variant="link"
+              className="text-secondary-foreground"
               onClick={() => setIsSignUp(!isSignUp)}
-              style={{ fontSize: "12px" }}
+              style={{ fontSize: "12px", padding: 0 }}
             >
               {isSignUp ? "Already have an account?" : "Don't have an account?"}
             </Button>
             <div style={{ display: "flex", gap: 8 }}>
               {!isSignUp && (
                 <Button
-                  variant="outlined"
-                  color="secondary"
+                  variant="outline"
                   onClick={handleSignIn}
+                  className="border-secondary text-secondary hover:bg-secondary/10"
                 >
                   Sign In
                 </Button>
               )}
               {isSignUp && (
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={handleSignUp}
-                >
+                <Button variant="secondary" onClick={handleSignUp}>
                   Sign Up
                 </Button>
               )}
@@ -299,8 +308,7 @@ export default function Auth() {
           <p className="text-[#c2c2c2]">Click below to enter the arena.</p>
           <div className="flex gap-3 justify-end">
             <Button
-              variant="contained"
-              color="secondary"
+              variant="secondary"
               onClick={() => {
                 // no-op: simulated ready
                 setLoggedIn(true);

@@ -2,10 +2,10 @@
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
 
-const PhaserBootstrap = dynamic(
+const PhaserInit = dynamic(
   () =>
     import("../phaser/PhaserGame").then((mod) => ({
-      default: function PhaserBootstrap() {
+      default: function PhaserInit() {
         useEffect(() => {
           mod.default();
           return () => {
@@ -19,5 +19,5 @@ const PhaserBootstrap = dynamic(
 );
 
 export default function PhaserGameWrapper() {
-  return <PhaserBootstrap />;
+  return <PhaserInit />;
 }

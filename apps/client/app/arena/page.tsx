@@ -4,6 +4,19 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useAppState } from "../../src/providers/AppStateProvider";
 import { getStoredCredentials } from "../../src/utils/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const PhaserGameWrapper = dynamic(
   () => import("../../src/components/PhaserGameWrapper"),
@@ -76,9 +89,9 @@ export default function ArenaPage() {
     ) {
       let active = true;
 
-      // Wait for Phaser Bootstrap scene to be ready
+      // Wait for Phaser Preloader scene to be ready
       const interval = setInterval(() => {
-        type SceneBootstrap = {
+        type ScenePreloader = {
           launchGame?: () => boolean;
           isReady?: () => boolean;
           setPendingAvatarName?: (name: string) => void;
@@ -89,24 +102,24 @@ export default function ArenaPage() {
             resetForRejoin?: () => void;
           };
         };
-        type WindowGame = { scene?: { keys?: Record<string, SceneBootstrap> } };
+        type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
         const game = (window as unknown as { game?: WindowGame }).game;
-        const bootstrap = game?.scene?.keys?.bootstrap;
+        const preloader = game?.scene?.keys?.preloader;
 
-        // Check if bootstrap is ready (assets loaded) and network is available
+        // Check if preloader is ready (assets loaded) and network is available
         if (
-          bootstrap &&
-          bootstrap.network &&
-          typeof bootstrap.isReady === "function" &&
-          bootstrap.isReady()
+          preloader &&
+          preloader.network &&
+          typeof preloader.isReady === "function" &&
+          preloader.isReady()
         ) {
           clearInterval(interval);
 
           // Join space and launch game in sequence
           (async () => {
             try {
-              if (!bootstrap.network) {
-                console.error("Bootstrap network not available");
+              if (!preloader.network) {
+                console.error("Preloader network not available");
                 setError(
                   "Failed to connect to game server. Network unavailable.",
                 );
@@ -115,28 +128,28 @@ export default function ArenaPage() {
 
               // Set the avatar name
               const finalAvatar = avatarName || "adam";
-              if (bootstrap.setPendingAvatarName) {
-                bootstrap.setPendingAvatarName(finalAvatar);
+              if (preloader.setPendingAvatarName) {
+                preloader.setPendingAvatarName(finalAvatar);
               }
 
               // Reset network state for fresh join
-              bootstrap.network.resetForRejoin?.();
+              preloader.network.resetForRejoin?.();
 
               // Apply auth to the shared Phaser network instance
               if (token && displayName) {
-                bootstrap.network.applyAuth?.(token, displayName);
-                bootstrap.network.setMyAvatarName?.(finalAvatar);
+                preloader.network.applyAuth?.(token, displayName);
+                preloader.network.setMyAvatarName?.(finalAvatar);
               }
 
               // Launch the office game scene FIRST (so event listeners are registered)
-              if (active && typeof bootstrap.launchGame === "function") {
-                const launched = await bootstrap.launchGame();
+              if (active && typeof preloader.launchGame === "function") {
+                const launched = await preloader.launchGame();
                 if (launched) {
                   setLoggedIn(true);
                   setGameInitialized(true);
 
                   // Now join the public lobby via WebSocket AFTER scene is ready
-                  await bootstrap.network.joinOrCreatePublic?.();
+                  await preloader.network.joinOrCreatePublic?.();
                 }
               }
             } catch (error) {
@@ -226,107 +239,112 @@ export default function ArenaPage() {
 
       {/* Loading/Error indicator while game initializes */}
       {!gameInitialized && !showNameInput && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-[#222639] rounded-2xl px-8 py-6 shadow-lg max-w-md">
-            {error ? (
-              <>
-                <div className="text-[#ff6b6b] text-xl mb-4">Error</div>
-                <div className="text-[#eee] mb-6">{error}</div>
-                <div className="flex gap-4 justify-center">
-                  <button
-                    onClick={() => router.push("/space")}
-                    className="px-6 py-2 bg-[#33ac96] hover:bg-[#2a9980] text-white rounded-lg transition-colors"
-                  >
-                    Back to Spaces
-                  </button>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="px-6 py-2 bg-[#4a5568] hover:bg-[#3a4558] text-white rounded-lg transition-colors"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="text-[#eee] text-xl">Loading game...</div>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+          <Card className="w-full max-w-md bg-[#222639] border-none text-[#eee]">
+            <CardHeader>
+              <CardTitle className={error ? "text-destructive" : ""}>
+                {error ? "Error" : "Loading game..."}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>{error && <p>{error}</p>}</CardContent>
+            {error && (
+              <CardFooter className="flex justify-center gap-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push("/space")}
+                >
+                  Back to Spaces
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-gray-600 text-gray-200 hover:bg-gray-700 hover:text-white"
+                  onClick={() => window.location.reload()}
+                >
+                  Retry
+                </Button>
+              </CardFooter>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Username and Character input screen */}
       {showNameInput && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-          <div className="bg-[#222639] rounded-2xl px-10 py-8 shadow-2xl max-w-2xl w-full mx-4">
-            <h2 className="text-[#33ac96] text-2xl font-bold mb-2 text-center">
-              Choose Your Character
-            </h2>
-            <p className="text-[#aaa] text-sm mb-6 text-center">
-              Pick your avatar and enter your name
-            </p>
-
-            {/* Character Selection */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              {availableAvatars.map((avatar) => (
-                <button
-                  key={avatar.id}
-                  type="button"
-                  onClick={() => setSelectedAvatar(avatar.id)}
-                  className={`relative p-4 rounded-lg border-2 transition-all ${
-                    selectedAvatar === avatar.id
-                      ? "border-[#33ac96] bg-[#33ac96]/10"
-                      : "border-[#33ac96]/30 hover:border-[#33ac96]/60"
-                  }`}
-                >
-                  <div className="aspect-square relative mb-2">
-                    <img
-                      src={avatar.image}
-                      alt={avatar.name}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <p className="text-[#eee] text-sm font-medium text-center">
-                    {avatar.name}
-                  </p>
-                  {selectedAvatar === avatar.id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-[#33ac96] rounded-full flex items-center justify-center">
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50 p-4">
+          <Card className="w-full max-w-2xl bg-[#1a1d2e] border-none shadow-2xl">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold text-[#33ac96]">
+                Choose Your Character
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Pick your avatar and enter your name
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                {availableAvatars.map((avatar) => (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => setSelectedAvatar(avatar.id)}
+                    className={cn(
+                      "relative p-4 rounded-xl border-2 transition-all duration-200 group hover:-translate-y-1 bg-[#222639]",
+                      selectedAvatar === avatar.id
+                        ? "border-[#33ac96] shadow-[0_0_20px_rgba(51,172,150,0.3)]"
+                        : "border-transparent hover:border-[#33ac96]/50",
+                    )}
+                  >
+                    <div className="aspect-square relative mb-3">
+                      <img
+                        src={avatar.image}
+                        alt={avatar.name}
+                        className="w-full h-full object-contain drop-shadow-lg"
+                      />
                     </div>
-                  )}
-                </button>
-              ))}
-            </div>
+                    <p
+                      className={cn(
+                        "text-sm font-medium text-center transition-colors",
+                        selectedAvatar === avatar.id
+                          ? "text-[#33ac96]"
+                          : "text-gray-400 group-hover:text-gray-200",
+                      )}
+                    >
+                      {avatar.name}
+                    </p>
+                    {selectedAvatar === avatar.id && (
+                      <div className="absolute top-3 right-3 w-6 h-6 bg-[#33ac96] rounded-full flex items-center justify-center shadow-sm">
+                        <Check className="w-3.5 h-3.5 text-[#1a1d2e] stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
 
-            {/* Name Input */}
-            <form onSubmit={handleNameSubmit}>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Enter your display name"
-                className="w-full px-4 py-3 bg-[#1a1d2e] text-[#eee] rounded-lg border border-[#33ac96]/30 focus:border-[#33ac96] focus:outline-none mb-4"
-                maxLength={20}
-                autoFocus
-              />
-              <button
-                type="submit"
-                disabled={!displayName.trim()}
-                className="w-full px-6 py-3 bg-[#33ac96] hover:bg-[#2a9980] disabled:bg-[#2a4a40] disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
-              >
-                Join Arena
-              </button>
-            </form>
-          </div>
+              <form onSubmit={handleNameSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="displayName" className="sr-only">
+                    Display Name
+                  </Label>
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Enter your display name"
+                    className="h-12 bg-[#222639] border-[#33ac96]/20 focus-visible:ring-[#33ac96] text-lg text-white placeholder:text-gray-500"
+                    maxLength={20}
+                    autoFocus
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={!displayName.trim()}
+                  className="w-full h-12 text-lg font-medium bg-[#33ac96] hover:bg-[#2a9980] text-[#1a1d2e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Join Arena
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

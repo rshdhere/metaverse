@@ -1,14 +1,14 @@
 import * as Phaser from "phaser";
 import Network from "../services/Network";
 
-export default class Bootstrap extends Phaser.Scene {
+export default class Preloader extends Phaser.Scene {
   private preloadComplete = false;
   network!: Network;
   private pendingAvatarName?: string;
   private gameSceneReadyResolve?: () => void;
 
   constructor() {
-    super("bootstrap");
+    super("preloader");
   }
 
   preload() {
