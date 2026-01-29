@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { CircleHelp, ArrowLeft, Loader2 } from "lucide-react";
+import { CircleHelp, ArrowLeft } from "lucide-react";
+import { Loader } from "@/components/ui/loader";
 import { useRouter } from "next/navigation";
 import { useAppState } from "../../../src/providers/AppStateProvider";
 import Network from "../../../src/services/Network";
@@ -101,10 +102,10 @@ export default function SpacePage() {
   // Show loading state while checking authentication
   if (!authChecked || (!token && !username)) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-[#1a1d2e] to-[#2d3250]">
+      <div className="fixed inset-0 flex items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-4">
-          <h3 className="text-[#33ac96]">Checking authentication...</h3>
-          <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+          <h3 className="text-white">Checking authentication...</h3>
+          <Loader size="lg" />
         </div>
       </div>
     );
@@ -112,25 +113,25 @@ export default function SpacePage() {
 
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-[#1a1d2e] to-[#2d3250]">
+      <div className="fixed inset-0 flex items-center justify-center bg-black p-4">
         <div className="flex flex-col gap-[60px] items-center w-[90vw] max-w-[840px]">
-          <div className="bg-[#222639] rounded-2xl px-6 py-6 md:px-[60px] md:py-[36px] shadow-[0_0_5px_#0000006f] w-full">
+          <div className="bg-black border border-white/20 rounded-2xl px-6 py-6 md:px-[60px] md:py-[36px] shadow-2xl w-full">
             {showCreateRoomForm ? (
               <div className="relative flex flex-col gap-5 items-center justify-center">
                 <div className="grid w-full">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="justify-self-start self-center"
+                    className="justify-self-start self-center text-white hover:bg-zinc-800"
                     onClick={() => setShowCreateRoomForm(false)}
                   >
                     <ArrowLeft className="h-6 w-6" />
                   </Button>
-                  <h1 className="text-2xl text-[#eee] text-center">
+                  <h1 className="text-2xl text-white text-center font-bold">
                     Create Custom Room
                   </h1>
                 </div>
-                <div className="text-[#c2c2c2]">Coming soon</div>
+                <div className="text-gray-400">Coming soon</div>
               </div>
             ) : showCustomRoom ? (
               <div className="relative flex flex-col gap-5 items-center justify-center">
@@ -138,12 +139,12 @@ export default function SpacePage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="justify-self-start self-center"
+                    className="justify-self-start self-center text-white hover:bg-zinc-800"
                     onClick={() => setShowCustomRoom(false)}
                   >
                     <ArrowLeft className="h-6 w-6" />
                   </Button>
-                  <h1 className="text-2xl text-[#eee] text-center flex items-center justify-center gap-2">
+                  <h1 className="text-2xl text-white text-center flex items-center justify-center gap-2 font-bold">
                     Custom Rooms
                     <TooltipProvider>
                       <Tooltip>
@@ -153,7 +154,7 @@ export default function SpacePage() {
                             size="icon"
                             className="h-auto p-0"
                           >
-                            <CircleHelp className="h-5 w-5 text-muted-foreground" />
+                            <CircleHelp className="h-5 w-5 text-gray-400" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -166,9 +167,10 @@ export default function SpacePage() {
                     </TooltipProvider>
                   </h1>
                 </div>
-                <div className="text-[#c2c2c2]">Custom rooms</div>
+                <div className="text-gray-400">Custom rooms</div>
                 <Button
-                  variant="secondary"
+                  variant="outline"
+                  className="bg-white hover:bg-gray-200 text-black border-none cursor-pointer"
                   onClick={() => setShowCreateRoomForm(true)}
                 >
                   Create new room
@@ -176,25 +178,24 @@ export default function SpacePage() {
               </div>
             ) : (
               <>
-                <h1 className="text-2xl text-[#eee] text-center mb-2">
-                  Welcome to SkyOffice
+                <h1 className="text-2xl text-white text-center mb-2 font-bold">
+                  let's explore our new virtual-office
                 </h1>
                 {username && (
-                  <p className="text-[#c2c2c2] text-center mb-4">
+                  <p className="text-gray-400 text-center mb-4">
                     Hello, {username}!
                   </p>
                 )}
                 <div className="flex flex-col gap-5 my-5 items-center justify-center">
                   <Button
-                    variant="secondary"
                     size="lg"
                     onClick={handleJoinPublicLobby}
                     disabled={loading || !lobbyJoined}
-                    className="w-full max-w-xs"
+                    className="w-full max-w-xs bg-white hover:bg-gray-200 text-black cursor-pointer transition-all"
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader size="sm" className="mr-2" />
                         Joining...
                       </>
                     ) : (
@@ -206,7 +207,7 @@ export default function SpacePage() {
                     size="lg"
                     onClick={handleCreateRoom}
                     disabled={!lobbyJoined}
-                    className="w-full max-w-xs border-secondary text-secondary hover:bg-secondary/10"
+                    className="w-full max-w-xs bg-zinc-900 border-2 border-zinc-700 text-white hover:border-white hover:bg-zinc-700 hover:text-white cursor-pointer transition-all duration-200"
                   >
                     Create/Find Custom Rooms
                   </Button>
@@ -219,7 +220,7 @@ export default function SpacePage() {
                       setAvatarName("adam");
                       router.push("/login");
                     }}
-                    className="text-secondary-foreground text-xs"
+                    className="text-gray-500 hover:text-white text-xs cursor-pointer"
                   >
                     Sign Out
                   </Button>
@@ -229,8 +230,8 @@ export default function SpacePage() {
           </div>
           {!lobbyJoined && (
             <div className="flex flex-col items-center gap-2">
-              <h3 className="text-[#33ac96]">Connecting to server...</h3>
-              <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+              <h3 className="text-white">Connecting to server...</h3>
+              <Loader size="lg" />
             </div>
           )}
         </div>

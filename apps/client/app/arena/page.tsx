@@ -51,10 +51,26 @@ export default function ArenaPage() {
   const [showNameInput, setShowNameInput] = useState(true);
 
   const availableAvatars = [
-    { id: "adam", name: "Adam", image: "/assets/character/adam.png" },
-    { id: "ash", name: "Ash", image: "/assets/character/ash.png" },
-    { id: "lucy", name: "Lucy", image: "/assets/character/lucy.png" },
-    { id: "nancy", name: "Nancy", image: "/assets/character/nancy.png" },
+    {
+      id: "adam",
+      name: "Ron",
+      image: "/assets/character/single/Adam_idle_anim_1.png",
+    },
+    {
+      id: "ash",
+      name: "Harry",
+      image: "/assets/character/single/Ash_idle_anim_1.png",
+    },
+    {
+      id: "lucy",
+      name: "Ginny",
+      image: "/assets/character/single/Lucy_idle_anim_1.png",
+    },
+    {
+      id: "nancy",
+      name: "Hermoine",
+      image: "/assets/character/single/Nancy_idle_anim_1.png",
+    },
   ];
 
   // Check authentication and redirect if not logged in
@@ -207,8 +223,8 @@ export default function ArenaPage() {
   // Don't render game until authenticated
   if (!token && !loggedIn) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-[#1a1d2e] to-[#2d3250]">
-        <div className="text-[#eee] text-xl">Loading...</div>
+      <div className="fixed inset-0 flex items-center justify-center bg-black">
+        <div className="text-white text-xl">Loading...</div>
       </div>
     );
   }
@@ -239,25 +255,27 @@ export default function ArenaPage() {
 
       {/* Loading/Error indicator while game initializes */}
       {!gameInitialized && !showNameInput && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-          <Card className="w-full max-w-md bg-[#222639] border-none text-[#eee]">
-            <CardHeader>
-              <CardTitle className={error ? "text-destructive" : ""}>
+        <div className="fixed inset-0 flex items-center justify-center bg-black z-50">
+          <Card className="w-full max-w-md bg-black border border-white/20 text-white">
+            <CardHeader className="text-center">
+              <CardTitle className={error ? "text-red-500" : "text-white"}>
                 {error ? "Error" : "Loading game..."}
               </CardTitle>
             </CardHeader>
-            <CardContent>{error && <p>{error}</p>}</CardContent>
+            <CardContent>
+              {error && <p className="text-gray-400">{error}</p>}
+            </CardContent>
             {error && (
               <CardFooter className="flex justify-center gap-4">
                 <Button
-                  variant="secondary"
+                  className="bg-white text-black hover:bg-gray-200 cursor-pointer"
                   onClick={() => router.push("/space")}
                 >
                   Back to Spaces
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-200 hover:bg-gray-700 hover:text-white"
+                  className="border-zinc-700 text-white hover:bg-zinc-700 hover:text-white cursor-pointer"
                   onClick={() => window.location.reload()}
                 >
                   Retry
@@ -270,10 +288,10 @@ export default function ArenaPage() {
 
       {/* Username and Character input screen */}
       {showNameInput && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50 p-4">
-          <Card className="w-full max-w-2xl bg-[#1a1d2e] border-none shadow-2xl">
+        <div className="fixed inset-0 flex items-center justify-center bg-black z-50 p-4">
+          <Card className="w-full max-w-2xl bg-black border border-white/20 shadow-2xl">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-bold text-[#33ac96]">
+              <CardTitle className="text-2xl font-bold text-white">
                 Choose Your Character
               </CardTitle>
               <CardDescription className="text-gray-400">
@@ -288,32 +306,32 @@ export default function ArenaPage() {
                     type="button"
                     onClick={() => setSelectedAvatar(avatar.id)}
                     className={cn(
-                      "relative p-4 rounded-xl border-2 transition-all duration-200 group hover:-translate-y-1 bg-[#222639]",
+                      "relative p-4 rounded-xl border-2 transition-all duration-200 group hover:-translate-y-1 bg-zinc-900 cursor-pointer",
                       selectedAvatar === avatar.id
-                        ? "border-[#33ac96] shadow-[0_0_20px_rgba(51,172,150,0.3)]"
-                        : "border-transparent hover:border-[#33ac96]/50",
+                        ? "border-white shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                        : "border-zinc-700 hover:border-white/50",
                     )}
                   >
-                    <div className="aspect-square relative mb-3">
+                    <div className="aspect-square relative mb-3 flex items-center justify-center">
                       <img
                         src={avatar.image}
                         alt={avatar.name}
-                        className="w-full h-full object-contain drop-shadow-lg"
+                        className="w-16 h-24 object-contain drop-shadow-lg [image-rendering:pixelated]"
                       />
                     </div>
                     <p
                       className={cn(
                         "text-sm font-medium text-center transition-colors",
                         selectedAvatar === avatar.id
-                          ? "text-[#33ac96]"
+                          ? "text-white"
                           : "text-gray-400 group-hover:text-gray-200",
                       )}
                     >
                       {avatar.name}
                     </p>
                     {selectedAvatar === avatar.id && (
-                      <div className="absolute top-3 right-3 w-6 h-6 bg-[#33ac96] rounded-full flex items-center justify-center shadow-sm">
-                        <Check className="w-3.5 h-3.5 text-[#1a1d2e] stroke-[3]" />
+                      <div className="absolute top-3 right-3 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
+                        <Check className="w-3.5 h-3.5 text-black stroke-[3]" />
                       </div>
                     )}
                   </button>
@@ -330,7 +348,7 @@ export default function ArenaPage() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Enter your display name"
-                    className="h-12 bg-[#222639] border-[#33ac96]/20 focus-visible:ring-[#33ac96] text-lg text-white placeholder:text-gray-500"
+                    className="h-12 bg-zinc-900 border-zinc-700 focus-visible:ring-white focus-visible:border-white text-lg text-white placeholder:text-gray-500"
                     maxLength={20}
                     autoFocus
                   />
@@ -338,7 +356,7 @@ export default function ArenaPage() {
                 <Button
                   type="submit"
                   disabled={!displayName.trim()}
-                  className="w-full h-12 text-lg font-medium bg-[#33ac96] hover:bg-[#2a9980] text-[#1a1d2e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full h-12 text-lg font-medium bg-white hover:bg-gray-200 text-black disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                 >
                   Join Arena
                 </Button>
