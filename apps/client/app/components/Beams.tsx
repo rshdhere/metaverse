@@ -178,7 +178,20 @@ interface BeamsProps {
   noiseIntensity?: number;
   scale?: number;
   rotation?: number;
+  onReady?: () => void;
 }
+
+// Component to signal when the Canvas is ready
+const CanvasReadySignal = ({ onReady }: { onReady?: () => void }) => {
+  useEffect(() => {
+    // Small delay to ensure the first frame is rendered
+    const timer = setTimeout(() => {
+      onReady?.();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [onReady]);
+  return null;
+};
 
 const Beams: React.FC<BeamsProps> = ({
   beamWidth = 2,
@@ -189,6 +202,7 @@ const Beams: React.FC<BeamsProps> = ({
   noiseIntensity = 1.75,
   scale = 0.2,
   rotation = 0,
+  onReady,
 }) => {
   const meshRef = useRef<any>(null);
   const beamMaterial = useMemo(
@@ -250,6 +264,7 @@ const Beams: React.FC<BeamsProps> = ({
 
   return (
     <CanvasWrapper>
+      <CanvasReadySignal onReady={onReady} />
       <group rotation={[0, 0, degToRad(rotation)]}>
         <PlaneNoise
           ref={meshRef}
