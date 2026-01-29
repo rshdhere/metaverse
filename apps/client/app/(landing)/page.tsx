@@ -35,8 +35,12 @@ export default function Home() {
         />
       </div>
       <div className="relative z-10 flex flex-col items-center gap-6 p-4">
-        <h1 className="text-4xl font-bold tracking-tight text-[#33ac96]">
-          Welcome to SkyOffice
+        <h1 className="text-4xl font-bold tracking-tight text-white">
+          Your workspace, reimagined in the{" "}
+          <span className="font-instrument-serif italic font-normal">
+            metaverse
+          </span>
+          .
         </h1>
 
         {isLoggedIn ? (

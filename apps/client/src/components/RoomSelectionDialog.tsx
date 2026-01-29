@@ -134,12 +134,8 @@ export default function RoomSelectionDialog() {
             </div>
           ) : (
             <>
-              <h1 className="text-4xl text-[#eee] text-center font-bold">
-                Your workspace, reimagined in the{" "}
-                <span className="font-instrument-serif italic font-normal">
-                  metaverse
-                </span>
-                .
+              <h1 className="text-2xl text-[#eee] text-center">
+                Welcome to SkyOffice
               </h1>
               <div className="flex flex-col gap-5 my-5 items-center justify-center">
                 <Button
