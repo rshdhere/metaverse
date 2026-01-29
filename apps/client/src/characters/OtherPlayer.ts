@@ -10,7 +10,6 @@ export default class OtherPlayer extends Player {
   private lastUpdateTimestamp?: number;
   private connectionBufferTime = 0;
   private connected = false;
-  private playContainerBody: Phaser.Physics.Arcade.Body;
   private myPlayer?: MyPlayer;
   private isRemoteSitting = false;
 
@@ -28,8 +27,6 @@ export default class OtherPlayer extends Player {
 
     this.playerName.setText(name);
     (this as unknown as { updateNameCapsule: () => void }).updateNameCapsule();
-    this.playContainerBody = this.playerContainer
-      .body as Phaser.Physics.Arcade.Body;
   }
 
   makeCall(myPlayer: MyPlayer) {
@@ -156,9 +153,8 @@ export default class OtherPlayer extends Player {
     // update character velocity
     this.setVelocity(vx, vy);
     this.body?.velocity.setLength(speed);
-    // also update playerNameContainer velocity
-    this.playContainerBody?.setVelocity(vx, vy);
-    this.playContainerBody?.velocity.setLength(speed);
+    // update playerContainer position directly (no physics)
+    this.playerContainer.setPosition(this.x, this.y - 30);
 
     // choose animation according to velocity (mirror MyPlayer behavior)
     // but do not override remote authoritative sit animations

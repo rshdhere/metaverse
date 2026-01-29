@@ -32,7 +32,6 @@ type JoystickMovement = {
 // const openURL = (url: string) => window.open(url, '_blank')
 
 export default class MyPlayer extends Player {
-  private playContainerBody: Phaser.Physics.Arcade.Body;
   private chairOnSit?: Chair;
   public joystickMovement?: JoystickMovement;
   constructor(
@@ -44,8 +43,6 @@ export default class MyPlayer extends Player {
     frame?: string | number,
   ) {
     super(scene, x, y, texture, id, frame);
-    this.playContainerBody = this.playerContainer
-      .body as Phaser.Physics.Arcade.Body;
   }
 
   setPlayerName(name: string) {
@@ -115,8 +112,7 @@ export default class MyPlayer extends Player {
                   chairItem.depth +
                     sittingShiftData[chairItem.itemDirection][2],
                 );
-                // also update playerNameContainer velocity and position
-                this.playContainerBody.setVelocity(0, 0);
+                // update playerContainer position directly (no physics)
                 this.playerContainer.setPosition(
                   chairItem.x + sittingShiftData[chairItem.itemDirection][0],
                   chairItem.y +
@@ -183,9 +179,8 @@ export default class MyPlayer extends Player {
         // update character velocity
         this.setVelocity(vx, vy);
         this.body?.velocity.setLength(speed);
-        // also update playerNameContainer velocity
-        this.playContainerBody?.setVelocity(vx, vy);
-        this.playContainerBody?.velocity.setLength(speed);
+        // update playerContainer position directly (no physics)
+        this.playerContainer.setPosition(this.x, this.y - 30);
 
         // update animation according to velocity and send new location and anim to server
         if (vx !== 0 || vy !== 0) {

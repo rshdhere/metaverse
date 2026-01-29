@@ -229,17 +229,10 @@ export default class Game extends Phaser.Scene {
       underlay.tilePositionY = this.cameras.main.scrollY * 0.5;
     });
 
-    if (groundLayer)
-      this.physics.add.collider(
-        [this.myPlayer, this.myPlayer.playerContainer],
-        groundLayer,
-      );
+    if (groundLayer) this.physics.add.collider(this.myPlayer, groundLayer);
     // collide players with vending machines and other collidable groups
     if (typeof vendingMachines !== "undefined") {
-      this.physics.add.collider(
-        [this.myPlayer, this.myPlayer.playerContainer],
-        vendingMachines,
-      );
+      this.physics.add.collider(this.myPlayer, vendingMachines);
     }
 
     // item selection overlaps
@@ -339,10 +332,7 @@ export default class Game extends Phaser.Scene {
         .setDepth(actualY);
     });
     if (this.myPlayer && collidable)
-      this.physics.add.collider(
-        [this.myPlayer, this.myPlayer.playerContainer],
-        group,
-      );
+      this.physics.add.collider(this.myPlayer, group);
   }
 
   // function to add new player to the otherPlayer group
