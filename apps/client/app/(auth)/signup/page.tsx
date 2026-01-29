@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { GITHUB_OAUTH_URL } from "@repo/config/constants";
 import { PasswordInput, isPasswordValid } from "@/components/ui/password-input";
+import { Button } from "@/components/ui/button";
+
+import SplitAuthLayout from "@/components/auth/SplitAuthLayout";
 
 function getErrorMessage(error: { message: string }): string {
   try {
@@ -99,8 +102,8 @@ export default function SignupPage() {
   // Show verification sent screen
   if (verificationSent) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-sm space-y-6 text-center">
+      <SplitAuthLayout>
+        <div className="space-y-6 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center">
             <svg
               className="h-10 w-10 animate-spin text-gray-400"
@@ -147,28 +150,31 @@ export default function SignupPage() {
             </Link>
           </p>
         </div>
-      </div>
+      </SplitAuthLayout>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
+    <SplitAuthLayout>
+      <div className="space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">Create an account</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">
+            Create an account
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Enter your details to get started
           </p>
         </div>
 
         {/* GitHub OAuth Button */}
-        <button
+        <Button
+          variant="outline"
           type="button"
           onClick={handleGitHubLogin}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
+          className="w-full cursor-pointer"
         >
           <svg
-            className="h-5 w-5"
+            className="mr-2 h-4 w-4"
             fill="currentColor"
             viewBox="0 0 24 24"
             aria-hidden="true"
@@ -180,14 +186,14 @@ export default function SignupPage() {
             />
           </svg>
           Continue with GitHub
-        </button>
+        </Button>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-300 dark:border-gray-700" />
+            <span className="w-full border-t border-gray-300 dark:border-gray-800" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+            <span className="bg-white px-2 text-gray-500 dark:bg-black dark:text-gray-400">
               Or continue with email
             </span>
           </div>
@@ -195,7 +201,10 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium text-gray-200"
+            >
               Email
             </label>
             <input
@@ -205,12 +214,15 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:ring-gray-100"
+              className="w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-gray-200"
+            >
               Password
             </label>
             <PasswordInput
@@ -222,25 +234,25 @@ export default function SignupPage() {
             />
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={signup.isPending || !isPasswordValid(password)}
-            className="w-full rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+            className="w-full cursor-pointer"
           >
             {signup.isPending ? "Creating account..." : "Sign up"}
-          </button>
+          </Button>
         </form>
 
         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           Already have an account?{" "}
           <Link
             href="/login"
-            className="font-medium text-black hover:underline"
+            className="font-medium text-white hover:underline"
           >
             Log in
           </Link>
         </p>
       </div>
-    </div>
+    </SplitAuthLayout>
   );
 }
