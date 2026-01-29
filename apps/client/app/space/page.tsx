@@ -1,94 +1,74 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
-import Beams from "@/components/Beams";
-import { Loader } from "@/components/ui/loader";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function SpacesCatalogPage() {
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-950">
-      {/* Loader - shown while background is loading */}
-      <div
-        className={`absolute inset-0 z-20 flex items-center justify-center bg-gray-950 transition-opacity duration-500 ${
-          isReady ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
-      >
-        <Loader size="lg" />
-      </div>
-
-      {/* Background */}
-      <div
-        className={`absolute inset-0 z-0 h-full w-full transition-opacity duration-500 ${
-          isReady ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <Beams
-          beamWidth={3}
-          beamHeight={30}
-          beamNumber={20}
-          lightColor="#ffffff"
-          speed={2}
-          noiseIntensity={1.75}
-          scale={0.2}
-          rotation={30}
-          onReady={() => setIsReady(true)}
-        />
-      </div>
-
-      {/* Content */}
-      <div
-        className={`relative z-10 w-[92vw] max-w-[1280px] transition-opacity duration-500 ${
-          isReady ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <h1 className="text-2xl text-white mb-6">Spaces</h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <button
-            className="group relative rounded-xl overflow-hidden shadow-[0_0_5px_#0000006f] bg-[#222639]/80 backdrop-blur-sm border border-white/10 cursor-pointer"
+      <Card className="w-[90vw] max-w-2xl bg-gray-900/80 border-gray-800">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl text-white">Choose a Space</CardTitle>
+          <CardDescription className="text-gray-400">
+            Select a virtual space to enter
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 100xlabs Space */}
+          <Button
+            variant="secondary"
+            className="w-full h-auto p-0 overflow-hidden bg-gray-800 hover:bg-gray-700 border border-gray-700"
             onClick={() => router.push("/space/100xlabs")}
-            aria-label="Open 100xlabs space"
           >
-            <div className="aspect-video w-full bg-black">
-              <video
-                src="/assets/VID-20251001-WA00021.mp4"
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-              />
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-[#000000a6] to-transparent">
-              <div className="text-left">
+            <div className="flex w-full items-center">
+              <div className="w-32 h-20 flex-shrink-0 bg-black">
+                <video
+                  src="/assets/VID-20251001-WA00021.mp4"
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              </div>
+              <div className="flex-1 p-4 text-left">
                 <div className="text-white font-semibold">100xlabs</div>
-                <div className="text-[#c2c2c2] text-xs">Click to enter</div>
+                <div className="text-gray-400 text-sm">Click to enter</div>
               </div>
             </div>
-          </button>
-          <button
-            className="group relative rounded-xl overflow-hidden shadow-[0_0_5px_#0000006f] bg-[#222639]/80 backdrop-blur-sm border border-white/10 cursor-pointer"
+          </Button>
+
+          {/* Haven Studios Space */}
+          <Button
+            variant="secondary"
+            className="w-full h-auto p-0 overflow-hidden bg-gray-800 hover:bg-gray-700 border border-gray-700"
             onClick={() => alert("Under construction")}
-            aria-label="Haven Studios (under construction)"
           >
-            <div className="aspect-video w-full bg-black">
-              <img
-                src="/assets/construction.gif"
-                alt="Haven Studios under construction"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-[#000000a6] to-transparent">
-              <div className="text-left">
+            <div className="flex w-full items-center">
+              <div className="w-32 h-20 flex-shrink-0 bg-black">
+                <img
+                  src="/assets/construction.gif"
+                  alt="Haven Studios under construction"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 p-4 text-left">
                 <div className="text-white font-semibold">Haven Studios</div>
-                <div className="text-[#c2c2c2] text-xs">Under construction</div>
+                <div className="text-gray-400 text-sm">Under construction</div>
               </div>
             </div>
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
