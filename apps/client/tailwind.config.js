@@ -10,6 +10,16 @@ module.exports = {
       fontFamily: {
         "instrument-serif": ["var(--font-instrument-serif)"],
       },
+      animation: {
+        "slide-up-fade":
+          "slide-up-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+      },
+      keyframes: {
+        "slide-up-fade": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
     },
   },
   plugins: [
