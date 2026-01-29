@@ -35,18 +35,12 @@ export default function Home() {
         />
       </div>
       <div className="relative z-10 flex flex-col items-center gap-8 p-4 max-w-7xl mx-auto text-center">
-        <h1
-          className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent font-instrument-serif leading-[1.1] animate-slide-up-fade opacity-0"
-          style={{ animationDelay: "100ms" }}
-        >
+        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent font-instrument-serif leading-[1.1]">
           Your workspace, reimagined
           <br className="hidden md:block" />
           in the metaverse.
         </h1>
-        <p
-          className="max-w-xl text-lg text-gray-400 animate-slide-up-fade opacity-0"
-          style={{ animationDelay: "200ms" }}
-        >
+        <p className="max-w-xl text-lg text-gray-400">
           A virtual office for modern remote teams to collaborate, connect, and
           build culture.
         </p>
