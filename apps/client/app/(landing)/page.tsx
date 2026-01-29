@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
-import PixelSnow from "@/components/ui/PixelSnow";
+
+import Beams from "@/components/Beams";
 
 export default function Home() {
   const router = useRouter();
@@ -21,12 +22,16 @@ export default function Home() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-gray-950 text-white overflow-hidden">
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <PixelSnow
-          flakeSize={0.02}
-          speed={1.5}
-          density={0.4}
-          color="#33ac96" // Matching the green accent
+      <div className="absolute inset-0 z-0 h-full w-full">
+        <Beams
+          beamWidth={3}
+          beamHeight={30}
+          beamNumber={20}
+          lightColor="#ffffff"
+          speed={2}
+          noiseIntensity={1.75}
+          scale={0.2}
+          rotation={30}
         />
       </div>
       <div className="relative z-10 flex flex-col items-center gap-6 p-4">
