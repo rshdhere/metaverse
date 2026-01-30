@@ -135,7 +135,7 @@ export default function RoomSelectionDialog() {
           ) : (
             <>
               <h1 className="text-2xl text-[#eee] text-center">
-                Welcome to SkyOffice
+                Welcome to metaverse
               </h1>
               <div className="flex flex-col gap-5 my-5 items-center justify-center">
                 <Button
