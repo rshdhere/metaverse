@@ -241,6 +241,12 @@ export default class MediaSession {
     remoteContainer: HTMLElement | null,
     localContainer: HTMLElement | null,
   ) {
+    if (this.remoteVideoContainer !== remoteContainer) {
+      console.log(
+        "MediaSession.setVideoContainers: Update remote container",
+        remoteContainer ? "Found" : "Null",
+      );
+    }
     this.remoteVideoContainer = remoteContainer;
     this.localVideoContainer = localContainer;
 
@@ -251,9 +257,15 @@ export default class MediaSession {
     }
 
     if (remoteContainer) {
-      for (const video of this.videoElementsByProducerId.values()) {
+      console.log(
+        `Attaching ${this.videoElementsByProducerId.size} existing videos to remote container`,
+      );
+      for (const [id, video] of this.videoElementsByProducerId) {
         if (!remoteContainer.contains(video)) {
+          console.log(`Appending video ${id} to remote container`);
           remoteContainer.appendChild(video);
+          // Try playing again just in case
+          video.play().catch((e) => console.warn("Autoplay retry failed:", e));
         }
       }
     }
@@ -437,17 +449,19 @@ export default class MediaSession {
       });
       this.audioElementsByProducerId.set(producerId, audio);
     } else if (consumer.kind === "video") {
+      console.log("Creating video element for producer:", producerId);
       const video = document.createElement("video");
       video.autoplay = true;
       video.playsInline = true;
-      video.muted = true;
+      video.muted = true; // Remote video (visual only), audio is separate
       video.srcObject = new MediaStream([consumer.track]);
+      // Use aspect-video to prevent collapse if height is 0
       video.className =
-        "h-full w-full rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20";
+        "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20";
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo(video);
-      video.play().catch(() => {
-        // Autoplay can be blocked until user interacts with the page.
+      video.play().catch((e) => {
+        console.warn("Video play failed:", e);
       });
     }
   }
@@ -558,7 +572,13 @@ export default class MediaSession {
       this.remoteVideoContainer &&
       !this.remoteVideoContainer.contains(video)
     ) {
+      console.log("attachRemoteVideo: Appending video to container");
       this.remoteVideoContainer.appendChild(video);
+    } else {
+      console.log(
+        "attachRemoteVideo: Container not ready or video already attached",
+        !!this.remoteVideoContainer,
+      );
     }
   }
 
