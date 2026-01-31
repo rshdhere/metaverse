@@ -259,10 +259,23 @@ export default class MediaSession {
     }
 
     if (remoteContainer) {
-      for (const [, video] of this.videoElementsByProducerId) {
+      for (const [producerId, video] of this.videoElementsByProducerId) {
+        if (this.pausedProducerIds.has(producerId)) continue;
+
+        let justAppended = false;
         if (!remoteContainer.contains(video)) {
+          console.log("Adding remote video to container:", producerId);
           remoteContainer.appendChild(video);
-          video.play().catch((e) => console.warn("Autoplay retry failed:", e));
+          justAppended = true;
+        }
+
+        // Ensure playing if it's supposed to be playing
+        if (video.paused || justAppended) {
+          video
+            .play()
+            .catch((e) =>
+              console.warn(`Video ${producerId} play retry failed:`, e),
+            );
         }
       }
     }
@@ -427,13 +440,21 @@ export default class MediaSession {
       const video = document.createElement("video");
       video.setAttribute("autoplay", "true");
       video.setAttribute("playsinline", "true");
-      video.setAttribute("muted", "true");
+      video.setAttribute("muted", "true"); // Attribute for initial parsing
       video.autoplay = true;
       video.playsInline = true;
-      video.muted = true;
+      video.muted = true; // JS property is critical for Chrome autoplay
+      video.controls = false; // Ensure controls don't appear
       video.srcObject = new MediaStream([consumer.track]);
       video.className =
         "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
+
+      console.log(
+        "Created video element for producer:",
+        producerId,
+        "Track settings:",
+        consumer.track.getSettings(),
+      );
 
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo(video);

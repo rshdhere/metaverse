@@ -340,7 +340,16 @@ export default function ArenaPage() {
             setCameraEnabled(network.isCameraEnabled());
           }
           if (active && network.getActiveMeetingPeers) {
-            setActiveMeetingPeers(network.getActiveMeetingPeers());
+            const newPeers = network.getActiveMeetingPeers();
+            setActiveMeetingPeers((prev) => {
+              if (
+                prev.length === newPeers.length &&
+                prev.every((p, i) => p === newPeers[i])
+              ) {
+                return prev;
+              }
+              return newPeers;
+            });
           }
           clearInterval(interval);
         }
@@ -385,7 +394,16 @@ export default function ArenaPage() {
       const preloader = game?.scene?.keys?.preloader;
       const network = preloader?.network;
       if (network?.getActiveMeetingPeers) {
-        setActiveMeetingPeers(network.getActiveMeetingPeers());
+        const newPeers = network.getActiveMeetingPeers();
+        setActiveMeetingPeers((prev) => {
+          if (
+            prev.length === newPeers.length &&
+            prev.every((p, i) => p === newPeers[i])
+          ) {
+            return prev;
+          }
+          return newPeers;
+        });
       }
       // Update remote container ref when it becomes available during meetings
       if (network?.setVideoContainers && localVideoRef.current) {
