@@ -3,6 +3,7 @@ import Item from "./Item";
 
 export default class Chair extends Item {
   itemDirection?: string;
+  isMeetingChair: boolean = false;
 
   constructor(
     scene: Phaser.Scene,

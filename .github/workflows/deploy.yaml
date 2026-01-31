@@ -79,6 +79,10 @@ jobs:
             # ---------- Install deps ----------
             bun install
 
+            # ---------- Rebuild Mediasoup ----------
+            echo "Rebuilding Mediasoup..."
+            npm rebuild mediasoup
+
             # ---------- Prisma ----------
             cd packages/store
             bunx prisma migrate deploy || true

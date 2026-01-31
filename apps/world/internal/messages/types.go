@@ -7,6 +7,8 @@ const (
 	TypeJoinError        = "join-error"
 	TypeUserJoin         = "user-join"
 	TypeMovement         = "movement"
+	TypeTeleport         = "teleport" // For meeting navigation - bypasses step validation
+	TypeMeetingAccepted  = "meeting-accepted"
 	TypeMovementRejected = "movement-rejected"
 	TypeUserLeft         = "user-left"
 )
@@ -116,4 +118,7 @@ type IncomingPayload struct {
 	// User details
 	Name       string `json:"name,omitempty"`
 	AvatarName string `json:"avatarName,omitempty"`
+
+	// Target for direct messages (e.g. meeting accepted)
+	TargetUserID string `json:"targetUserId,omitempty"`
 }

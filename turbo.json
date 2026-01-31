@@ -1,7 +1,15 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["PORT", "JWT_SECRET", "DATABASE_URL"],
+  "globalEnv": [
+    "PORT",
+    "JWT_SECRET",
+    "DATABASE_URL",
+    "WORLD_SERVER_SECRET",
+    "MEDIASOUP_LISTEN_IP",
+    "MEDIASOUP_ANNOUNCED_IP",
+    "BACKEND_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

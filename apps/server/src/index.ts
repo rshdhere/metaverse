@@ -5,6 +5,7 @@ import {
   avatarRouter,
   elementRouter,
   adminRouter,
+  mediasoupRouter,
 } from "@repo/api";
 
 const appRouter = router({
@@ -13,6 +14,7 @@ const appRouter = router({
   avatar: avatarRouter,
   element: elementRouter,
   admin: adminRouter,
+  mediasoup: mediasoupRouter,
 });
 
 export type AppRouter = typeof appRouter;

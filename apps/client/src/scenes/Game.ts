@@ -13,6 +13,10 @@ import MyPlayer from "../characters/MyPlayer";
 import OtherPlayer from "../characters/OtherPlayer";
 import PlayerSelector from "../characters/PlayerSelector";
 import Network from "../services/Network";
+import { phaserEvents, Event } from "../events/EventCenter";
+import { toast } from "sonner";
+import Pathfinder from "../utils/Pathfinder";
+
 type NavKeys = Phaser.Types.Input.Keyboard.CursorKeys & {
   W?: Phaser.Input.Keyboard.Key;
   A?: Phaser.Input.Keyboard.Key;
@@ -26,6 +30,11 @@ type Keyboard = {
   D: Phaser.Input.Keyboard.Key;
 };
 type IPlayer = { x: number; y: number; anim: string; name?: string };
+type MeetingPromptRole = "sender" | "receiver";
+type MeetingPromptMessage = {
+  peerId: string;
+  role: MeetingPromptRole;
+};
 
 export default class Game extends Phaser.Scene {
   network!: Network;
@@ -33,12 +42,26 @@ export default class Game extends Phaser.Scene {
   private keyE!: Phaser.Input.Keyboard.Key;
   private keyR!: Phaser.Input.Keyboard.Key;
   private map!: Phaser.Tilemaps.Tilemap;
+  private pathfinder!: Pathfinder;
   myPlayer!: MyPlayer;
   private playerSelector!: Phaser.GameObjects.Zone;
   private otherPlayers!: Phaser.Physics.Arcade.Group;
   private otherPlayerMap = new Map<string, OtherPlayer>();
+  private proximityState = new Map<
+    string,
+    { enteredAt: number; lastPromptAt: number }
+  >();
+  private meetingPromptQueue: MeetingPromptMessage[] = [];
+  private meetingPromptActive = false;
+  private meetingPromptTimer?: number;
+  private isTeleportingToMeeting = false; // Flag to bypass server corrections during meeting teleport
   // Whiteboard removed
   private computerMap = new Map<string, Computer>();
+  private chairs!: Phaser.Physics.Arcade.StaticGroup;
+  private static readonly PROXIMITY_RADIUS = 120;
+  private static readonly PROXIMITY_DWELL_MS = 3000;
+  private static readonly PROXIMITY_COOLDOWN_MS = 10000;
+  private static readonly PROXIMITY_PROMPT_DURATION_MS = 5000;
 
   constructor() {
     super("game");
@@ -96,6 +119,9 @@ export default class Game extends Phaser.Scene {
 
     // debugDraw(groundLayer, this)
 
+    // Initialize Pathfinder
+    this.pathfinder = new Pathfinder(this.map, "Ground");
+
     // Use selected avatar from network (default to 'adam')
     const avatarName =
       (typeof this.network.getMyAvatarName === "function"
@@ -135,24 +161,31 @@ export default class Game extends Phaser.Scene {
     this.playerSelector = new PlayerSelector(this, 0, 0, 16, 16);
 
     // import chair objects from Tiled map to Phaser
-    const chairs = this.physics.add.staticGroup({ classType: Chair });
+    this.chairs = this.physics.add.staticGroup({ classType: Chair });
     const chairLayer = this.map.getObjectLayer("Chair")!;
     chairLayer.objects.forEach(
       (chairObj: Phaser.Types.Tilemaps.TiledObject) => {
         const item = this.addObjectFromTiled(
-          chairs,
+          this.chairs,
           chairObj,
           "chairs",
           "chair",
         ) as Chair;
-        // custom properties[0] is the object direction specified in Tiled
+
+        // Parse custom properties from Tiled (direction and meeting)
         const props = (
           chairObj as unknown as {
             properties?: Array<{ name: string; value: unknown }>;
           }
         ).properties;
-        if (props && props.length > 0) {
-          (item as Chair).itemDirection = props[0].value as string;
+        if (props) {
+          for (const prop of props) {
+            if (prop.name === "direction") {
+              (item as Chair).itemDirection = prop.value as string;
+            } else if (prop.name === "meeting") {
+              (item as Chair).isMeetingChair = prop.value as boolean;
+            }
+          }
         }
       },
     );
@@ -238,7 +271,7 @@ export default class Game extends Phaser.Scene {
     // item selection overlaps
     this.physics.add.overlap(
       this.playerSelector,
-      [chairs, computers, vendingMachines],
+      [this.chairs, computers, vendingMachines],
       this
         .handleItemSelectorOverlap as unknown as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
       undefined,
@@ -261,7 +294,20 @@ export default class Game extends Phaser.Scene {
     // WebRTC removed
     // listen for position/anim updates
     this.network.onPlayerUpdated(this.handlePlayerUpdated, this);
+    // Listen for meeting acceptance
+    this.network.onMeetingAccepted((fromUserId: string) => {
+      console.log("Navigating to meeting as accepted by", fromUserId);
+      toast.dismiss(); // Dismiss any active toasts
+      this.handleNavigateToSittingArea();
+    }, this);
     // Chat removed: no onChatMessageAdded subscription
+
+    // Listen for meeting navigation events
+    phaserEvents.on(
+      Event.NAVIGATE_TO_SITTING_AREA,
+      this.handleNavigateToSittingArea,
+      this,
+    );
 
     // Signal that Game scene is ready - this flushes the event queue
     this.network.setGameSceneReady();
@@ -392,6 +438,15 @@ export default class Game extends Phaser.Scene {
   ) {
     // If it's ME, it means the server rejected my movement and sent me back
     if (this.network && id === this.network.mySessionId) {
+      // Skip corrections during meeting teleportation
+      if (this.isTeleportingToMeeting) {
+        console.log(
+          "⏭️ Ignoring server correction during meeting teleport:",
+          field,
+          value,
+        );
+        return;
+      }
       console.log("⚠️ Server corrected my position:", field, value);
       if (field === "x") this.myPlayer.x = value as number;
       if (field === "y") this.myPlayer.y = value as number;
@@ -406,6 +461,122 @@ export default class Game extends Phaser.Scene {
     // WebRTC removed
   }
 
+  // Navigate player to nearest available meeting chair by walking along a path
+  private handleNavigateToSittingArea(): void {
+    if (!this.myPlayer || !this.chairs || !this.network) return;
+
+    const playerX = this.myPlayer.x;
+    const playerY = this.myPlayer.y;
+
+    // Find nearest meeting chair (only chairs marked with meeting: true in the map)
+    let nearestChair: Chair | null = null;
+    let nearestDistance = Infinity;
+
+    this.chairs.getChildren().forEach((child) => {
+      const chair = child as Chair;
+      if (!chair.isMeetingChair) return;
+      const distance = Phaser.Math.Distance.Between(
+        playerX,
+        playerY,
+        chair.x,
+        chair.y,
+      );
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestChair = chair;
+      }
+    });
+
+    if (nearestChair) {
+      // Target position in front of the chair
+      const targetX = (nearestChair as Chair).x;
+      const targetY = (nearestChair as Chair).y + 16;
+
+      // Calculate path
+      const start = { x: playerX, y: playerY };
+      const target = { x: targetX, y: targetY };
+
+      // Get path from A*
+      const path = this.pathfinder.findPath(start, target);
+
+      // If path found, optimize it slightly by replacing last point with exact target
+      if (path.length > 0) {
+        path[path.length - 1] = target;
+      } else {
+        // Fallback: direct path if no path found (e.g. start/end invalid)
+        path.push(target);
+      }
+
+      // Start walking
+      const avatarName = this.network.getMyAvatarName() || "adam";
+      this.isTeleportingToMeeting = true;
+      this.movePlayerAlongPath(path, avatarName);
+    }
+  }
+
+  private movePlayerAlongPath(
+    path: { x: number; y: number }[],
+    avatarName: string,
+  ) {
+    if (path.length === 0) {
+      // Finished walking
+      const idleAnim = `${avatarName}_idle_down`;
+      this.myPlayer.anims.play(idleAnim, true);
+      // Final sync with teleport to ensure exact position
+      this.network.teleportPlayer(this.myPlayer.x, this.myPlayer.y, idleAnim);
+
+      this.time.delayedCall(500, () => {
+        this.isTeleportingToMeeting = false;
+      });
+      return;
+    }
+
+    const nextPoint = path.shift()!;
+    const currentX = this.myPlayer.x;
+    const currentY = this.myPlayer.y;
+
+    // Skip if point is too close (already there)
+    const dist = Phaser.Math.Distance.Between(
+      currentX,
+      currentY,
+      nextPoint.x,
+      nextPoint.y,
+    );
+    if (dist < 5) {
+      this.movePlayerAlongPath(path, avatarName);
+      return;
+    }
+
+    const dx = nextPoint.x - currentX;
+    const dy = nextPoint.y - currentY;
+    const speed = 150; // pixels per second
+    const duration = (dist / speed) * 1000;
+
+    // Determine animation
+    let walkAnim = "";
+    if (Math.abs(dx) > Math.abs(dy)) {
+      walkAnim = dx > 0 ? `${avatarName}_run_right` : `${avatarName}_run_left`;
+    } else {
+      walkAnim = dy > 0 ? `${avatarName}_run_down` : `${avatarName}_run_up`;
+    }
+    this.myPlayer.anims.play(walkAnim, true);
+
+    this.tweens.add({
+      targets: this.myPlayer,
+      x: nextPoint.x,
+      y: nextPoint.y,
+      duration: duration,
+      ease: "Linear",
+      onComplete: () => {
+        // Send position update at each step node
+        // We use teleportPlayer here to prevent server fighting us if we deviate slightly
+        // or if path steps are slightly larger than regular updates
+        this.network.teleportPlayer(this.myPlayer.x, this.myPlayer.y, walkAnim);
+        this.movePlayerAlongPath(path, avatarName);
+      },
+    });
+  }
+
   // Chat removed
 
   update() {
@@ -418,6 +589,101 @@ export default class Game extends Phaser.Scene {
         this.keyR,
         this.network,
       );
+      this.checkProximityToPlayers();
+      this.processMeetingPromptQueue();
     }
+  }
+
+  private checkProximityToPlayers() {
+    const now = Date.now();
+    for (const [id, otherPlayer] of this.otherPlayerMap.entries()) {
+      const distance = Phaser.Math.Distance.Between(
+        this.myPlayer.x,
+        this.myPlayer.y,
+        otherPlayer.x,
+        otherPlayer.y,
+      );
+
+      const inRange = distance <= Game.PROXIMITY_RADIUS;
+      const state = this.proximityState.get(id);
+
+      if (!inRange) {
+        if (state) {
+          this.proximityState.delete(id);
+        }
+        continue;
+      }
+
+      if (!state) {
+        this.proximityState.set(id, { enteredAt: now, lastPromptAt: 0 });
+        continue;
+      }
+
+      const hasDwelled = now - state.enteredAt >= Game.PROXIMITY_DWELL_MS;
+      const cooledDown = now - state.lastPromptAt >= Game.PROXIMITY_COOLDOWN_MS;
+
+      if (hasDwelled && cooledDown) {
+        const role: MeetingPromptRole =
+          this.network.mySessionId < id ? "sender" : "receiver";
+        this.enqueueMeetingPrompt({ peerId: id, role });
+        state.lastPromptAt = now;
+      }
+    }
+  }
+
+  private enqueueMeetingPrompt(message: MeetingPromptMessage) {
+    this.meetingPromptQueue.push(message);
+  }
+
+  private processMeetingPromptQueue() {
+    if (this.meetingPromptActive || this.meetingPromptQueue.length === 0) {
+      return;
+    }
+
+    const message = this.meetingPromptQueue.shift();
+    if (!message) return;
+
+    this.meetingPromptActive = true;
+    const duration = Game.PROXIMITY_PROMPT_DURATION_MS;
+
+    const clearActive = () => {
+      if (this.meetingPromptTimer) {
+        window.clearTimeout(this.meetingPromptTimer);
+        this.meetingPromptTimer = undefined;
+      }
+      this.meetingPromptActive = false;
+    };
+
+    const toastId = toast("Wanna hold a meeting?", {
+      duration,
+      action: {
+        label: message.role === "receiver" ? "Sure!" : "Go to meeting",
+        onClick: async () => {
+          clearActive();
+          toast.dismiss(toastId);
+
+          // If we are the receiver (clicked Sure), notify the sender
+          if (message.role === "receiver") {
+            this.network.acceptMeeting(message.peerId);
+          }
+
+          try {
+            await this.network.enableCamera();
+          } catch {}
+          phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
+        },
+      },
+      cancel: {
+        label: "Maybe later",
+        onClick: () => {
+          clearActive();
+          toast.dismiss(toastId);
+        },
+      },
+    });
+
+    this.meetingPromptTimer = window.setTimeout(() => {
+      clearActive();
+    }, duration);
   }
 }

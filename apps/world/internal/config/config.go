@@ -9,9 +9,13 @@ import (
 
 // Config holds all configuration for the WebSocket server
 type Config struct {
-	Port       string
-	JWTSecret  string
-	DBUrl      string
+	Port              string
+	JWTSecret         string
+	DBUrl             string
+	ServerURL         string
+	WorldServerSecret string
+	AudioRadius       float64
+	VideoRadius       float64
 }
 
 // Global config instance
@@ -27,9 +31,14 @@ func Load() error {
 	}
 
 	AppConfig = &Config{
-		Port:      getEnv("WS_PORT", "8083"),
-		JWTSecret: getEnv("JWT_SECRET", ""),
-		DBUrl:     getEnv("DATABASE_URL", ""),
+		Port:              getEnv("WS_PORT", "8083"),
+		JWTSecret:         getEnv("JWT_SECRET", ""),
+		DBUrl:             getEnv("DATABASE_URL", ""),
+		ServerURL:         getEnv("BACKEND_URL", "http://localhost:8082"),
+		WorldServerSecret: getEnv("WORLD_SERVER_SECRET", ""),
+		// Hard-coded proximity radii to keep behavior deterministic.
+		AudioRadius: 200,
+		VideoRadius: 120,
 	}
 
 	return nil
@@ -42,3 +51,4 @@ func getEnv(key, fallback string) string {
 	}
 	return fallback
 }
+

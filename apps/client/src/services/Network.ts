@@ -3,6 +3,7 @@ import { ItemType } from "../../types/Items";
 import { getTrpcClient } from "../../app/lib/trpc";
 import { WS_URL } from "@repo/config/constants";
 import { phaserEvents, Event } from "../events/EventCenter";
+import MediaSession from "./MediaSession";
 
 // Types for queued events
 type QueuedEvent =
@@ -43,12 +44,14 @@ export default class Network {
   // Current position tracking for persistence
   private currentPosition: { x: number; y: number } | null = null;
   private currentSpaceId: string | null = null;
+  private mediaSession?: MediaSession;
 
   constructor() {
     // Use WS_URL from config (automatically handles dev vs production)
     this.wsEndpoint = WS_URL;
 
     if (typeof window !== "undefined") {
+      this.mediaSession = new MediaSession();
       this.connectWebSocket();
 
       // Save position to localStorage when tab is closing
@@ -168,6 +171,9 @@ export default class Network {
       );
       this.gameSceneReady = true;
     }
+
+    // Ensure meeting prompts are enabled when the game UI is ready.
+    this.setMeetingToastEnabled(true);
 
     // Always flush queued events
     this.flushEventQueue();
@@ -375,6 +381,13 @@ export default class Network {
           if (this.knownUsers.has(userId)) this.knownUsers.delete(userId);
           this.userSnapshots.delete(userId);
           this.queueOrEmit({ type: "PLAYER_LEFT", id: userId });
+          this.queueOrEmit({ type: "PLAYER_LEFT", id: userId });
+          break;
+        }
+        case "meeting-accepted": {
+          const { fromUserId } = data.payload;
+          console.log("🤝 Meeting accepted by:", fromUserId);
+          phaserEvents.emit(Event.MEETING_ACCEPTED, fromUserId);
           break;
         }
         default:
@@ -473,6 +486,31 @@ export default class Network {
     }
   }
 
+  // Teleport player to a specific location (used for meeting navigation)
+  // This bypasses server step validation but still checks collisions
+  teleportPlayer(targetX: number, targetY: number, anim: string) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: "teleport",
+          payload: { x: targetX, y: targetY, anim },
+        }),
+      );
+    }
+  }
+
+  // Send meeting acceptance to a peer
+  acceptMeeting(targetUserId: string) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: "meeting-accepted",
+          payload: { targetUserId },
+        }),
+      );
+    }
+  }
+
   async updatePlayerName(currentName: string) {
     this.username = currentName;
     if (!this.token) {
@@ -494,6 +532,8 @@ export default class Network {
       const payload = JSON.parse(atob(token.split(".")[1]));
       this.mySessionId = payload.userId;
     } catch {}
+
+    this.ensureMediaSessionStarted();
   }
 
   onItemUserAdded(
@@ -530,6 +570,10 @@ export default class Network {
     context?: any,
   ) {
     phaserEvents.on(Event.PLAYER_UPDATED, callback.bind(context));
+  }
+
+  onMeetingAccepted(callback: (fromUserId: string) => void, context?: any) {
+    phaserEvents.on(Event.MEETING_ACCEPTED, callback.bind(context));
   }
 
   connectToComputer(id: string) {
@@ -571,6 +615,8 @@ export default class Network {
           this.mySessionId = payload.userId;
         } catch {}
       }
+
+      this.ensureMediaSessionStarted();
     } catch (e) {
       console.error("Auth failed:", e);
     }
@@ -582,5 +628,48 @@ export default class Network {
     const PUBLIC_SPACE_ID = "public-lobby";
     console.log("🏠 Joining shared public space:", PUBLIC_SPACE_ID);
     return PUBLIC_SPACE_ID;
+  }
+
+  private ensureMediaSessionStarted() {
+    if (!this.mediaSession) return;
+    this.mediaSession.start().catch((error) => {
+      console.error("Failed to initialize media session:", error);
+    });
+  }
+
+  setVideoContainers(
+    remoteContainer: HTMLElement | null,
+    localContainer: HTMLElement | null,
+  ) {
+    this.mediaSession?.setVideoContainers(remoteContainer, localContainer);
+  }
+
+  setMeetingToastEnabled(enabled: boolean) {
+    this.mediaSession?.setMeetingToastEnabled(enabled);
+  }
+
+  async enableCamera() {
+    await this.mediaSession?.enableCamera();
+  }
+
+  disableCamera() {
+    this.mediaSession?.disableCamera();
+  }
+
+  isCameraEnabled() {
+    return this.mediaSession?.isCameraEnabled() ?? false;
+  }
+
+  getActiveMeetingPeers() {
+    return this.mediaSession?.getActiveMeetingPeers() ?? [];
+  }
+
+  async endMeetings() {
+    const peers = this.getActiveMeetingPeers();
+    if (peers.length === 0) return;
+    const client = getTrpcClient();
+    await Promise.all(
+      peers.map((peerId) => client.mediasoup.meetingEnd.mutate({ peerId })),
+    );
   }
 }

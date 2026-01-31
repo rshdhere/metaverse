@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useAppState } from "../../src/providers/AppStateProvider";
@@ -49,6 +49,10 @@ export default function ArenaPage() {
   const [displayName, setDisplayName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState("adam");
   const [showNameInput, setShowNameInput] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [activeMeetingPeers, setActiveMeetingPeers] = useState<string[]>([]);
+  const remoteVideoRef = useRef<HTMLDivElement | null>(null);
+  const localVideoRef = useRef<HTMLDivElement | null>(null);
 
   const availableAvatars = [
     {
@@ -206,6 +210,84 @@ export default function ArenaPage() {
     displayName,
   ]);
 
+  useEffect(() => {
+    if (!gameInitialized) return;
+
+    let active = true;
+    const interval = setInterval(() => {
+      type ScenePreloader = {
+        network?: {
+          setVideoContainers?: (
+            remote: HTMLElement | null,
+            local: HTMLElement | null,
+          ) => void;
+          isCameraEnabled?: () => boolean;
+        };
+      };
+      type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
+      const game = (window as unknown as { game?: WindowGame }).game;
+      const preloader = game?.scene?.keys?.preloader;
+      const network = preloader?.network;
+
+      if (network?.setVideoContainers) {
+        network.setVideoContainers(
+          remoteVideoRef.current,
+          localVideoRef.current,
+        );
+        if (network.setMeetingToastEnabled) {
+          network.setMeetingToastEnabled(true);
+        }
+        if (active && network.isCameraEnabled) {
+          setCameraEnabled(network.isCameraEnabled());
+        }
+        if (active && network.getActiveMeetingPeers) {
+          setActiveMeetingPeers(network.getActiveMeetingPeers());
+        }
+        clearInterval(interval);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [gameInitialized]);
+
+  useEffect(() => {
+    if (!gameInitialized) return;
+    return () => {
+      type ScenePreloader = {
+        network?: {
+          setMeetingToastEnabled?: (enabled: boolean) => void;
+        };
+      };
+      type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
+      const game = (window as unknown as { game?: WindowGame }).game;
+      const preloader = game?.scene?.keys?.preloader;
+      preloader?.network?.setMeetingToastEnabled?.(false);
+    };
+  }, [gameInitialized]);
+
+  useEffect(() => {
+    if (!gameInitialized) return;
+    const interval = setInterval(() => {
+      type ScenePreloader = {
+        network?: {
+          getActiveMeetingPeers?: () => string[];
+        };
+      };
+      type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
+      const game = (window as unknown as { game?: WindowGame }).game;
+      const preloader = game?.scene?.keys?.preloader;
+      const network = preloader?.network;
+      if (network?.getActiveMeetingPeers) {
+        setActiveMeetingPeers(network.getActiveMeetingPeers());
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameInitialized]);
+
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (displayName.trim()) {
@@ -218,6 +300,44 @@ export default function ArenaPage() {
       setAvatarName(selectedAvatar);
       setShowNameInput(false);
     }
+  };
+
+  const handleCameraToggle = async () => {
+    type ScenePreloader = {
+      network?: {
+        enableCamera?: () => Promise<void>;
+        disableCamera?: () => void;
+        isCameraEnabled?: () => boolean;
+      };
+    };
+    type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
+    const game = (window as unknown as { game?: WindowGame }).game;
+    const preloader = game?.scene?.keys?.preloader;
+    const network = preloader?.network;
+    if (!network) return;
+
+    const enabled = network.isCameraEnabled?.() ?? false;
+    if (enabled) {
+      network.disableCamera?.();
+      setCameraEnabled(false);
+    } else {
+      await network.enableCamera?.();
+      setCameraEnabled(true);
+    }
+  };
+
+  const handleLeaveMeeting = async () => {
+    type ScenePreloader = {
+      network?: {
+        endMeetings?: () => Promise<void>;
+      };
+    };
+    type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
+    const game = (window as unknown as { game?: WindowGame }).game;
+    const preloader = game?.scene?.keys?.preloader;
+    const network = preloader?.network;
+    if (!network?.endMeetings) return;
+    await network.endMeetings();
   };
 
   // Don't render game until authenticated
@@ -251,6 +371,46 @@ export default function ArenaPage() {
         >
           {computerDialogOpen ? <ComputerDialog /> : <MobileVirtualJoystick />}
         </div>
+      )}
+
+      {gameInitialized && (
+        <>
+          <div className="absolute top-4 right-4 z-20 pointer-events-auto">
+            <div className="rounded-lg border border-border bg-card/80 p-3 text-card-foreground backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">Camera</span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleCameraToggle}
+                >
+                  {cameraEnabled ? "Disable" : "Enable"}
+                </Button>
+              </div>
+              <div
+                ref={localVideoRef}
+                className="mt-2 h-28 w-40 overflow-hidden rounded-md border border-border bg-muted"
+              />
+              {activeMeetingPeers.length > 0 && (
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Meeting active
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleLeaveMeeting}
+                  >
+                    Leave
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="absolute bottom-4 right-4 z-20 pointer-events-auto">
+            <div ref={remoteVideoRef} className="grid grid-cols-2 gap-2" />
+          </div>
+        </>
       )}
 
       {/* Loading/Error indicator while game initializes */}
@@ -331,7 +491,7 @@ export default function ArenaPage() {
                     </p>
                     {selectedAvatar === avatar.id && (
                       <div className="absolute top-3 right-3 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
-                        <Check className="w-3.5 h-3.5 text-black stroke-[3]" />
+                        <Check className="w-3.5 h-3.5 text-black stroke-3" />
                       </div>
                     )}
                   </button>

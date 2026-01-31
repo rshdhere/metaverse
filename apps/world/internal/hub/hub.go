@@ -5,8 +5,10 @@ import (
 	"log"
 	"math/rand"
 	"sync"
+	"time"
 
 	"world/internal/auth"
+	"world/internal/config"
 	"world/internal/messages"
 )
 
@@ -40,6 +42,9 @@ func NewHub() *Hub {
 
 // Run starts the hub's main loop
 func (h *Hub) Run() {
+	// Start background goroutine for checking video dwell timers
+	go h.runDwellTimerChecker()
+
 	for {
 		select {
 		case client := <-h.Register:
@@ -50,6 +55,26 @@ func (h *Hub) Run() {
 
 		case client := <-h.Unregister:
 			h.handleDisconnect(client)
+		}
+	}
+}
+
+// runDwellTimerChecker periodically checks all spaces for expired dwell timers
+func (h *Hub) runDwellTimerChecker() {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		h.mu.RLock()
+		spaces := make([]*Space, 0, len(h.Spaces))
+		for _, space := range h.Spaces {
+			spaces = append(spaces, space)
+		}
+		h.mu.RUnlock()
+
+		for _, space := range spaces {
+			events := space.CheckVideoDwellTimers()
+			h.notifyProximityChanges(events)
 		}
 	}
 }
@@ -76,9 +101,10 @@ func (h *Hub) handleDisconnect(client *Client) {
 	if space != nil {
 		// If client was in a space, remove them and notify others
 		// This now returns true only if THIS client was the one in the space
-		removed := space.RemoveUser(client)
+		removed, proximityEvents := space.RemoveUserAndCollectProximityLeaves(client)
 
 		if removed {
+			h.notifyProximityChanges(proximityEvents)
 			// Broadcast user-left to remaining users
 			leaveMsg := messages.BaseMessage{
 				Type: messages.TypeUserLeft,
@@ -103,6 +129,10 @@ func (h *Hub) handleDisconnect(client *Client) {
 	log.Printf("Client %s disconnected", userID)
 }
 
+// notifyProximityChanges sends proximity events to the backend for processing.
+// This function definition is removed here as it is already defined in proximity_bridge.go
+
+
 // ProcessMessage handles incoming messages from clients
 func (h *Hub) ProcessMessage(client *Client, rawMessage []byte) {
 	var msg messages.IncomingMessage
@@ -116,6 +146,10 @@ func (h *Hub) ProcessMessage(client *Client, rawMessage []byte) {
 		h.handleJoin(client, msg.Payload)
 	case messages.TypeMovement:
 		h.handleMovement(client, msg.Payload)
+	case messages.TypeTeleport:
+		h.handleTeleport(client, msg.Payload)
+	case messages.TypeMeetingAccepted:
+		h.handleMeetingAccepted(client, msg.Payload)
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 	}
@@ -190,6 +224,21 @@ func (h *Hub) handleJoin(client *Client, payload messages.IncomingPayload) {
 	// Add user to space
 	space.AddUser(client)
 	h.mu.Unlock()
+
+	// Compute initial proximity after the user joins
+	proximityEvents := append(
+		space.UpdateProximityForUser(
+			client,
+			config.AppConfig.AudioRadius,
+			"audio",
+		),
+		space.UpdateProximityForUser(
+			client,
+			config.AppConfig.VideoRadius,
+			"video",
+		)...,
+	)
+	h.notifyProximityChanges(proximityEvents)
 
 	// Send space-joined to the joining user
 	joinedMsg := messages.BaseMessage{
@@ -273,6 +322,20 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 
 	client.Anim = payload.Anim
 
+	proximityEvents := append(
+		space.UpdateProximityForUser(
+			client,
+			config.AppConfig.AudioRadius,
+			"audio",
+		),
+		space.UpdateProximityForUser(
+			client,
+			config.AppConfig.VideoRadius,
+			"video",
+		)...,
+	)
+	h.notifyProximityChanges(proximityEvents)
+
 	// Broadcast movement to other users
 	moveMsg := messages.BaseMessage{
 		Type: messages.TypeMovement,
@@ -286,6 +349,109 @@ func (h *Hub) handleMovement(client *Client, payload messages.IncomingPayload) {
 	h.broadcastToSpace(client.SpaceID, moveMsg, client.UserID)
 
 	log.Printf("User %s moved from (%f,%f) to (%f,%f)", client.UserID, oldX, oldY, newX, newY)
+}
+
+// handleTeleport processes a teleport request (for meeting navigation)
+// This bypasses step size validation but still checks bounds and collisions
+func (h *Hub) handleTeleport(client *Client, payload messages.IncomingPayload) {
+	if client.SpaceID == "" {
+		log.Printf("User %s tried to teleport without joining a space", client.UserID)
+		return
+	}
+
+	h.mu.RLock()
+	space, exists := h.Spaces[client.SpaceID]
+	h.mu.RUnlock()
+
+	if !exists {
+		log.Printf("Space %s not found", client.SpaceID)
+		return
+	}
+
+	oldX, oldY := client.GetPosition()
+	newX, newY := payload.X, payload.Y
+
+	// Only check collision (no step size validation for teleport)
+	isColliding := space.IsColliding(newX, newY, client.UserID)
+
+	if isColliding {
+		// Send movement-rejected with WHERE THEY SHOULD BE (old position)
+		rejectMsg := messages.BaseMessage{
+			Type: messages.TypeMovementRejected,
+			Payload: messages.MovementRejectedPayload{
+				X: oldX,
+				Y: oldY,
+			},
+		}
+		client.SendJSON(rejectMsg)
+		log.Printf("Teleport rejected for user %s: from (%f,%f) to (%f,%f). Colliding: %v",
+			client.UserID, oldX, oldY, newX, newY, isColliding)
+		return
+	}
+
+	// Update position
+	client.SetPosition(newX, newY)
+	client.Anim = payload.Anim
+
+	proximityEvents := append(
+		space.UpdateProximityForUser(
+			client,
+			config.AppConfig.AudioRadius,
+			"audio",
+		),
+		space.UpdateProximityForUser(
+			client,
+			config.AppConfig.VideoRadius,
+			"video",
+		)...,
+	)
+	h.notifyProximityChanges(proximityEvents)
+
+	// Broadcast movement to other users (they see it as normal movement)
+	moveMsg := messages.BaseMessage{
+		Type: messages.TypeMovement,
+		Payload: messages.MovementPayload{
+			X:      newX,
+			Y:      newY,
+			UserID: client.UserID,
+			Anim:   client.Anim,
+		},
+	}
+	h.broadcastToSpace(client.SpaceID, moveMsg, client.UserID)
+
+	log.Printf("User %s teleported from (%f,%f) to (%f,%f)", client.UserID, oldX, oldY, newX, newY)
+}
+
+// handleMeetingAccepted forwards the acceptance message to the target peer
+func (h *Hub) handleMeetingAccepted(client *Client, payload messages.IncomingPayload) {
+	if client.SpaceID == "" || payload.TargetUserID == "" {
+		return
+	}
+
+	h.mu.RLock()
+	space, exists := h.Spaces[client.SpaceID]
+	h.mu.RUnlock()
+
+	if !exists {
+		return
+	}
+
+	// Find target user
+	targetClient, ok := space.Users[payload.TargetUserID]
+	if !ok {
+		log.Printf("Target user %s not found for meeting acceptance", payload.TargetUserID)
+		return
+	}
+
+	// Send acceptance message to target
+	msg := messages.BaseMessage{
+		Type: messages.TypeMeetingAccepted,
+		Payload: map[string]string{
+			"fromUserId": client.UserID,
+		},
+	}
+	targetClient.SendJSON(msg)
+	log.Printf("Meeting accepted by %s, notifying %s", client.UserID, payload.TargetUserID)
 }
 
 // broadcastToSpace sends a message to all users in a space except the sender

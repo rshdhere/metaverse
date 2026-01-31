@@ -504,6 +504,11 @@
                          "name":"direction",
                          "type":"string",
                          "value":"down"
+                       }, 
+                       {
+                        "name":"meeting",
+                        "type":"bool",
+                        "value":true
                         }],
                  "rotation":0,
                  "type":"",
@@ -522,6 +527,11 @@
                          "name":"direction",
                          "type":"string",
                          "value":"left"
+                       }, 
+                       {
+                        "name":"meeting",
+                        "type":"bool",
+                        "value":true
                         }],
                  "rotation":0,
                  "type":"",
@@ -540,6 +550,11 @@
                          "name":"direction",
                          "type":"string",
                          "value":"right"
+                       }, 
+                       {
+                        "name":"meeting",
+                        "type":"bool",
+                        "value":true
                         }],
                  "rotation":0,
                  "type":"",
@@ -558,6 +573,11 @@
                          "name":"direction",
                          "type":"string",
                          "value":"down"
+                       }, 
+                       {
+                        "name":"meeting",
+                        "type":"bool",
+                        "value":true
                         }],
                  "rotation":0,
                  "type":"",
@@ -738,6 +758,11 @@
                          "name":"direction",
                          "type":"string",
                          "value":"up"
+                       }, 
+                       {
+                        "name":"meeting",
+                        "type":"bool",
+                        "value":true
                         }],
                  "rotation":0,
                  "type":"",
@@ -756,6 +781,11 @@
                          "name":"direction",
                          "type":"string",
                          "value":"up"
+                       }, 
+                       {
+                        "name":"meeting",
+                        "type":"bool",
+                        "value":true
                         }],
                  "rotation":0,
                  "type":"",
@@ -774,6 +804,11 @@
                          "name":"direction",
                          "type":"string",
                          "value":"up"
+                       }, 
+                       {
+                        "name":"meeting",
+                        "type":"bool",
+                        "value":true
                         }],
                  "rotation":0,
                  "type":"",
