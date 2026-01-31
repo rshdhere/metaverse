@@ -377,40 +377,79 @@ export default function ArenaPage() {
 
       {gameInitialized && (
         <>
-          <div className="absolute top-4 right-4 z-20 pointer-events-auto">
-            <div className="rounded-lg border border-border bg-card/80 p-3 text-card-foreground backdrop-blur">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">Camera</span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleCameraToggle}
-                >
-                  {cameraEnabled ? "Disable" : "Enable"}
-                </Button>
-              </div>
-              <div
-                ref={localVideoRef}
-                className="mt-2 h-28 w-40 overflow-hidden rounded-md border border-border bg-muted"
-              />
-              {activeMeetingPeers.length > 0 && (
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    Meeting active
+          <div className="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col gap-3 items-end">
+            <div className="p-1 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl overflow-hidden transition-all hover:bg-black/60">
+              <div className="relative group">
+                <div
+                  ref={localVideoRef}
+                  className="h-32 w-56 overflow-hidden rounded-xl bg-zinc-900/50 shadow-inner"
+                />
+                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[10px] font-medium text-white/80 bg-black/50 px-2 py-0.5 rounded-full">
+                    You
                   </span>
                   <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleLeaveMeeting}
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white"
+                    onClick={handleCameraToggle}
                   >
-                    Leave
+                    {cameraEnabled ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M23 7l-7 5 7 5V7z" />
+                        <rect
+                          x="1"
+                          y="5"
+                          width="15"
+                          height="14"
+                          rx="2"
+                          ry="2"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    )}
                   </Button>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-          <div className="absolute bottom-4 right-4 z-20 pointer-events-auto">
-            <div ref={remoteVideoRef} className="grid grid-cols-2 gap-2" />
+
+            {activeMeetingPeers.length > 0 && (
+              <Button
+                size="sm"
+                variant="destructive"
+                className="w-full rounded-xl shadow-lg hover:bg-red-600/90 transition-all font-medium text-xs h-8"
+                onClick={handleLeaveMeeting}
+              >
+                Leave Meeting
+              </Button>
+            )}
+
+            {/* Remote videos stack below personal video */}
+            <div ref={remoteVideoRef} className="grid grid-cols-1 gap-3 w-56" />
           </div>
         </>
       )}

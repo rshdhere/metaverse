@@ -4,6 +4,7 @@ import { getTrpcClient } from "../../app/lib/trpc";
 import { WS_URL } from "@repo/config/constants";
 import { phaserEvents, Event } from "../events/EventCenter";
 import MediaSession from "./MediaSession";
+import { toast } from "sonner";
 
 // Types for queued events
 type QueuedEvent =
@@ -259,6 +260,14 @@ export default class Network {
       this.ws.onmessage = (evt) => this.handleWsMessage(evt);
       this.ws.onclose = () => {
         console.log("WebSocket disconnected");
+        toast.error("Connection lost", {
+          description: "Please refresh to reconnect.",
+          action: {
+            label: "Refresh",
+            onClick: () => window.location.reload(),
+          },
+          duration: Infinity,
+        });
       };
       this.ws.onerror = (error) => {
         console.error("WebSocket error:", error);

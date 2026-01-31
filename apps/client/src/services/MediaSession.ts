@@ -443,7 +443,7 @@ export default class MediaSession {
       video.muted = true;
       video.srcObject = new MediaStream([consumer.track]);
       video.className =
-        "h-32 w-48 rounded-lg border border-border bg-muted object-cover";
+        "h-full w-full rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20";
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo(video);
       video.play().catch(() => {
@@ -570,7 +570,7 @@ export default class MediaSession {
       video.muted = true;
       video.srcObject = stream;
       video.className =
-        "h-28 w-40 rounded-md border border-border bg-muted object-cover";
+        "h-full w-full rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20";
       this.localVideoElement = video;
     }
 
@@ -597,6 +597,14 @@ export default class MediaSession {
       return;
     }
     if (this.meetingPrompts.has(action.requestId)) return;
+
+    if (this.activeMeetingPeers.has(action.peerId)) {
+      console.log(
+        "Already in a meeting with peer, suppressing prompt:",
+        action.peerId,
+      );
+      return;
+    }
 
     console.log("Handling meeting prompt:", action);
     const client = getTrpcClient();
