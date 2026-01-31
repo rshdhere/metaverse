@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const PhaserGameWrapper = dynamic(
   () => import("../../src/components/PhaserGameWrapper"),
@@ -70,7 +71,27 @@ export default function ArenaPage() {
       });
     };
 
+    // Audio is now triggered in handleNameSubmit to satisfy browser autoplay policies
+    // if (gameInitialized && !showNameInput) {
+    //   playAudio();
+    // }
+
+    // Global interaction fallback for auto-join users
+    const handleGlobalClick = () => {
+      const audio = audioRef.current;
+      if (audio && audio.paused) {
+        audio
+          .play()
+          .catch((e) => console.log("Global click audio play failed", e));
+      }
+      // Remove listener after first interaction attempt
+      window.removeEventListener("click", handleGlobalClick);
+    };
+
     if (gameInitialized && !showNameInput) {
+      window.addEventListener("click", handleGlobalClick);
+
+      // Try autoplay one more time just in case browser allows it (e.g. reload)
       playAudio();
     }
 
@@ -85,7 +106,10 @@ export default function ArenaPage() {
           clearInterval(fadeOut);
         }
       }, 50);
-      return () => clearInterval(fadeOut);
+      return () => {
+        clearInterval(fadeOut);
+        window.removeEventListener("click", handleGlobalClick);
+      };
     } else {
       // Fade in (if previously playing or just starting)
       if (gameInitialized && !showNameInput) {
@@ -97,10 +121,32 @@ export default function ArenaPage() {
             clearInterval(fadeIn);
           }
         }, 50);
-        return () => clearInterval(fadeIn);
+        return () => {
+          clearInterval(fadeIn);
+          window.removeEventListener("click", handleGlobalClick);
+        };
       }
     }
   }, [activeMeetingPeers.length, gameInitialized, showNameInput]);
+
+  // Volume Control (0/1)
+  useEffect(() => {
+    const handleVolumeControl = (e: KeyboardEvent) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      if (e.key === "0") {
+        audio.volume = Math.max(0, audio.volume - 0.05);
+        toast(`Volume: ${Math.round(audio.volume * 100)}%`);
+      } else if (e.key === "1") {
+        audio.volume = Math.min(1, audio.volume + 0.05);
+        toast(`Volume: ${Math.round(audio.volume * 100)}%`);
+      }
+    };
+
+    window.addEventListener("keydown", handleVolumeControl);
+    return () => window.removeEventListener("keydown", handleVolumeControl);
+  }, []);
 
   const availableAvatars = [
     {
@@ -349,6 +395,13 @@ export default function ArenaPage() {
       setUsername(displayName.trim());
       setAvatarName(selectedAvatar);
       setShowNameInput(false);
+
+      // Attempt to play audio immediately on user interaction
+      const audio = audioRef.current;
+      if (audio) {
+        audio.volume = 0.05;
+        audio.play().catch((e) => console.log("Audio play failed", e));
+      }
     }
   };
 
