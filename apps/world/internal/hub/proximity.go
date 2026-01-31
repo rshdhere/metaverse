@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"log"
 	"math"
 	"time"
 )
@@ -68,6 +69,7 @@ func (s *Space) UpdateProximityForUser(
 					// Just entered range - start dwell timer
 					if _, hasDwell := s.VideoDwellStart[key]; !hasDwell {
 						s.VideoDwellStart[key] = now
+						log.Printf("Proximity: Started dwell timer for %s and %s (dist=%.2f <= %.2f)", user.UserID, otherID, distance(userX, userY, otherX, otherY), radius)
 					}
 				}
 				// Check if dwell time has passed

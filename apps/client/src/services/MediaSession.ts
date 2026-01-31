@@ -272,6 +272,7 @@ export default class MediaSession {
   }
 
   setMeetingToastEnabled(enabled: boolean) {
+    console.log("MediaSession.setMeetingToastEnabled:", enabled);
     this.toastEnabled = enabled;
     if (enabled) {
       // Ensure polling runs even if media session hasn't started yet.
@@ -296,6 +297,7 @@ export default class MediaSession {
 
   private startPolling() {
     if (this.polling) return;
+    console.log("MediaSession.startPolling: Starting polling loop");
     this.polling = true;
 
     const poll = async () => {
@@ -628,12 +630,22 @@ export default class MediaSession {
   }) {
     if (!action.requestId) return;
     if (!this.toastEnabled) {
+      console.log(
+        "MediaSession: Meeting toast disabled, queueing prompt:",
+        action.requestId,
+      );
       if (!this.pendingMeetingPrompts.has(action.requestId)) {
         this.pendingMeetingPrompts.set(action.requestId, action);
       }
       return;
     }
-    if (this.meetingPrompts.has(action.requestId)) return;
+    if (this.meetingPrompts.has(action.requestId)) {
+      console.log(
+        "MediaSession: Meeting prompt already active:",
+        action.requestId,
+      );
+      return;
+    }
 
     if (this.activeMeetingPeers.has(action.peerId)) {
       console.log(
