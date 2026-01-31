@@ -457,7 +457,7 @@ export default class MediaSession {
       video.srcObject = new MediaStream([consumer.track]);
       // Use aspect-video to prevent collapse if height is 0
       video.className =
-        "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20";
+        "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer";
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo(video);
       video.play().catch((e) => {

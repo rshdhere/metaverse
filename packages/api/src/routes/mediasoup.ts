@@ -271,10 +271,10 @@ function enqueueMeetingMedia(userA: string, userB: string) {
     enqueueConsumeOrResume(userA, userB, producer);
   }
 
-  if (stateA.videoProducer && stateA.videoEnabled && stateB.videoEnabled) {
+  if (stateA.videoProducer) {
     enqueueConsumeOrResume(userB, userA, stateA.videoProducer);
   }
-  if (stateB.videoProducer && stateB.videoEnabled && stateA.videoEnabled) {
+  if (stateB.videoProducer) {
     enqueueConsumeOrResume(userA, userB, stateB.videoProducer);
   }
 }
@@ -428,8 +428,6 @@ export const mediasoupRouter = router({
         const meetingPeers = activeMeetingsByUser.get(ctx.user.userId);
         if (meetingPeers) {
           for (const otherUserId of meetingPeers) {
-            const otherState = peers.get(otherUserId);
-            if (!otherState?.videoEnabled) continue;
             enqueueConsumeOrResume(otherUserId, ctx.user.userId, producer);
           }
         }

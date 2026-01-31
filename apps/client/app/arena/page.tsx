@@ -485,8 +485,8 @@ export default function ArenaPage() {
 
       {gameInitialized && (
         <>
-          <div className="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col gap-3 items-end">
-            <div className="p-1 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl overflow-hidden transition-all hover:bg-black/60">
+          <div className="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col gap-3 items-end resize overflow-auto max-w-[50vw] max-h-[80vh] p-2">
+            <div className="p-1 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl overflow-hidden transition-all hover:bg-black/60 cursor-pointer">
               <div className="relative group">
                 <div
                   ref={localVideoRef}
