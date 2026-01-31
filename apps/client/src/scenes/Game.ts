@@ -589,101 +589,10 @@ export default class Game extends Phaser.Scene {
         this.keyR,
         this.network,
       );
-      // this.checkProximityToPlayers();
-      // this.processMeetingPromptQueue();
     }
   }
 
-  private checkProximityToPlayers() {
-    const now = Date.now();
-    for (const [id, otherPlayer] of this.otherPlayerMap.entries()) {
-      const distance = Phaser.Math.Distance.Between(
-        this.myPlayer.x,
-        this.myPlayer.y,
-        otherPlayer.x,
-        otherPlayer.y,
-      );
+  // legacy checkProximityToPlayers removed (server handles this now)
 
-      const inRange = distance <= Game.PROXIMITY_RADIUS;
-      const state = this.proximityState.get(id);
-
-      if (!inRange) {
-        if (state) {
-          this.proximityState.delete(id);
-        }
-        continue;
-      }
-
-      if (!state) {
-        this.proximityState.set(id, { enteredAt: now, lastPromptAt: 0 });
-        continue;
-      }
-
-      const hasDwelled = now - state.enteredAt >= Game.PROXIMITY_DWELL_MS;
-      const cooledDown = now - state.lastPromptAt >= Game.PROXIMITY_COOLDOWN_MS;
-
-      if (hasDwelled && cooledDown) {
-        const role: MeetingPromptRole =
-          this.network.mySessionId < id ? "sender" : "receiver";
-        this.enqueueMeetingPrompt({ peerId: id, role });
-        state.lastPromptAt = now;
-      }
-    }
-  }
-
-  private enqueueMeetingPrompt(message: MeetingPromptMessage) {
-    this.meetingPromptQueue.push(message);
-  }
-
-  private processMeetingPromptQueue() {
-    if (this.meetingPromptActive || this.meetingPromptQueue.length === 0) {
-      return;
-    }
-
-    const message = this.meetingPromptQueue.shift();
-    if (!message) return;
-
-    this.meetingPromptActive = true;
-    const duration = Game.PROXIMITY_PROMPT_DURATION_MS;
-
-    const clearActive = () => {
-      if (this.meetingPromptTimer) {
-        window.clearTimeout(this.meetingPromptTimer);
-        this.meetingPromptTimer = undefined;
-      }
-      this.meetingPromptActive = false;
-    };
-
-    const toastId = toast("Wanna hold a meeting?", {
-      duration,
-      action: {
-        label: message.role === "receiver" ? "Sure!" : "Go to meeting",
-        onClick: async () => {
-          clearActive();
-          toast.dismiss(toastId);
-
-          // If we are the receiver (clicked Sure), notify the sender
-          if (message.role === "receiver") {
-            this.network.acceptMeeting(message.peerId);
-          }
-
-          try {
-            await this.network.enableCamera();
-          } catch {}
-          phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
-        },
-      },
-      cancel: {
-        label: "Maybe later",
-        onClick: () => {
-          clearActive();
-          toast.dismiss(toastId);
-        },
-      },
-    });
-
-    this.meetingPromptTimer = window.setTimeout(() => {
-      clearActive();
-    }, duration);
-  }
+  // legacy processMeetingPromptQueue removed
 }

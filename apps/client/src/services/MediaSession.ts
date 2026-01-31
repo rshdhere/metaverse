@@ -2,6 +2,7 @@ import { Device, types } from "mediasoup-client";
 import { toast } from "sonner";
 import { getTrpcClient } from "../../app/lib/trpc";
 import { phaserEvents, Event } from "../events/EventCenter";
+import Network from "./Network";
 
 type ProximityAction =
   | {
@@ -20,15 +21,18 @@ type ProximityAction =
       type: "meetingPrompt";
       peerId: string;
       requestId?: string;
+      meetingId?: string;
       expiresAt?: number;
     }
   | {
       type: "meetingStart";
       peerId: string;
+      meetingId?: string;
     }
   | {
       type: "meetingEnd";
       peerId: string;
+      meetingId?: string;
     };
 
 export default class MediaSession {
@@ -48,8 +52,7 @@ export default class MediaSession {
   private remoteVideoContainer: HTMLElement | null = null;
   private localVideoContainer: HTMLElement | null = null;
   private started = false;
-  private polling = false;
-  private pollTimer?: number;
+  // Polling removed
   private pendingActions: ProximityAction[] = [];
   private cameraEnabled = false;
   private maxVideoConsumers = 4;
@@ -60,6 +63,7 @@ export default class MediaSession {
       type: "meetingPrompt";
       peerId: string;
       requestId?: string;
+      meetingId?: string;
       expiresAt?: number;
     }
   >();
@@ -67,19 +71,25 @@ export default class MediaSession {
     string,
     { toastId: string | number; timeoutId: number }
   >();
-  private activeMeetingPeers = new Set<string>();
+  private network: Network;
+  private activeMeetingPeers = new Set<string>(); // Legacy, removing
+  private peerStates = new Map<
+    string,
+    { status: "IDLE" | "PROMPTED" | "ACTIVE"; meetingId?: string }
+  >();
+
+  constructor(network: Network) {
+    this.network = network;
+  }
 
   async start() {
     if (this.started) return;
     this.started = true;
 
-    // Start polling immediately so meeting prompts can appear even
-    // if media device initialization fails.
-    this.startPolling();
-
     try {
       await this.initializeDeviceAndTransports();
       await this.flushPendingActions();
+      this.flushPendingMeetingPrompts();
 
       try {
         await this.startMicrophone();
@@ -179,8 +189,6 @@ export default class MediaSession {
     }
     if (!this.sendTransport || this.videoProducer) return;
 
-    // Similar to a direct WebRTC flow (getUserMedia + attach track),
-    // but mediasoup handles the SFU transport instead of P2P calls.
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: true,
@@ -241,12 +249,6 @@ export default class MediaSession {
     remoteContainer: HTMLElement | null,
     localContainer: HTMLElement | null,
   ) {
-    if (this.remoteVideoContainer !== remoteContainer) {
-      console.log(
-        "MediaSession.setVideoContainers: Update remote container",
-        remoteContainer ? "Found" : "Null",
-      );
-    }
     this.remoteVideoContainer = remoteContainer;
     this.localVideoContainer = localContainer;
 
@@ -257,14 +259,9 @@ export default class MediaSession {
     }
 
     if (remoteContainer) {
-      console.log(
-        `Attaching ${this.videoElementsByProducerId.size} existing videos to remote container`,
-      );
-      for (const [id, video] of this.videoElementsByProducerId) {
+      for (const [, video] of this.videoElementsByProducerId) {
         if (!remoteContainer.contains(video)) {
-          console.log(`Appending video ${id} to remote container`);
           remoteContainer.appendChild(video);
-          // Try playing again just in case
           video.play().catch((e) => console.warn("Autoplay retry failed:", e));
         }
       }
@@ -272,11 +269,8 @@ export default class MediaSession {
   }
 
   setMeetingToastEnabled(enabled: boolean) {
-    console.log("MediaSession.setMeetingToastEnabled:", enabled);
     this.toastEnabled = enabled;
     if (enabled) {
-      // Ensure polling runs even if media session hasn't started yet.
-      this.startPolling();
       this.flushPendingMeetingPrompts();
     }
   }
@@ -295,43 +289,8 @@ export default class MediaSession {
     }
   }
 
-  private startPolling() {
-    if (this.polling) return;
-    console.log("MediaSession.startPolling: Starting polling loop");
-    this.polling = true;
-
-    const poll = async () => {
-      if (!this.polling) return;
-      await this.pollProximityActions();
-      this.pollTimer = window.setTimeout(poll, 1000);
-    };
-
-    poll();
-  }
-
-  private async pollProximityActions() {
-    const client = getTrpcClient();
-    try {
-      const actions = (await client.mediasoup.pollProximityActions.query()) as
-        | ProximityAction[]
-        | undefined;
-      if (!actions || actions.length === 0) return;
-
-      console.log("MediaSession received actions:", actions);
-      await this.handleActions(actions);
-    } catch (error) {
-      console.error("Failed to poll proximity actions:", error);
-    }
-  }
-
   private async handleActions(actions: ProximityAction[]) {
     const canHandleMedia = !!this.device && !!this.recvTransport;
-    console.log(
-      "handleActions: canHandleMedia:",
-      canHandleMedia,
-      "actions:",
-      actions,
-    );
     for (const action of actions) {
       switch (action.type) {
         case "consume":
@@ -375,24 +334,12 @@ export default class MediaSession {
           await this.stopConsumer(action.producerId, action.kind);
           break;
         case "meetingPrompt":
-          console.log(
-            "📨 handleActions: Received meetingPrompt from",
-            action.peerId,
-          );
           await this.handleMeetingPrompt(action);
           break;
         case "meetingStart":
-          console.log(
-            "📨 handleActions: Received meetingStart from",
-            action.peerId,
-          );
           await this.handleMeetingStart(action);
           break;
         case "meetingEnd":
-          console.log(
-            "📨 handleActions: Received meetingEnd from",
-            action.peerId,
-          );
           await this.handleMeetingEnd(action);
           break;
         default:
@@ -461,7 +408,6 @@ export default class MediaSession {
       this.cleanupConsumer(producerId);
     });
 
-    // "producerclose" is a valid mediasoup event but not in the TS types
     (consumer as unknown as { on: (event: string, cb: () => void) => void }).on(
       "producerclose",
       () => {
@@ -478,21 +424,14 @@ export default class MediaSession {
       });
       this.audioElementsByProducerId.set(producerId, audio);
     } else if (consumer.kind === "video") {
-      console.log("Creating video element for producer:", producerId);
       const video = document.createElement("video");
-
-      // key fix: Set attributes explicitly for compatibility
       video.setAttribute("autoplay", "true");
       video.setAttribute("playsinline", "true");
       video.setAttribute("muted", "true");
-
       video.autoplay = true;
       video.playsInline = true;
-      video.muted = true; // Remote video (visual only), audio is separate
+      video.muted = true;
       video.srcObject = new MediaStream([consumer.track]);
-
-      // Use aspect-video to prevent collapse if height is 0
-      // Added display:block to ensure it takes space
       video.className =
         "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
 
@@ -501,12 +440,8 @@ export default class MediaSession {
 
       try {
         await video.play();
-        console.log(`Video ${producerId} started playing successfully`);
       } catch (e) {
-        console.warn(
-          `Video ${producerId} play failed (likely autoplay policy):`,
-          e,
-        );
+        console.warn(`Video ${producerId} play failed:`, e);
       }
     }
   }
@@ -575,9 +510,7 @@ export default class MediaSession {
     const video = this.videoElementsByProducerId.get(producerId);
     if (video) {
       this.attachRemoteVideo(video);
-      video.play().catch(() => {
-        // Autoplay can be blocked until user interacts with the page.
-      });
+      video.play().catch(() => {});
     }
 
     try {
@@ -617,16 +550,7 @@ export default class MediaSession {
       this.remoteVideoContainer &&
       !this.remoteVideoContainer.contains(video)
     ) {
-      console.log("attachRemoteVideo: Appending video to container");
       this.remoteVideoContainer.appendChild(video);
-    } else {
-      console.log(
-        "attachRemoteVideo: Container not ready or video already attached",
-        "container:",
-        !!this.remoteVideoContainer,
-        "video:",
-        !!video,
-      );
     }
   }
 
@@ -651,121 +575,226 @@ export default class MediaSession {
     }
   }
 
-  private async handleMeetingPrompt(action: {
-    type: "meetingPrompt";
-    peerId: string;
+  // Make prompt handler public for Network.ts
+  async handleMeetingPrompt(action: {
     requestId?: string;
+    meetingId?: string;
     expiresAt?: number;
+    peerId: string;
   }) {
-    if (!action.requestId) return;
+    if (!action.requestId || !action.meetingId) return;
+
+    const peerId = action.peerId;
+    const currentState = this.peerStates.get(peerId);
+
+    // Idempotency: Ignore if already active/connecting in THIS meeting
+    if (currentState) {
+      if (
+        currentState.meetingId === action.meetingId &&
+        currentState.status === "ACTIVE"
+      )
+        return;
+      if (currentState.status === "ACTIVE") return; // Already in another meeting?
+    }
+
+    // Update state to PROMPTED
+    this.peerStates.set(peerId, {
+      status: "PROMPTED",
+      meetingId: action.meetingId,
+    });
+
     if (!this.toastEnabled) {
-      console.log(
-        "MediaSession: Meeting toast disabled, queueing prompt:",
-        action.requestId,
-      );
-      if (!this.pendingMeetingPrompts.has(action.requestId)) {
-        this.pendingMeetingPrompts.set(action.requestId, action);
-      }
-      return;
-    }
-    if (this.meetingPrompts.has(action.requestId)) {
-      console.log(
-        "MediaSession: Meeting prompt already active:",
-        action.requestId,
-      );
+      this.pendingMeetingPrompts.set(action.requestId, {
+        ...action,
+        type: "meetingPrompt",
+      });
       return;
     }
 
-    if (this.activeMeetingPeers.has(action.peerId)) {
-      console.log(
-        "Already in a meeting with peer, suppressing prompt:",
-        action.peerId,
-      );
-      return;
-    }
+    if (this.meetingPrompts.has(action.requestId)) return;
 
-    console.log("Handling meeting prompt:", action);
-    const client = getTrpcClient();
     const now = Date.now();
-    const expiresAt = action.expiresAt ?? now + 5000;
+    const expiresAt = action.expiresAt ?? now + 15000;
     const duration = Math.max(0, expiresAt - now);
 
-    const respond = async (accept: boolean) => {
+    const respond = (accept: boolean) => {
       const prompt = this.meetingPrompts.get(action.requestId!);
       if (prompt) {
         clearTimeout(prompt.timeoutId);
         toast.dismiss(prompt.toastId);
         this.meetingPrompts.delete(action.requestId!);
       }
-      try {
-        await client.mediasoup.meetingRespond.mutate({
-          requestId: action.requestId!,
-          peerId: action.peerId,
-          accept,
-        });
-      } catch (error) {
-        console.error("Failed to respond to meeting prompt:", error);
-      }
+      this.network.sendMeetingResponse(
+        action.requestId!,
+        accept,
+        action.peerId,
+      );
     };
 
     const toastId = toast("Wanna hold a meeting?", {
       duration,
       action: {
         label: "Sure!",
-        onClick: async () => {
-          await this.enableCamera();
-          await respond(true);
+        onClick: () => {
+          this.enableCamera();
+          respond(true);
         },
       },
       cancel: {
         label: "Maybe later",
-        onClick: async () => {
-          await respond(false);
-        },
+        onClick: () => respond(false),
       },
     });
 
-    const timeoutId = window.setTimeout(() => {
-      respond(false).catch(() => {
-        // Ignore timeout errors
-      });
-    }, duration);
-
+    const timeoutId = window.setTimeout(() => respond(false), duration);
     this.meetingPrompts.set(action.requestId, { toastId, timeoutId });
   }
 
-  private async handleMeetingStart(action: {
-    type: "meetingStart";
-    peerId: string;
-  }) {
-    console.log(
-      "🎬 handleMeetingStart: Adding peer to active meeting:",
-      action.peerId,
-    );
-    this.activeMeetingPeers.add(action.peerId);
-    console.log(
-      "🎬 handleMeetingStart: Active meeting peers:",
-      Array.from(this.activeMeetingPeers),
-    );
-    if (!this.cameraEnabled) {
-      console.log("🎬 handleMeetingStart: Enabling camera");
-      await this.enableCamera();
+  // Make meeting start handler public for Network.ts
+  async handleMeetingStart(action: { peerId: string; meetingId?: string }) {
+    console.log("🎬 Meeting START with:", action.peerId);
+
+    const peerId = action.peerId;
+    const meetingId = action.meetingId;
+    const currentState = this.peerStates.get(peerId);
+
+    // Strict state check?
+    // If we have a state, ensure meetingId matches (if provided)
+    if (currentState && meetingId && currentState.meetingId !== meetingId) {
+      console.warn(
+        `Ignoring MeetingStart for ${peerId}: ID mismatch (${currentState.meetingId} vs ${meetingId})`,
+      );
+      return;
     }
-    // Trigger navigation to sitting area for the meeting
-    console.log(
-      "🎬 handleMeetingStart: Emitting NAVIGATE_TO_SITTING_AREA event",
-    );
+
+    // Transition to ACTIVE
+    this.peerStates.set(peerId, {
+      status: "ACTIVE",
+      meetingId: meetingId || currentState?.meetingId,
+    });
+
+    await this.enableCamera();
+    await this.fetchAndConsumePeer(action.peerId);
+
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
   }
 
-  private async handleMeetingEnd(action: {
-    type: "meetingEnd";
+  // Make meeting end handler public for Network.ts
+  async handleMeetingEnd(action: {
+    peerId: string;
+    meetingId?: string;
+    reason?: string;
+  }) {
+    console.log("🎬 Meeting END with:", action.peerId);
+
+    const peerId = action.peerId;
+    const meetingId = action.meetingId;
+    const currentState = this.peerStates.get(peerId);
+
+    // Idempotency: Ignore if we are not in a meeting with this ID
+    if (meetingId && currentState && currentState.meetingId !== meetingId) {
+      console.warn(
+        `Ignoring MeetingEnd for ${peerId}: ID mismatch (${currentState.meetingId} vs ${meetingId})`,
+      );
+      return;
+    }
+
+    this.peerStates.delete(peerId);
+
+    // Stop consumers for this peer
+    await this.stopPeerMedia(action.peerId);
+  }
+
+  // Make proximity update handler public for Network.ts
+  async handleProximityUpdate(action: {
+    type: "enter" | "leave";
+    media: "audio" | "video";
     peerId: string;
   }) {
-    this.activeMeetingPeers.delete(action.peerId);
+    console.log("📡 Proximity Update:", action);
+    if (action.media === "audio") {
+      if (action.type === "enter") {
+        await this.fetchAndConsumePeer(action.peerId, "audio");
+      } else {
+        await this.stopPeerMedia(action.peerId, "audio");
+      }
+    }
+  }
+
+  // Make peer left handler public for Network.ts
+  handlePeerLeft(peerId: string) {
+    this.peerStates.delete(peerId);
+    void this.stopPeerMedia(peerId);
+  }
+
+  private async fetchAndConsumePeer(
+    peerId: string,
+    kindChanged?: "audio" | "video",
+  ) {
+    try {
+      const client = getTrpcClient();
+      const producers = await client.mediasoup.getPeerProducers.query({
+        peerId,
+      });
+
+      for (const p of producers) {
+        if (kindChanged && p.kind !== kindChanged) continue;
+        await this.consumeProducer(p.producerId, p.kind, peerId);
+      }
+    } catch (e) {
+      console.error("Failed to fetch peer producers:", e);
+    }
+  }
+
+  private async stopPeerMedia(peerId: string, kind?: "audio" | "video") {
+    const toStop: { id: string; kind: "audio" | "video" }[] = [];
+    for (const [producerId, owner] of this.producerOwners) {
+      if (owner === peerId) {
+        const consumer = this.consumersByProducerId.get(producerId);
+        if (consumer && (!kind || consumer.kind === kind)) {
+          toStop.push({ id: producerId, kind: consumer.kind });
+        }
+      }
+    }
+    for (const item of toStop) {
+      await this.stopConsumer(item.id, item.kind);
+    }
+  }
+
+  reset() {
+    this.peerStates.clear();
+    this.activeMeetingPeers.clear();
+    this.pendingMeetingPrompts.clear();
+
+    this.meetingPrompts.forEach((p) => {
+      clearTimeout(p.timeoutId);
+      toast.dismiss(p.toastId);
+    });
+    this.meetingPrompts.clear();
+
+    // Close all consumers and clear maps
+    this.consumersByProducerId.forEach((c) => c.close());
+    this.consumersByProducerId.clear();
+
+    this.audioElementsByProducerId.forEach((el) => (el.srcObject = null));
+    this.audioElementsByProducerId.clear();
+
+    this.videoElementsByProducerId.forEach((el) => {
+      el.srcObject = null;
+      el.remove();
+    });
+    this.videoElementsByProducerId.clear();
+
+    this.pausedProducerIds.clear();
+    this.producerOwners.clear();
   }
 
   getActiveMeetingPeers() {
-    return Array.from(this.activeMeetingPeers);
+    // Return peers that are in ACTIVE state
+    const active: string[] = [];
+    for (const [peerId, state] of this.peerStates) {
+      if (state.status === "ACTIVE") active.push(peerId);
+    }
+    return active;
   }
 }

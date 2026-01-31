@@ -18,10 +18,39 @@ type Space struct {
 	VideoProximity map[string]map[string]bool
 	// VideoDwellStart tracks when each user pair entered video proximity.
 	// Key format: "userA:userB" (sorted alphabetically).
-	// Used for 3-second dwell before triggering meeting prompts.
 	VideoDwellStart map[string]time.Time
+	
+	// MeetingStates tracks active meeting negotiations and sessions
+	MeetingStates map[string]*MeetingState
+	
 	mu       sync.RWMutex
 }
+
+type MeetingStatus int
+
+const (
+	MeetingStatusPrompted MeetingStatus = iota
+	MeetingStatusActive
+)
+
+type MeetingState struct {
+	MeetingID     string // Unique ID for this specific meeting instance
+	RequestID     string
+	UserA         string
+	UserB         string
+	AcceptA       bool
+	AcceptB       bool
+	ExpiresAt     time.Time
+	Status        MeetingStatus
+	CooldownUntil time.Time
+}
+
+// Constants for meeting logic
+const (
+	MeetingTimeout  = 15 * time.Second
+	MeetingCooldown = 10 * time.Second
+	VideoDwellDuration = 3 * time.Second
+)
 
 
 // NewSpace creates a new Space instance
@@ -35,6 +64,7 @@ func NewSpace(id string, width, height int) *Space {
 		AudioProximity: make(map[string]map[string]bool),
 		VideoProximity: make(map[string]map[string]bool),
 		VideoDwellStart: make(map[string]time.Time),
+		MeetingStates:   make(map[string]*MeetingState),
 	}
 }
 
@@ -53,6 +83,9 @@ func (s *Space) RemoveUserAndCollectProximityLeaves(client *Client) (bool, []Pro
 	defer s.mu.Unlock()
 
 	if existing, ok := s.Users[client.UserID]; ok && existing == client {
+		// Clean up any active meetings involving this user
+		s.cleanupMeetingsForUserLocked(client.UserID)
+
 		leaveEvents := make([]ProximityEvent, 0)
 		leaveEvents = append(
 			leaveEvents,
@@ -67,6 +100,41 @@ func (s *Space) RemoveUserAndCollectProximityLeaves(client *Client) (bool, []Pro
 	}
 
 	return false, nil
+}
+
+func (s *Space) cleanupMeetingsForUserLocked(userID string) {
+	for key, state := range s.MeetingStates {
+		if state.UserA == userID || state.UserB == userID {
+			// Notify the other user if meeting was active
+			var otherID string
+			if state.UserA == userID {
+				otherID = state.UserB
+			} else {
+				otherID = state.UserA
+			}
+
+			if otherClient, ok := s.Users[otherID]; ok {
+				// Send meeting-end event
+				otherClient.SendJSON(map[string]interface{}{
+					"type": "meeting-end",
+					"payload": map[string]string{
+						"peerId": userID,
+						"meetingId": state.MeetingID,
+						"reason": "user_left",
+					},
+				})
+			}
+			delete(s.MeetingStates, key)
+		}
+	}
+	
+	// Also clean up dwell timers
+	for key := range s.VideoDwellStart {
+		// key is "userA:userB"
+		if len(key) > len(userID) && (key[:len(userID)] == userID || key[len(key)-len(userID):] == userID) {
+			delete(s.VideoDwellStart, key)
+		}
+	}
 }
 
 func (s *Space) collectProximityLeavesLocked(userID string, media string) []ProximityEvent {
@@ -188,79 +256,122 @@ func abs(x float64) float64 {
 	return x
 }
 
-// CheckVideoDwellTimers checks all pending video dwell timers and emits enter events
-// for pairs that have been in proximity for the required duration.
-// This should be called periodically from a background goroutine.
-func (s *Space) CheckVideoDwellTimers() []ProximityEvent {
+// dwellKey generates a consistent key for two users (lexicographically updated)
+func dwellKey(u1, u2 string) string {
+	if u1 < u2 {
+		return u1 + ":" + u2
+	}
+	return u2 + ":" + u1
+}
+
+// CheckVideoDwellTimers checks all pending video dwell timers and emits MEETING PROMPTS directly via WebSocket.
+// This replaces the backend poller mechanism.
+func (s *Space) CheckVideoDwellTimers() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	now := time.Now()
-	events := make([]ProximityEvent, 0)
 	toDelete := make([]string, 0)
 
 	for key, dwellStart := range s.VideoDwellStart {
+		// Clean up expired or stale meetings logic is separate, 
+		// but here we check if we should TRIGGER a new meeting prompt.
+		
+		// Parse user IDs from key
+		var userA, userB string
+		for i := 0; i < len(key); i++ {
+			if key[i] == ':' {
+				userA = key[:i]
+				userB = key[i+1:]
+				break
+			}
+		}
+		if userA == "" || userB == "" {
+			toDelete = append(toDelete, key)
+			continue
+		}
+
+		// Verify users exist
+		clientA, existsA := s.Users[userA]
+		clientB, existsB := s.Users[userB]
+		if !existsA || !existsB {
+			toDelete = append(toDelete, key)
+			continue
+		}
+
+		// Check proximity distance
+		xA, yA := clientA.GetPosition()
+		xB, yB := clientB.GetPosition()
+		dist := distance(xA, yA, xB, yB)
+		if dist > 120 { 
+			// Dwell broken (moved away)
+			toDelete = append(toDelete, key)
+			continue
+		}
+
+		// Check if checking for dwell timer completion
 		if now.Sub(dwellStart) >= VideoDwellDuration {
-			// Parse user IDs from key (format: "userA:userB")
-			var userA, userB string
-			for i := 0; i < len(key); i++ {
-				if key[i] == ':' {
-					userA = key[:i]
-					userB = key[i+1:]
-					break
+			// DWELL COMPLETE!
+			
+			// Check if already in a meeting or cooldown
+			meetingState, hasMeeting := s.MeetingStates[key]
+			
+			if hasMeeting {
+				if meetingState.Status == MeetingStatusActive {
+					// Already happy meeting, do nothing
+					continue 
+				}
+				if now.Before(meetingState.CooldownUntil) {
+					// In cooldown, ignore
+					continue
+				}
+				if meetingState.ExpiresAt.After(now) && meetingState.RequestID != "" {
+					// Prompt pending, ignore
+					continue
 				}
 			}
-			if userA == "" || userB == "" {
-				toDelete = append(toDelete, key)
-				continue
+
+			// Create new meeting prompt
+			requestID := fmt.Sprintf("%d-%s-%s", now.UnixNano(), userA, userB)
+			meetingID := fmt.Sprintf("%s-%s-%d", userA, userB, now.Unix())
+			expiresAt := now.Add(MeetingTimeout)
+			
+			newState := &MeetingState{
+				MeetingID: meetingID,
+				RequestID: requestID,
+				UserA:     userA,
+				UserB:     userB,
+				ExpiresAt: expiresAt,
+				Status:    MeetingStatusPrompted,
+			}
+			s.MeetingStates[key] = newState
+
+			log.Printf("Space %s: Sending meeting prompt to %s and %s (reqID: %s)", s.ID, userA, userB, requestID)
+
+			// Send WebSocket events
+			promptPayload := map[string]interface{}{
+				"type": "meeting-prompt",
+				"payload": map[string]interface{}{
+					"requestId": requestID,
+					"meetingId": meetingID,
+					"expiresAt": expiresAt.UnixMilli(),
+				},
 			}
 
-			// Verify both users still exist and are still in proximity
-			clientA, existsA := s.Users[userA]
-			clientB, existsB := s.Users[userB]
-			if !existsA || !existsB {
-				toDelete = append(toDelete, key)
-				continue
-			}
+			// Send to A (peer is B)
+			payloadA := promptPayload["payload"].(map[string]interface{})
+			payloadA["peerId"] = userB
+			clientA.SendJSON(promptPayload)
 
-			// Check if still in video proximity range
-			xA, yA := clientA.GetPosition()
-			xB, yB := clientB.GetPosition()
-			dist := distance(xA, yA, xB, yB)
-			if dist > 120 { // VideoRadius = 120
-				toDelete = append(toDelete, key)
-				continue
-			}
-
-			// They're in range and dwell time passed - mark as in proximity and emit event
-			proximity := s.VideoProximity
-			userSetA, okA := proximity[userA]
-			if !okA {
-				userSetA = make(map[string]bool)
-				proximity[userA] = userSetA
-			}
-			userSetB, okB := proximity[userB]
-			if !okB {
-				userSetB = make(map[string]bool)
-				proximity[userB] = userSetB
-			}
-
-			// Only emit if not already marked as in proximity
-			if !userSetA[userB] {
-				log.Printf("Space %s: Dwell time passed for %s and %s (dist=%f), emitting enter event", s.ID, userA, userB, dist)
-				userSetA[userB] = true
-				userSetB[userA] = true
-				events = append(events, ProximityEvent{
-					Type:    ProximityEnter,
-					UserA:   userA,
-					UserB:   userB,
-					SpaceID: s.ID,
-					Media:   "video",
-				})
-			} else {
-                 log.Printf("Space %s: Dwell time passed but already in proximity for %s and %s", s.ID, userA, userB)
-            }
-
+			// Send to B (peer is A)
+			payloadB := make(map[string]interface{})
+			for k, v := range payloadA { payloadB[k] = v } // shallow copy
+			payloadB["peerId"] = userA
+			promptPayload["payload"] = payloadB
+			clientB.SendJSON(promptPayload)
+			
+			// We remove the dwell start so it doesn't trigger again immediately
+			// (wait for cooldown or next interaction)
 			toDelete = append(toDelete, key)
 		}
 	}
@@ -269,6 +380,16 @@ func (s *Space) CheckVideoDwellTimers() []ProximityEvent {
 		delete(s.VideoDwellStart, key)
 	}
 
-	return events
+	// Also cleanup expired meeting states
+	for key, state := range s.MeetingStates {
+		if state.Status != MeetingStatusActive && state.ExpiresAt.Before(now) && state.CooldownUntil.IsZero() {
+			// Expired prompt, no cooldown set? Set cooldown
+			state.CooldownUntil = now.Add(MeetingCooldown)
+			state.RequestID = ""
+		}
+		// If cooled down and inactive, can remove state entirely to allow fresh dwell
+		if state.Status != MeetingStatusActive && !state.CooldownUntil.IsZero() && now.After(state.CooldownUntil) {
+			delete(s.MeetingStates, key)
+		}
+	}
 }
-

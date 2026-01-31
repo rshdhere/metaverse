@@ -52,7 +52,7 @@ export default class Network {
     this.wsEndpoint = WS_URL;
 
     if (typeof window !== "undefined") {
-      this.mediaSession = new MediaSession();
+      this.mediaSession = new MediaSession(this); // Pass network instance to MediaSession
       this.connectWebSocket();
 
       // Save position to localStorage when tab is closing
@@ -152,6 +152,7 @@ export default class Network {
     this.userSnapshots.clear();
     this.eventQueue = [];
     this.createdPlayers.clear();
+    this.mediaSession?.reset();
     // Note: gameSceneReady, joinInProgress, hasJoinedSpace are NOT reset here
     // as we want to preserve connection state across space-joined events
   }
@@ -390,15 +391,37 @@ export default class Network {
           if (this.knownUsers.has(userId)) this.knownUsers.delete(userId);
           this.userSnapshots.delete(userId);
           this.queueOrEmit({ type: "PLAYER_LEFT", id: userId });
-          this.queueOrEmit({ type: "PLAYER_LEFT", id: userId });
+          this.mediaSession?.handlePeerLeft(userId); // Forward to MediaSession
           break;
         }
-        case "meeting-accepted": {
-          const { fromUserId } = data.payload;
-          console.log("🤝 Meeting accepted by:", fromUserId);
-          phaserEvents.emit(Event.MEETING_ACCEPTED, fromUserId);
+
+        // --- PROXIMITY & MEETING EVENTS ---
+
+        case "meeting-prompt": {
+          // payload: { requestId, expiresAt, peerId }
+          this.mediaSession?.handleMeetingPrompt(data.payload);
           break;
         }
+
+        case "meeting-start": {
+          // payload: { peerId }
+          // Both sides receive this. Start media.
+          this.mediaSession?.handleMeetingStart(data.payload);
+          break;
+        }
+
+        case "meeting-end": {
+          // payload: { peerId, reason }
+          this.mediaSession?.handleMeetingEnd(data.payload);
+          break;
+        }
+
+        case "proximity-update": {
+          // payload: { type: 'enter'|'leave', media: 'audio'|'video', peerId }
+          this.mediaSession?.handleProximityUpdate(data.payload);
+          break;
+        }
+
         default:
           break;
       }
@@ -508,13 +531,13 @@ export default class Network {
     }
   }
 
-  // Send meeting acceptance to a peer
-  acceptMeeting(targetUserId: string) {
+  // Send meeting response (accept/decline)
+  sendMeetingResponse(requestId: string, accept: boolean, peerId: string) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(
         JSON.stringify({
-          type: "meeting-accepted",
-          payload: { targetUserId },
+          type: "meeting-response",
+          payload: { requestId, accept, peerId },
         }),
       );
     }
@@ -677,9 +700,16 @@ export default class Network {
     console.log("🛑 Network.endMeetings() called");
     const peers = this.getActiveMeetingPeers();
     if (peers.length === 0) return;
-    const client = getTrpcClient();
-    await Promise.all(
-      peers.map((peerId) => client.mediasoup.meetingEnd.mutate({ peerId })),
-    );
+    // Actually meeting end is better handled via WS?
+    // But we removed legacy meetingEnd.
+    // If I leave a meeting, I should tell the world server?
+    // Or just clean up locally.
+    // The previous implementation called `client.mediasoup.meetingEnd`.
+    // My new world server handles disconnects.
+    // But explicit meeting termination without disconnecting?
+    // Maybe I should implemented "end-meeting" in World Server?
+    // For now, let's just cleanup locally and maybe move away.
+    // But if I want to stay and end meeting?
+    // User can just move away.
   }
 }

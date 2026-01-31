@@ -72,6 +72,8 @@ type ProximityAction =
       expiresAt?: number;
     };
 
+import { z } from "zod";
+
 const peers = new Map<string, PeerState>();
 const proximityQueues = new Map<string, ProximityAction[]>();
 const audioProximityPeers = new Map<string, Set<string>>();
@@ -736,12 +738,24 @@ export const mediasoupRouter = router({
       return { success: true };
     }),
 
-  pollProximityActions: protectedProcedure
-    .output(proximityActionListSchema)
-    .query(({ ctx }) => {
-      const actions = proximityQueues.get(ctx.user.userId) ?? [];
-      proximityQueues.delete(ctx.user.userId);
-      return actions;
+  getPeerProducers: protectedProcedure
+    .input(z.object({ peerId: z.string() }))
+    .query(({ input }) => {
+      const peerState = peers.get(input.peerId);
+      const producers: { producerId: string; kind: "audio" | "video" }[] = [];
+
+      if (peerState) {
+        for (const [id, producer] of peerState.audioProducers) {
+          producers.push({ producerId: id, kind: "audio" });
+        }
+        if (peerState.videoProducer) {
+          producers.push({
+            producerId: peerState.videoProducer.id,
+            kind: "video",
+          });
+        }
+      }
+      return producers;
     }),
 
   proximityUpdate: publicProcedure

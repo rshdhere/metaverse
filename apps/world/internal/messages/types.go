@@ -11,6 +11,11 @@ const (
 	TypeMeetingAccepted  = "meeting-accepted"
 	TypeMovementRejected = "movement-rejected"
 	TypeUserLeft         = "user-left"
+	TypeMeetingPrompt    = "meeting-prompt"
+	TypeMeetingStart     = "meeting-start"
+	TypeMeetingEnd       = "meeting-end"
+	TypeProximityUpdate  = "proximity-update"
+	TypeMeetingResponse  = "meeting-response"
 )
 
 // BaseMessage represents the common structure for all messages
@@ -121,4 +126,10 @@ type IncomingPayload struct {
 
 	// Target for direct messages (e.g. meeting accepted)
 	TargetUserID string `json:"targetUserId,omitempty"`
+
+	// Meeting fields
+	PeerID    string `json:"peerId,omitempty"`
+	MeetingID string `json:"meetingId,omitempty"`
+	RequestID string `json:"requestId,omitempty"`
+	Accept    bool   `json:"accept,omitempty"`
 }
