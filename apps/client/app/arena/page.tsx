@@ -558,10 +558,18 @@ export default function ArenaPage() {
             )}
           </div>
 
-          {/* Remote user video - bottom left */}
-          <div className="absolute bottom-4 left-4 z-20 pointer-events-auto flex flex-col gap-3 items-start max-w-[50vw] max-h-[80vh] p-2">
-            <div ref={remoteVideoRef} className="grid grid-cols-1 gap-3 w-56" />
-          </div>
+          {/* Remote user video - bottom left (only visible during meetings) */}
+          {activeMeetingPeers.length > 0 && (
+            <div className="absolute bottom-4 left-4 z-20 pointer-events-auto flex flex-col gap-3 items-start max-w-[50vw] max-h-[80vh] p-2 animate-slide-in-left">
+              <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl">
+                <div
+                  ref={remoteVideoRef}
+                  className="grid grid-cols-2 gap-3"
+                  style={{ maxWidth: "28rem" }}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
 
