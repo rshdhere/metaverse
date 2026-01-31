@@ -53,6 +53,54 @@ export default function ArenaPage() {
   const [activeMeetingPeers, setActiveMeetingPeers] = useState<string[]>([]);
   const remoteVideoRef = useRef<HTMLDivElement | null>(null);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Background Music Logic
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Set initial low volume
+    audio.volume = 0.05;
+
+    // Try to play on user interaction/load
+    const playAudio = () => {
+      audio.play().catch((e) => {
+        console.log("Audio autoplay blocked, waiting for interaction", e);
+      });
+    };
+
+    if (gameInitialized && !showNameInput) {
+      playAudio();
+    }
+
+    // Pause/Resume based on meeting status
+    if (activeMeetingPeers.length > 0) {
+      // Fade out
+      const fadeOut = setInterval(() => {
+        if (audio.volume > 0.01) {
+          audio.volume -= 0.005;
+        } else {
+          audio.pause();
+          clearInterval(fadeOut);
+        }
+      }, 50);
+      return () => clearInterval(fadeOut);
+    } else {
+      // Fade in (if previously playing or just starting)
+      if (gameInitialized && !showNameInput) {
+        audio.play().catch(() => {});
+        const fadeIn = setInterval(() => {
+          if (audio.volume < 0.05) {
+            audio.volume += 0.005;
+          } else {
+            clearInterval(fadeIn);
+          }
+        }, 50);
+        return () => clearInterval(fadeIn);
+      }
+    }
+  }, [activeMeetingPeers.length, gameInitialized, showNameInput]);
 
   const availableAvatars = [
     {
@@ -353,6 +401,11 @@ export default function ArenaPage() {
 
   return (
     <div className="fixed inset-0" style={{ backgroundColor: "#2d3250" }}>
+      <audio
+        ref={audioRef}
+        src="/assets/audio/Metro Boomin - Am I Dreaming Instrumental (Official Audio) 4.mp3"
+        loop
+      />
       {/* Phaser canvas container */}
       <div
         id="phaser-container"
