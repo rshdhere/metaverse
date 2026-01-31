@@ -315,6 +315,8 @@ export default class MediaSession {
         | undefined;
       if (!actions || actions.length === 0) return;
 
+      if (!actions || actions.length === 0) return;
+
       console.log("MediaSession received actions:", actions);
       await this.handleActions(actions);
     } catch (error) {
@@ -324,6 +326,12 @@ export default class MediaSession {
 
   private async handleActions(actions: ProximityAction[]) {
     const canHandleMedia = !!this.device && !!this.recvTransport;
+    console.log(
+      "handleActions: canHandleMedia:",
+      canHandleMedia,
+      "actions:",
+      actions,
+    );
     for (const action of actions) {
       switch (action.type) {
         case "consume":
@@ -410,6 +418,15 @@ export default class MediaSession {
       );
       return;
     }
+
+    console.log(
+      "Consuming producer:",
+      producerId,
+      "kind:",
+      kind,
+      "user:",
+      producerUserId,
+    );
 
     const client = getTrpcClient();
     const consumerInfo = await client.mediasoup.consume.mutate({

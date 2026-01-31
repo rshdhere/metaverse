@@ -2,6 +2,7 @@ package hub
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -246,7 +247,7 @@ func (s *Space) CheckVideoDwellTimers() []ProximityEvent {
 
 			// Only emit if not already marked as in proximity
 			if !userSetA[userB] {
-				// log.Printf("Dwell time passed for %s and %s, emitting enter event", userA, userB)
+				log.Printf("Space %s: Dwell time passed for %s and %s (dist=%f), emitting enter event", s.ID, userA, userB, dist)
 				userSetA[userB] = true
 				userSetB[userA] = true
 				events = append(events, ProximityEvent{
@@ -256,7 +257,9 @@ func (s *Space) CheckVideoDwellTimers() []ProximityEvent {
 					SpaceID: s.ID,
 					Media:   "video",
 				})
-			}
+			} else {
+                 log.Printf("Space %s: Dwell time passed but already in proximity for %s and %s", s.ID, userA, userB)
+            }
 
 			toDelete = append(toDelete, key)
 		}

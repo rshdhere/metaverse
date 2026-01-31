@@ -74,6 +74,9 @@ func (h *Hub) runDwellTimerChecker() {
 
 		for _, space := range spaces {
 			events := space.CheckVideoDwellTimers()
+			if len(events) > 0 {
+				log.Printf("Hub: Dwell timer triggered %d events in space %s", len(events), space.ID)
+			}
 			h.notifyProximityChanges(events)
 		}
 	}
