@@ -326,20 +326,22 @@ export default function ArenaPage() {
       const network = preloader?.network;
 
       if (network?.setVideoContainers) {
-        network.setVideoContainers(
-          remoteVideoRef.current,
-          localVideoRef.current,
-        );
-        if (network.setMeetingToastEnabled) {
-          network.setMeetingToastEnabled(true);
+        if (remoteVideoRef.current && localVideoRef.current) {
+          network.setVideoContainers(
+            remoteVideoRef.current,
+            localVideoRef.current,
+          );
+          if (network.setMeetingToastEnabled) {
+            network.setMeetingToastEnabled(true);
+          }
+          if (active && network.isCameraEnabled) {
+            setCameraEnabled(network.isCameraEnabled());
+          }
+          if (active && network.getActiveMeetingPeers) {
+            setActiveMeetingPeers(network.getActiveMeetingPeers());
+          }
+          clearInterval(interval);
         }
-        if (active && network.isCameraEnabled) {
-          setCameraEnabled(network.isCameraEnabled());
-        }
-        if (active && network.getActiveMeetingPeers) {
-          setActiveMeetingPeers(network.getActiveMeetingPeers());
-        }
-        clearInterval(interval);
       }
     }, 250);
 
