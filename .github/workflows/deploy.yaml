@@ -76,6 +76,18 @@ jobs:
 
             echo "Bun: $(bun --version)"
 
+            # ---------- System Deps (Pix for Mediasoup build) ----------
+            echo "Installing system dependencies..."
+            # Prevent interactive prompts during apt install
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get update || true
+            sudo apt-get install -y python3-pip build-essential || true
+
+            # ---------- Stop PM2 (Fix for ETXTBSY) ----------
+            echo "Stopping PM2 to release file locks..."
+            # We stop to ensure binary files aren't locked during npm rebuild
+            pm2 stop all || true
+
             # ---------- Install deps ----------
             bun install
 
