@@ -26,18 +26,12 @@ func (h *Hub) notifyProximityChanges(events []ProximityEvent) {
 		log.Printf("Event: %s %s <-> %s (%s)", e.Type, e.UserA, e.UserB, e.Media)
 	}
 
-	payload := map[string]struct {
-		Json proximityUpdateRequest `json:"json"`
-	}{
-		"0": {
-			Json: proximityUpdateRequest{
-				Secret: config.AppConfig.WorldServerSecret,
-				Events: events,
-			},
-		},
+	request := proximityUpdateRequest{
+		Secret: config.AppConfig.WorldServerSecret,
+		Events: events,
 	}
 
-	body, err := json.Marshal(payload)
+	body, err := json.Marshal(request)
 	if err != nil {
 		log.Printf("Failed to marshal proximity payload: %v", err)
 		return
@@ -45,7 +39,7 @@ func (h *Hub) notifyProximityChanges(events []ProximityEvent) {
 
 	go func() {
 		client := &http.Client{Timeout: 3 * time.Second}
-		targetURL := config.AppConfig.ServerURL+"/mediasoup.proximityUpdate?batch=1"
+		targetURL := config.AppConfig.ServerURL + "/mediasoup.proximityUpdate"
 		log.Printf("Posting to: %s", targetURL)
 		
 		req, err := http.NewRequest(

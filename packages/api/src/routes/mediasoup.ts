@@ -90,7 +90,7 @@ type MeetingState = {
 };
 
 const meetingStates = new Map<string, MeetingState>();
-const MEETING_TIMEOUT_MS = 5000;
+const MEETING_TIMEOUT_MS = 15000;
 const MEETING_COOLDOWN_MS = 10000;
 
 const MEDIASOUP_LISTEN_IP = process.env.MEDIASOUP_LISTEN_IP ?? "0.0.0.0";
