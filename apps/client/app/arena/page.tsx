@@ -222,6 +222,8 @@ export default function ArenaPage() {
             local: HTMLElement | null,
           ) => void;
           isCameraEnabled?: () => boolean;
+          setMeetingToastEnabled?: (enabled: boolean) => void;
+          getActiveMeetingPeers?: () => string[];
         };
       };
       type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
