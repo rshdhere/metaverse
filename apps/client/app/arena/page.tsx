@@ -326,7 +326,9 @@ export default function ArenaPage() {
       const network = preloader?.network;
 
       if (network?.setVideoContainers) {
-        if (remoteVideoRef.current && localVideoRef.current) {
+        // Always set containers if local video ref is ready
+        // Remote container may be null when not in a meeting (conditionally rendered)
+        if (localVideoRef.current) {
           network.setVideoContainers(
             remoteVideoRef.current,
             localVideoRef.current,
@@ -372,6 +374,10 @@ export default function ArenaPage() {
       type ScenePreloader = {
         network?: {
           getActiveMeetingPeers?: () => string[];
+          setVideoContainers?: (
+            remote: HTMLElement | null,
+            local: HTMLElement | null,
+          ) => void;
         };
       };
       type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
@@ -380,6 +386,13 @@ export default function ArenaPage() {
       const network = preloader?.network;
       if (network?.getActiveMeetingPeers) {
         setActiveMeetingPeers(network.getActiveMeetingPeers());
+      }
+      // Update remote container ref when it becomes available during meetings
+      if (network?.setVideoContainers && localVideoRef.current) {
+        network.setVideoContainers(
+          remoteVideoRef.current,
+          localVideoRef.current,
+        );
       }
     }, 1000);
 
