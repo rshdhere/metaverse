@@ -485,7 +485,8 @@ export default function ArenaPage() {
 
       {gameInitialized && (
         <>
-          <div className="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col gap-3 items-end resize overflow-auto max-w-[50vw] max-h-[80vh] p-2">
+          {/* Local user video - top right */}
+          <div className="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col gap-3 items-end max-w-[50vw] max-h-[80vh] p-2">
             <div className="p-1 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl overflow-hidden transition-all hover:bg-black/60">
               <div className="relative group">
                 <div
@@ -555,8 +556,10 @@ export default function ArenaPage() {
                 Leave Meeting
               </Button>
             )}
+          </div>
 
-            {/* Remote videos stack below personal video */}
+          {/* Remote user video - bottom left */}
+          <div className="absolute bottom-4 left-4 z-20 pointer-events-auto flex flex-col gap-3 items-start max-w-[50vw] max-h-[80vh] p-2">
             <div ref={remoteVideoRef} className="grid grid-cols-1 gap-3 w-56" />
           </div>
         </>
