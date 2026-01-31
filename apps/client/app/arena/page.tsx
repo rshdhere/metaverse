@@ -394,7 +394,7 @@ export default function ArenaPage() {
           localVideoRef.current,
         );
       }
-    }, 1000);
+    }, 500);
 
     return () => clearInterval(interval);
   }, [gameInitialized]);

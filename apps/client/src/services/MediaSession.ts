@@ -317,8 +317,6 @@ export default class MediaSession {
         | undefined;
       if (!actions || actions.length === 0) return;
 
-      if (!actions || actions.length === 0) return;
-
       console.log("MediaSession received actions:", actions);
       await this.handleActions(actions);
     } catch (error) {
@@ -482,18 +480,34 @@ export default class MediaSession {
     } else if (consumer.kind === "video") {
       console.log("Creating video element for producer:", producerId);
       const video = document.createElement("video");
+
+      // key fix: Set attributes explicitly for compatibility
+      video.setAttribute("autoplay", "true");
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("muted", "true");
+
       video.autoplay = true;
       video.playsInline = true;
       video.muted = true; // Remote video (visual only), audio is separate
       video.srcObject = new MediaStream([consumer.track]);
+
       // Use aspect-video to prevent collapse if height is 0
+      // Added display:block to ensure it takes space
       video.className =
-        "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer";
+        "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
+
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo(video);
-      video.play().catch((e) => {
-        console.warn("Video play failed:", e);
-      });
+
+      try {
+        await video.play();
+        console.log(`Video ${producerId} started playing successfully`);
+      } catch (e) {
+        console.warn(
+          `Video ${producerId} play failed (likely autoplay policy):`,
+          e,
+        );
+      }
     }
   }
 
@@ -608,7 +622,10 @@ export default class MediaSession {
     } else {
       console.log(
         "attachRemoteVideo: Container not ready or video already attached",
+        "container:",
         !!this.remoteVideoContainer,
+        "video:",
+        !!video,
       );
     }
   }

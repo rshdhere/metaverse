@@ -674,6 +674,7 @@ export default class Network {
   }
 
   async endMeetings() {
+    console.log("🛑 Network.endMeetings() called");
     const peers = this.getActiveMeetingPeers();
     if (peers.length === 0) return;
     const client = getTrpcClient();
