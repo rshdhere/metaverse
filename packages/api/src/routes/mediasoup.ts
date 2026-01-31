@@ -575,11 +575,26 @@ export const mediasoupRouter = router({
       const now = Date.now();
       const meetingKey = getMeetingKey(ctx.user.userId, input.peerId);
       const state = meetingStates.get(meetingKey);
-      if (!state || state.requestId !== input.requestId) {
+
+      console.log(
+        `meetingRespond: User=${ctx.user.userId} Peer=${input.peerId} Key=${meetingKey} RequestId=${input.requestId} Accept=${input.accept}`,
+      );
+
+      if (!state) {
+        console.log(`meetingRespond: No state found for key ${meetingKey}`);
+        return { success: true };
+      }
+      if (state.requestId !== input.requestId) {
+        console.log(
+          `meetingRespond: Request ID mismatch. State=${state.requestId} Input=${input.requestId}`,
+        );
         return { success: true };
       }
 
       if (state.expiresAt && state.expiresAt < now) {
+        console.log(
+          `meetingRespond: Request expired. Expires=${state.expiresAt} Now=${now}`,
+        );
         meetingStates.set(meetingKey, {
           ...state,
           requestId: "",
@@ -592,6 +607,7 @@ export const mediasoupRouter = router({
       }
 
       if (!input.accept) {
+        console.log("meetingRespond: User declined");
         meetingStates.set(meetingKey, {
           ...state,
           requestId: "",
@@ -610,7 +626,12 @@ export const mediasoupRouter = router({
         state.acceptB = true;
       }
 
+      console.log(
+        `meetingRespond: New State: AcceptA=${state.acceptA} AcceptB=${state.acceptB}`,
+      );
+
       if (state.acceptA && state.acceptB) {
+        console.log("meetingRespond: Both accepted! Starting meeting.");
         state.active = true;
         state.requestId = "";
         state.expiresAt = 0;
