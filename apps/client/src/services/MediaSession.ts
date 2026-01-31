@@ -377,12 +377,24 @@ export default class MediaSession {
           await this.stopConsumer(action.producerId, action.kind);
           break;
         case "meetingPrompt":
+          console.log(
+            "📨 handleActions: Received meetingPrompt from",
+            action.peerId,
+          );
           await this.handleMeetingPrompt(action);
           break;
         case "meetingStart":
+          console.log(
+            "📨 handleActions: Received meetingStart from",
+            action.peerId,
+          );
           await this.handleMeetingStart(action);
           break;
         case "meetingEnd":
+          console.log(
+            "📨 handleActions: Received meetingEnd from",
+            action.peerId,
+          );
           await this.handleMeetingEnd(action);
           break;
         default:
@@ -709,11 +721,23 @@ export default class MediaSession {
     type: "meetingStart";
     peerId: string;
   }) {
+    console.log(
+      "🎬 handleMeetingStart: Adding peer to active meeting:",
+      action.peerId,
+    );
     this.activeMeetingPeers.add(action.peerId);
+    console.log(
+      "🎬 handleMeetingStart: Active meeting peers:",
+      Array.from(this.activeMeetingPeers),
+    );
     if (!this.cameraEnabled) {
+      console.log("🎬 handleMeetingStart: Enabling camera");
       await this.enableCamera();
     }
     // Trigger navigation to sitting area for the meeting
+    console.log(
+      "🎬 handleMeetingStart: Emitting NAVIGATE_TO_SITTING_AREA event",
+    );
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
   }
 

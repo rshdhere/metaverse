@@ -589,8 +589,8 @@ export default class Game extends Phaser.Scene {
         this.keyR,
         this.network,
       );
-      this.checkProximityToPlayers();
-      this.processMeetingPromptQueue();
+      // Meeting prompts are now handled by MediaSession via server-side polling
+      // (checkProximityToPlayers and processMeetingPromptQueue removed)
     }
   }
 
