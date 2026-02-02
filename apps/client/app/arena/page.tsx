@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useAppState } from "../../src/providers/AppStateProvider";
@@ -32,11 +33,33 @@ const ComputerDialog = dynamic(
   { ssr: false },
 );
 
+const StableVideoMount = React.memo(
+  React.forwardRef<HTMLDivElement>((_props, ref) => (
+    <div
+      ref={ref}
+      className="grid grid-cols-2 gap-3 w-md"
+      style={{ minHeight: "150px" }}
+    />
+  )),
+  () => true,
+);
+StableVideoMount.displayName = "StableVideoMount";
+
+const StableLocalVideoMount = React.memo(
+  React.forwardRef<HTMLDivElement>((_props, ref) => (
+    <div
+      ref={ref}
+      className="h-32 w-56 overflow-hidden rounded-xl bg-zinc-900/50 shadow-inner"
+    />
+  )),
+  () => true,
+);
+StableLocalVideoMount.displayName = "StableLocalVideoMount";
+
 export default function ArenaPage() {
   const router = useRouter();
   const {
     token,
-    username,
     avatarName,
     loggedIn,
     computerDialogOpen,
@@ -177,17 +200,19 @@ export default function ArenaPage() {
     if (!token && !loggedIn) {
       const credentials = getStoredCredentials();
       if (credentials) {
-        setToken(credentials.token);
-        setUsername(credentials.username);
-        setAvatarName(credentials.avatarName);
-        // Pre-fill display name and avatar if available
-        if (credentials.username && !credentials.username.includes("@")) {
-          setDisplayName(credentials.username);
-          setShowNameInput(false);
-        }
-        if (credentials.avatarName) {
-          setSelectedAvatar(credentials.avatarName);
-        }
+        queueMicrotask(() => {
+          setToken(credentials.token);
+          setUsername(credentials.username);
+          setAvatarName(credentials.avatarName);
+          // Pre-fill display name and avatar if available
+          if (credentials.username && !credentials.username.includes("@")) {
+            setDisplayName(credentials.username);
+            setShowNameInput(false);
+          }
+          if (credentials.avatarName) {
+            setSelectedAvatar(credentials.avatarName);
+          }
+        });
       } else {
         router.push("/login");
       }
@@ -563,10 +588,7 @@ export default function ArenaPage() {
           <div className="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col gap-3 items-end max-w-[50vw] max-h-[80vh] p-2">
             <div className="p-1 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl overflow-hidden transition-all hover:bg-black/60">
               <div className="relative group">
-                <div
-                  ref={localVideoRef}
-                  className="h-32 w-56 overflow-hidden rounded-xl bg-zinc-900/50 shadow-inner"
-                />
+                <StableLocalVideoMount ref={localVideoRef} />
                 <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="text-[10px] font-medium text-white/80 bg-black/50 px-2 py-0.5 rounded-full">
                     You
@@ -642,11 +664,7 @@ export default function ArenaPage() {
             )}
           >
             <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl">
-              <div
-                ref={remoteVideoRef}
-                className="grid grid-cols-2 gap-3 w-[28rem]"
-                style={{ minHeight: "150px" }}
-              />
+              <StableVideoMount ref={remoteVideoRef} />
             </div>
           </div>
         </>
@@ -712,9 +730,11 @@ export default function ArenaPage() {
                     )}
                   >
                     <div className="aspect-square relative mb-3 flex items-center justify-center">
-                      <img
+                      <Image
                         src={avatar.image}
                         alt={avatar.name}
+                        width={64}
+                        height={96}
                         className="w-16 h-24 object-contain drop-shadow-lg [image-rendering:pixelated]"
                       />
                     </div>
