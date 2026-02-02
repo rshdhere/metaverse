@@ -75,7 +75,11 @@ export default class MediaSession {
   private activeMeetingPeers = new Set<string>(); // Legacy, removing
   private peerStates = new Map<
     string,
-    { status: "IDLE" | "PROMPTED" | "ACTIVE"; meetingId?: string }
+    {
+      status: "IDLE" | "PROMPTED" | "ACTIVE";
+      meetingId?: string;
+      localAccepted?: boolean;
+    }
   >();
 
   constructor(network: Network) {
@@ -490,6 +494,7 @@ export default class MediaSession {
       video.setAttribute("muted", "true"); // Attribute for initial parsing
       video.autoplay = true;
       video.playsInline = true;
+      video.muted = true;
 
       video.controls = false; // Ensure controls don't appear
       video.srcObject = new MediaStream([consumer.track]);
@@ -733,7 +738,15 @@ export default class MediaSession {
     this.peerStates.set(peerId, {
       status: "PROMPTED",
       meetingId: action.meetingId,
+      localAccepted: currentState?.localAccepted ?? false,
     });
+
+    const markLocalAcceptance = () => {
+      const state = this.peerStates.get(peerId);
+      if (!state || state.localAccepted) return;
+      this.peerStates.set(peerId, { ...state, localAccepted: true });
+      phaserEvents.emit(Event.MEETING_ACCEPTED, peerId);
+    };
 
     if (!this.toastEnabled) {
       this.pendingMeetingPrompts.set(action.requestId, {
@@ -755,6 +768,9 @@ export default class MediaSession {
         clearTimeout(prompt.timeoutId);
         toast.dismiss(prompt.toastId);
         this.meetingPrompts.delete(action.requestId!);
+      }
+      if (accept) {
+        markLocalAcceptance();
       }
       this.network.sendMeetingResponse(
         action.requestId!,
@@ -816,6 +832,7 @@ export default class MediaSession {
     this.peerStates.set(peerId, {
       status: "ACTIVE",
       meetingId: meetingId || currentState?.meetingId,
+      localAccepted: currentState?.localAccepted ?? true,
     });
     console.log(
       `🎥 handleMeetingStart: Peer ${peerId} set to ACTIVE. UI should now render container.`,
