@@ -405,17 +405,46 @@ export default function ArenaPage() {
           return newPeers;
         });
       }
-      // Update remote container ref when it becomes available during meetings
-      if (network?.setVideoContainers && localVideoRef.current) {
-        network.setVideoContainers(
-          remoteVideoRef.current,
-          localVideoRef.current,
-        );
-      }
     }, 500);
 
     return () => clearInterval(interval);
   }, [gameInitialized]);
+
+  // Sync video containers when peers change (and checking if remote ref is ready)
+  useEffect(() => {
+    if (activeMeetingPeers.length === 0) return;
+
+    // Retry a few times to ensure ref is mounted
+    const interval = setInterval(() => {
+      type ScenePreloader = {
+        network?: {
+          setVideoContainers?: (
+            remote: HTMLElement | null,
+            local: HTMLElement | null,
+          ) => void;
+        };
+      };
+      type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
+      const game = (window as unknown as { game?: WindowGame }).game;
+      const preloader = game?.scene?.keys?.preloader;
+      const network = preloader?.network;
+
+      if (
+        network?.setVideoContainers &&
+        remoteVideoRef.current &&
+        localVideoRef.current
+      ) {
+        console.log("🎥 Syncing video containers to MediaSession");
+        network.setVideoContainers(
+          remoteVideoRef.current,
+          localVideoRef.current,
+        );
+        clearInterval(interval);
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [activeMeetingPeers, gameInitialized]);
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -581,7 +610,7 @@ export default function ArenaPage() {
               <Button
                 size="sm"
                 variant="destructive"
-                className="w-full rounded-xl shadow-lg hover:bg-red-600/90 transition-all font-medium text-xs h-8"
+                className="w-full rounded-xl shadow-lg hover:bg-red-600/90 transition-all font-medium text-xs h-8 cursor-pointer"
                 onClick={handleLeaveMeeting}
               >
                 Leave Meeting

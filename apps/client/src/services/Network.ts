@@ -700,16 +700,18 @@ export default class Network {
     console.log("🛑 Network.endMeetings() called");
     const peers = this.getActiveMeetingPeers();
     if (peers.length === 0) return;
-    // Actually meeting end is better handled via WS?
-    // But we removed legacy meetingEnd.
-    // If I leave a meeting, I should tell the world server?
-    // Or just clean up locally.
-    // The previous implementation called `client.mediasoup.meetingEnd`.
-    // My new world server handles disconnects.
-    // But explicit meeting termination without disconnecting?
-    // Maybe I should implemented "end-meeting" in World Server?
-    // For now, let's just cleanup locally and maybe move away.
-    // But if I want to stay and end meeting?
-    // User can just move away.
+
+    for (const peerId of peers) {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(
+          JSON.stringify({
+            type: "meeting-end",
+            payload: { peerId },
+          }),
+        );
+      }
+      // Clean up locally immediately
+      this.mediaSession?.handleMeetingEnd({ peerId, reason: "local-leave" });
+    }
   }
 }
