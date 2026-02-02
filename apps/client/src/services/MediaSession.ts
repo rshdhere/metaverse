@@ -259,6 +259,9 @@ export default class MediaSession {
     }
 
     if (remoteContainer) {
+      console.log(
+        `🎥 MediaSession: Attaching ${this.videoElementsByProducerId.size} remote videos to container`,
+      );
       for (const [producerId, video] of this.videoElementsByProducerId) {
         if (this.pausedProducerIds.has(producerId)) continue;
 
@@ -269,7 +272,7 @@ export default class MediaSession {
           justAppended = true;
         }
 
-        // Ensure playing if it's supposed to be playing
+        // Force play interaction for autoplay policies
         if (video.paused || justAppended) {
           video
             .play()
@@ -278,6 +281,10 @@ export default class MediaSession {
             );
         }
       }
+    } else {
+      console.log(
+        "🎥 MediaSession: No remote container available to attach videos",
+      );
     }
   }
 
@@ -443,7 +450,7 @@ export default class MediaSession {
       video.setAttribute("muted", "true"); // Attribute for initial parsing
       video.autoplay = true;
       video.playsInline = true;
-      video.muted = true; // JS property is critical for Chrome autoplay
+
       video.controls = false; // Ensure controls don't appear
       video.srcObject = new MediaStream([consumer.track]);
       video.className =
@@ -485,10 +492,26 @@ export default class MediaSession {
       this.attachRemoteVideo(video);
 
       try {
-        await video.play();
+        await this.safePlayVideo(video);
       } catch (e) {
         console.warn(`Video ${producerId} play failed:`, e);
       }
+    }
+  }
+
+  private async safePlayVideo(video: HTMLVideoElement) {
+    try {
+      await video.play();
+    } catch (error) {
+      // Ignore AbortError which happens if video.pause() is called immediately after play()
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+      console.warn(
+        "safePlayVideo: Play failed (likely autoplay policy)",
+        error,
+      );
+      throw error;
     }
   }
 
@@ -722,6 +745,7 @@ export default class MediaSession {
     await this.enableCamera();
     await this.fetchAndConsumePeer(action.peerId);
 
+    console.log("✨ Emitting NAVIGATE_TO_SITTING_AREA via Phaser Events");
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
   }
 

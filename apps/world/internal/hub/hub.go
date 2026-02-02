@@ -205,6 +205,8 @@ func (h *Hub) ProcessMessage(client *Client, rawMessage []byte) {
 		h.handleTeleport(client, msg.Payload)
 	case messages.TypeMeetingResponse: // NEW Handler
 		h.handleMeetingResponse(client, msg.Payload)
+	case messages.TypeMeetingEnd:
+		h.handleMeetingEnd(client, msg.Payload)
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 	}
@@ -470,6 +472,71 @@ func (h *Hub) handleMeetingResponse(client *Client, payload messages.IncomingPay
 	}
 }
 
+
+// handleMeetingEnd processes a user request to end a meeting
+func (h *Hub) handleMeetingEnd(client *Client, payload messages.IncomingPayload) {
+	if client.SpaceID == "" { return }
+
+	h.mu.RLock()
+	space, exists := h.Spaces[client.SpaceID]
+	h.mu.RUnlock()
+	if !exists { return }
+
+	space.mu.Lock()
+	defer space.mu.Unlock()
+
+	// If PeerID is provided, use it to find the meeting efficiently
+	if payload.PeerID != "" {
+		key := dwellKey(client.UserID, payload.PeerID)
+		if state, ok := space.MeetingStates[key]; ok {
+			// Notify peer
+			var peerID string
+			if state.UserA == client.UserID {
+				peerID = state.UserB
+			} else {
+				peerID = state.UserA
+			}
+
+			if peerClient, ok := space.Users[peerID]; ok {
+				msg := messages.BaseMessage{
+					Type: messages.TypeMeetingEnd,
+					Payload: map[string]string{
+						"peerId":    client.UserID,
+						"meetingId": state.MeetingID,
+						"reason":    "user_ended",
+					},
+				}
+				peerClient.SendJSON(msg)
+			}
+			delete(space.MeetingStates, key)
+		}
+	} else {
+		// Fallback: search for active meeting involving this user
+		for key, state := range space.MeetingStates {
+			if state.Status == MeetingStatusActive && (state.UserA == client.UserID || state.UserB == client.UserID) {
+				var peerID string
+				if state.UserA == client.UserID {
+					peerID = state.UserB
+				} else {
+					peerID = state.UserA
+				}
+
+				if peerClient, ok := space.Users[peerID]; ok {
+					msg := messages.BaseMessage{
+						Type: messages.TypeMeetingEnd,
+						Payload: map[string]string{
+							"peerId":    client.UserID,
+							"meetingId": state.MeetingID,
+							"reason":    "user_ended",
+						},
+					}
+					peerClient.SendJSON(msg)
+				}
+				delete(space.MeetingStates, key)
+			}
+		}
+	}
+}
 
 // broadcastToSpace sends a message to all users in a space except the sender
 func (h *Hub) broadcastToSpace(spaceID string, message interface{}, excludeUserID string) {

@@ -471,7 +471,14 @@ export default class Game extends Phaser.Scene {
 
   // Navigate player to nearest available meeting chair by walking along a path
   private handleNavigateToSittingArea(): void {
-    if (!this.myPlayer || !this.chairs || !this.network) return;
+    if (!this.myPlayer || !this.chairs || !this.network) {
+      console.warn(
+        "❌ handleNavigateToSittingArea aborting: missing dependencies",
+      );
+      return;
+    }
+
+    console.log("🏃 handleNavigateToSittingArea: Finding nearest chair...");
 
     // Store current position before moving
     this.preMeetingPosition = { x: this.myPlayer.x, y: this.myPlayer.y };
@@ -502,6 +509,9 @@ export default class Game extends Phaser.Scene {
       // Target position in front of the chair
       const targetX = (nearestChair as Chair).x;
       const targetY = (nearestChair as Chair).y + 16;
+      console.log(
+        `🪑 Found chair at ${targetX}, ${targetY} (Dist: ${nearestDistance})`,
+      );
 
       // Calculate path
       const start = { x: playerX, y: playerY };
@@ -509,12 +519,14 @@ export default class Game extends Phaser.Scene {
 
       // Get path from A*
       const path = this.pathfinder.findPath(start, target);
+      console.log(`🗺️ Path found with ${path.length} steps`);
 
       // If path found, optimize it slightly by replacing last point with exact target
       if (path.length > 0) {
         path[path.length - 1] = target;
       } else {
         // Fallback: direct path if no path found (e.g. start/end invalid)
+        console.warn("⚠️ No path found, forcing direct movement to target");
         path.push(target);
       }
 
@@ -522,6 +534,8 @@ export default class Game extends Phaser.Scene {
       const avatarName = this.network.getMyAvatarName() || "adam";
       this.isTeleportingToMeeting = true;
       this.movePlayerAlongPath(path, avatarName);
+    } else {
+      console.warn("❌ No nearest chair found!");
     }
   }
 
