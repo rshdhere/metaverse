@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -79,6 +79,53 @@ export default function ArenaPage() {
   const remoteVideoRef = useRef<HTMLDivElement | null>(null);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const getNetwork = useCallback(() => {
+    type ScenePreloader = {
+      network?: {
+        setVideoContainers?: (
+          remote: HTMLElement | null,
+          local: HTMLElement | null,
+        ) => void;
+        isCameraEnabled?: () => boolean;
+        setMeetingToastEnabled?: (enabled: boolean) => void;
+        getActiveMeetingPeers?: () => string[];
+        getRemoteVideoCount?: () => number;
+      };
+    };
+    type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
+    const game = (window as unknown as { game?: WindowGame }).game;
+    const preloader = game?.scene?.keys?.preloader;
+    return preloader?.network;
+  }, []);
+
+  const syncVideoContainers = useCallback(() => {
+    if (!gameInitialized) return false;
+    const network = getNetwork();
+    const localContainer = localVideoRef.current;
+    const remoteContainer = remoteVideoRef.current;
+    if (network?.setVideoContainers && localContainer && remoteContainer) {
+      network.setVideoContainers(remoteContainer, localContainer);
+      return true;
+    }
+    return false;
+  }, [gameInitialized, getNetwork]);
+
+  const setRemoteVideoMount = useCallback(
+    (node: HTMLDivElement | null) => {
+      remoteVideoRef.current = node;
+      syncVideoContainers();
+    },
+    [syncVideoContainers],
+  );
+
+  const setLocalVideoMount = useCallback(
+    (node: HTMLDivElement | null) => {
+      localVideoRef.current = node;
+      syncVideoContainers();
+    },
+    [syncVideoContainers],
+  );
 
   // Background Music Logic
   useEffect(() => {
@@ -335,47 +382,28 @@ export default function ArenaPage() {
 
     let active = true;
     const interval = setInterval(() => {
-      type ScenePreloader = {
-        network?: {
-          setVideoContainers?: (
-            remote: HTMLElement | null,
-            local: HTMLElement | null,
-          ) => void;
-          isCameraEnabled?: () => boolean;
-          setMeetingToastEnabled?: (enabled: boolean) => void;
-          getActiveMeetingPeers?: () => string[];
-        };
-      };
-      type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
-      const game = (window as unknown as { game?: WindowGame }).game;
-      const preloader = game?.scene?.keys?.preloader;
-      const network = preloader?.network;
-
-      if (network?.setVideoContainers) {
-        const localContainer = localVideoRef.current;
-        const remoteContainer = remoteVideoRef.current;
-        if (localContainer && remoteContainer) {
-          network.setVideoContainers(remoteContainer, localContainer);
-          if (network.setMeetingToastEnabled) {
-            network.setMeetingToastEnabled(true);
-          }
-          if (active && network.isCameraEnabled) {
-            setCameraEnabled(network.isCameraEnabled());
-          }
-          if (active && network.getActiveMeetingPeers) {
-            const newPeers = network.getActiveMeetingPeers();
-            setActiveMeetingPeers((prev) => {
-              if (
-                prev.length === newPeers.length &&
-                prev.every((p, i) => p === newPeers[i])
-              ) {
-                return prev;
-              }
-              return newPeers;
-            });
-          }
-          clearInterval(interval);
+      const network = getNetwork();
+      if (!network) return;
+      if (syncVideoContainers()) {
+        if (network.setMeetingToastEnabled) {
+          network.setMeetingToastEnabled(true);
         }
+        if (active && network.isCameraEnabled) {
+          setCameraEnabled(network.isCameraEnabled());
+        }
+        if (active && network.getActiveMeetingPeers) {
+          const newPeers = network.getActiveMeetingPeers();
+          setActiveMeetingPeers((prev) => {
+            if (
+              prev.length === newPeers.length &&
+              prev.every((p, i) => p === newPeers[i])
+            ) {
+              return prev;
+            }
+            return newPeers;
+          });
+        }
+        clearInterval(interval);
       }
     }, 250);
 
@@ -383,7 +411,7 @@ export default function ArenaPage() {
       active = false;
       clearInterval(interval);
     };
-  }, [gameInitialized]);
+  }, [gameInitialized, getNetwork, syncVideoContainers]);
 
   useEffect(() => {
     if (!gameInitialized) return;
@@ -403,20 +431,7 @@ export default function ArenaPage() {
   useEffect(() => {
     if (!gameInitialized) return;
     const interval = setInterval(() => {
-      type ScenePreloader = {
-        network?: {
-          getActiveMeetingPeers?: () => string[];
-          getRemoteVideoCount?: () => number;
-          setVideoContainers?: (
-            remote: HTMLElement | null,
-            local: HTMLElement | null,
-          ) => void;
-        };
-      };
-      type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
-      const game = (window as unknown as { game?: WindowGame }).game;
-      const preloader = game?.scene?.keys?.preloader;
-      const network = preloader?.network;
+      const network = getNetwork();
       if (network?.getActiveMeetingPeers) {
         const newPeers = network.getActiveMeetingPeers();
         setActiveMeetingPeers((prev) => {
@@ -436,59 +451,20 @@ export default function ArenaPage() {
     }, 500);
 
     return () => clearInterval(interval);
-  }, [gameInitialized]);
+  }, [gameInitialized, getNetwork]);
 
   // Sync video containers when peers change (and checking if remote ref is ready)
   useEffect(() => {
     if (!gameInitialized) return;
 
     const interval = setInterval(() => {
-      type ScenePreloader = {
-        network?: {
-          setVideoContainers?: (
-            remote: HTMLElement | null,
-            local: HTMLElement | null,
-          ) => void;
-        };
-      };
-      type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
-      const game = (window as unknown as { game?: WindowGame }).game;
-      const preloader = game?.scene?.keys?.preloader;
-      const network = preloader?.network;
-
-      const localContainer = localVideoRef.current ?? null;
-      const remoteContainer = remoteVideoRef.current ?? null;
-
-      if (network?.setVideoContainers && localContainer && remoteContainer) {
-        console.log("🎥 Syncing video containers to MediaSession", {
-          peers: activeMeetingPeers.length,
-          hasRemoteContainer: !!remoteContainer,
-          hasLocalContainer: !!localContainer,
-        });
-
-        network.setVideoContainers(remoteContainer, localContainer);
+      if (syncVideoContainers()) {
         clearInterval(interval);
       }
     }, 200);
 
     return () => clearInterval(interval);
-  }, [activeMeetingPeers.length, gameInitialized]);
-
-  // Detect remote video presence and toggle UI even if peer state lags
-  useEffect(() => {
-    if (!gameInitialized) return;
-    const container = remoteVideoRef.current;
-    if (!container) return;
-
-    const update = () => {
-      setHasRemoteVideo((container.childElementCount ?? 0) > 0);
-    };
-    update();
-
-    const observer = new MutationObserver(() => update());
-    observer.observe(container, { childList: true });
-    return () => observer.disconnect();
-  }, [gameInitialized]);
+  }, [activeMeetingPeers.length, gameInitialized, syncVideoContainers]);
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -593,7 +569,7 @@ export default function ArenaPage() {
           <div className="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col gap-3 items-end max-w-[50vw] max-h-[80vh] p-2">
             <div className="p-1 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl overflow-hidden transition-all hover:bg-black/60">
               <div className="relative group">
-                <StableLocalVideoMount ref={localVideoRef} />
+                <StableLocalVideoMount ref={setLocalVideoMount} />
                 <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="text-[10px] font-medium text-white/80 bg-black/50 px-2 py-0.5 rounded-full">
                     You
@@ -669,7 +645,7 @@ export default function ArenaPage() {
             )}
           >
             <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl">
-              <StableVideoMount ref={remoteVideoRef} />
+              <StableVideoMount ref={setRemoteVideoMount} />
             </div>
           </div>
         </>
