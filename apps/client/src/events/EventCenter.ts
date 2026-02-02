@@ -17,4 +17,5 @@ export enum Event {
   // Meeting navigation
   NAVIGATE_TO_SITTING_AREA = "navigate-to-sitting-area",
   MEETING_ACCEPTED = "meeting-accepted",
+  MEETING_ENDED = "meeting-ended",
 }

@@ -309,6 +309,12 @@ export default class Game extends Phaser.Scene {
       this,
     );
 
+    phaserEvents.on(
+      Event.MEETING_ENDED,
+      this.handleNavigateFromSittingArea,
+      this,
+    );
+
     // Signal that Game scene is ready - this flushes the event queue
     this.network.setGameSceneReady();
 
@@ -461,9 +467,14 @@ export default class Game extends Phaser.Scene {
     // WebRTC removed
   }
 
+  private preMeetingPosition: { x: number; y: number } | null = null;
+
   // Navigate player to nearest available meeting chair by walking along a path
   private handleNavigateToSittingArea(): void {
     if (!this.myPlayer || !this.chairs || !this.network) return;
+
+    // Store current position before moving
+    this.preMeetingPosition = { x: this.myPlayer.x, y: this.myPlayer.y };
 
     const playerX = this.myPlayer.x;
     const playerY = this.myPlayer.y;
@@ -512,6 +523,26 @@ export default class Game extends Phaser.Scene {
       this.isTeleportingToMeeting = true;
       this.movePlayerAlongPath(path, avatarName);
     }
+  }
+
+  private handleNavigateFromSittingArea(): void {
+    if (!this.preMeetingPosition || !this.myPlayer || !this.network) return;
+
+    const target = this.preMeetingPosition;
+    this.preMeetingPosition = null; // Clear it
+
+    const start = { x: this.myPlayer.x, y: this.myPlayer.y };
+    const path = this.pathfinder.findPath(start, target);
+
+    if (path.length > 0) {
+      path[path.length - 1] = target;
+    } else {
+      path.push(target);
+    }
+
+    const avatarName = this.network.getMyAvatarName() || "adam";
+    this.isTeleportingToMeeting = true;
+    this.movePlayerAlongPath(path, avatarName);
   }
 
   private movePlayerAlongPath(

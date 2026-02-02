@@ -449,11 +449,36 @@ export default class MediaSession {
       video.className =
         "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
 
+      // Video debugging
+      video.onloadedmetadata = () => {
+        console.log("🎥 Video metadata loaded:", {
+          width: video.videoWidth,
+          height: video.videoHeight,
+          id: producerId,
+        });
+      };
+      video.onresize = () => {
+        console.log("🎥 Video resized:", {
+          width: video.videoWidth,
+          height: video.videoHeight,
+        });
+      };
+      video.onplaying = () => {
+        console.log("🎥 Video started playing:", producerId);
+      };
+      video.onerror = (e) => {
+        console.error("🎥 Video error:", video.error, e);
+      };
+
       console.log(
         "Created video element for producer:",
         producerId,
         "Track settings:",
         consumer.track.getSettings(),
+        "Track enabled:",
+        consumer.track.enabled,
+        "Track muted:",
+        consumer.track.muted,
       );
 
       this.videoElementsByProducerId.set(producerId, video);
@@ -724,6 +749,9 @@ export default class MediaSession {
 
     // Stop consumers for this peer
     await this.stopPeerMedia(action.peerId);
+
+    // Notify Game scene to return player to original position
+    phaserEvents.emit(Event.MEETING_ENDED);
   }
 
   // Make proximity update handler public for Network.ts
