@@ -412,9 +412,8 @@ export default function ArenaPage() {
 
   // Sync video containers when peers change (and checking if remote ref is ready)
   useEffect(() => {
-    // We run this effect even if activeMeetingPeers is empty because we might need to detach or re-attach local video
+    if (!gameInitialized) return;
 
-    // Retry a few times to ensure ref is mounted
     const interval = setInterval(() => {
       type ScenePreloader = {
         network?: {
@@ -429,30 +428,23 @@ export default function ArenaPage() {
       const preloader = game?.scene?.keys?.preloader;
       const network = preloader?.network;
 
-      // Local video ref should always be present if game is initialized
-      const localReady = !!localVideoRef.current;
-      // Remote video ref is only present if we have peers, OR if we don't have peers it's null (which is fine)
-      const remoteReady =
-        activeMeetingPeers.length > 0 ? !!remoteVideoRef.current : true;
+      const localContainer = localVideoRef.current ?? null;
+      const remoteContainer = remoteVideoRef.current ?? null;
 
-      if (network?.setVideoContainers && localReady && remoteReady) {
-        // Pass null for remote container if no peers (it might not be in DOM)
-        const remoteContainer =
-          activeMeetingPeers.length > 0 ? remoteVideoRef.current : null;
-
+      if (network?.setVideoContainers && localContainer && remoteContainer) {
         console.log("🎥 Syncing video containers to MediaSession", {
           peers: activeMeetingPeers.length,
           hasRemoteContainer: !!remoteContainer,
-          hasLocalContainer: !!localVideoRef.current,
+          hasLocalContainer: !!localContainer,
         });
 
-        network.setVideoContainers(remoteContainer, localVideoRef.current);
+        network.setVideoContainers(remoteContainer, localContainer);
         clearInterval(interval);
       }
     }, 200);
 
     return () => clearInterval(interval);
-  }, [activeMeetingPeers, gameInitialized]);
+  }, [activeMeetingPeers.length, gameInitialized]);
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();

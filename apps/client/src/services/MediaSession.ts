@@ -265,7 +265,11 @@ export default class MediaSession {
     remoteContainer: HTMLElement | null,
     localContainer: HTMLElement | null,
   ) {
-    this.remoteVideoContainer = remoteContainer;
+    if (remoteContainer) {
+      this.remoteVideoContainer = remoteContainer;
+    } else if (!this.remoteVideoContainer) {
+      this.remoteVideoContainer = null;
+    }
     this.localVideoContainer = localContainer;
 
     if (this.localVideoStream && this.localVideoElement && localContainer) {
