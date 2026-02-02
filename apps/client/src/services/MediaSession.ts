@@ -135,14 +135,26 @@ export default class MediaSession {
     const client = getTrpcClient();
     transport.on("connect", async ({ dtlsParameters }, callback, errback) => {
       try {
+        console.log(`QT Transport ${transport.direction} connecting...`);
         await client.mediasoup.connectTransport.mutate({
           transportId: transport.id,
           dtlsParameters,
         });
+        console.log(`QT Transport ${transport.direction} connected to server.`);
         callback();
       } catch (error) {
+        console.error(
+          `QT Transport ${transport.direction} connect failed:`,
+          error,
+        );
         errback(error as Error);
       }
+    });
+
+    transport.on("connectionstatechange", (state) => {
+      console.log(
+        `QT Transport ${transport.direction} connection state changed: ${state}`,
+      );
     });
 
     if (transport.direction === "send") {
@@ -515,6 +527,32 @@ export default class MediaSession {
       } catch (e) {
         console.warn(`Video ${producerId} play failed:`, e);
       }
+
+      // DEBUG: Monitor video flow
+      const statsInterval = setInterval(async () => {
+        if (consumer.closed) {
+          clearInterval(statsInterval);
+          return;
+        }
+        try {
+          const stats = await consumer.getStats();
+          stats.forEach((report) => {
+            if (report.type === "inbound-rtp" && report.kind === "video") {
+              console.log(`📊 Video Stats (${producerId}):`, {
+                bytesReceived: report.bytesReceived,
+                packetsReceived: report.packetsReceived,
+                framesDecoded: report.framesDecoded,
+                frameWidth: report.frameWidth,
+                frameHeight: report.frameHeight,
+                videoReadyState: video.readyState,
+                videoPaused: video.paused,
+              });
+            }
+          });
+        } catch (e) {
+          console.error("Stats error:", e);
+        }
+      }, 2000);
     }
   }
 
