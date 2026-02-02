@@ -407,6 +407,9 @@ export default class MediaSession {
       producerUserId,
     );
 
+    console.log(
+      `🎥 consumeProducer: Requesting consume for ${producerId} on transport ${this.recvTransport.id}`,
+    );
     const client = getTrpcClient();
     const consumerInfo = await client.mediasoup.consume.mutate({
       transportId: this.recvTransport.id,
@@ -414,12 +417,27 @@ export default class MediaSession {
       rtpCapabilities: this.device.rtpCapabilities,
     });
 
+    console.log(
+      `🎥 consumeProducer: Received consumer info from server:`,
+      consumerInfo,
+    );
+
     const consumer = await this.recvTransport.consume({
       id: consumerInfo.id,
       producerId: consumerInfo.producerId,
       kind: consumerInfo.kind,
       rtpParameters: consumerInfo.rtpParameters as types.RtpParameters,
     });
+
+    console.log(
+      `🎥 consumeProducer: Consumer created locally. Kind: ${consumer.kind}, Track State:`,
+      {
+        enabled: consumer.track.enabled,
+        muted: consumer.track.muted,
+        readyState: consumer.track.readyState,
+        id: consumer.track.id,
+      },
+    );
 
     this.consumersByProducerId.set(producerId, consumer);
     this.producerOwners.set(producerId, producerUserId);
@@ -455,6 +473,7 @@ export default class MediaSession {
       video.srcObject = new MediaStream([consumer.track]);
       video.className =
         "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
+      video.id = producerId;
 
       // Video debugging
       video.onloadedmetadata = () => {
@@ -619,7 +638,10 @@ export default class MediaSession {
       this.remoteVideoContainer &&
       !this.remoteVideoContainer.contains(video)
     ) {
+      console.log("Adding remote video to container (late attach):", video.id);
       this.remoteVideoContainer.appendChild(video);
+      // Ensure it plays
+      video.play().catch((e) => console.warn("Video play retry failed:", e));
     }
   }
 
@@ -805,13 +827,29 @@ export default class MediaSession {
     kindChanged?: "audio" | "video",
   ) {
     try {
+      console.log(
+        `🎥 Fetching producers for peer: ${peerId}, kind filter: ${kindChanged || "all"}`,
+      );
       const client = getTrpcClient();
       const producers = await client.mediasoup.getPeerProducers.query({
         peerId,
       });
 
+      console.log(
+        `🎥 Found ${producers.length} producers for peer ${peerId}:`,
+        producers,
+      );
+
       for (const p of producers) {
-        if (kindChanged && p.kind !== kindChanged) continue;
+        if (kindChanged && p.kind !== kindChanged) {
+          console.log(
+            `🎥 Skipping producer ${p.producerId} (kind ${p.kind}) due to filter ${kindChanged}`,
+          );
+          continue;
+        }
+        console.log(
+          `🎥 Consuming matched producer: ${p.producerId}, kind: ${p.kind}`,
+        );
         await this.consumeProducer(p.producerId, p.kind, peerId);
       }
     } catch (e) {

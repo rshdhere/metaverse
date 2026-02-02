@@ -632,8 +632,8 @@ export default function ArenaPage() {
               <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl">
                 <div
                   ref={remoteVideoRef}
-                  className="grid grid-cols-2 gap-3"
-                  style={{ maxWidth: "28rem" }}
+                  className="grid grid-cols-2 gap-3 w-[28rem]"
+                  style={{ minHeight: "150px" }}
                 />
               </div>
             </div>
