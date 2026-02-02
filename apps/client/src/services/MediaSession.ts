@@ -74,6 +74,7 @@ export default class MediaSession {
   private network: Network;
   private activeMeetingPeers = new Set<string>(); // Legacy, removing
   private selfId?: string;
+  private consumingInFlight = new Set<string>();
   private peerStates = new Map<
     string,
     {
@@ -424,6 +425,14 @@ export default class MediaSession {
       return;
     }
 
+    if (this.consumingInFlight.has(producerId)) {
+      console.log(
+        `🎥 consumeProducer: Already in-flight for ${producerId}, skipping duplicate.`,
+      );
+      return;
+    }
+    this.consumingInFlight.add(producerId);
+
     if (
       kind === "video" &&
       this.videoElementsByProducerId.size >= this.maxVideoConsumers
@@ -432,6 +441,7 @@ export default class MediaSession {
         "Video consumer limit reached, skipping producer",
         producerId,
       );
+      this.consumingInFlight.delete(producerId);
       return;
     }
 
@@ -509,8 +519,9 @@ export default class MediaSession {
 
       video.controls = false; // Ensure controls don't appear
       video.srcObject = new MediaStream([consumer.track]);
+      // Ensure the video has a concrete height so it is visible even if the Tailwind aspect-ratio plugin isn't enabled
       video.className =
-        "w-full aspect-video rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
+        "w-full h-36 sm:h-40 rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
       video.id = producerId;
 
       // Video debugging
@@ -545,6 +556,13 @@ export default class MediaSession {
         consumer.track.muted,
       );
 
+      const prev = this.videoElementsByProducerId.get(producerId);
+      if (prev && prev !== video) {
+        try {
+          prev.srcObject = null;
+        } catch {}
+        prev.remove();
+      }
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo(video);
 
@@ -553,6 +571,11 @@ export default class MediaSession {
       } catch (e) {
         console.warn(`Video ${producerId} play failed:`, e);
       }
+
+      // Request a keyframe to prevent black video when first attaching
+      try {
+        (consumer as any).requestKeyFrame?.();
+      } catch {}
 
       // DEBUG: Monitor video flow
       const statsInterval = setInterval(async () => {
@@ -580,6 +603,7 @@ export default class MediaSession {
         }
       }, 2000);
     }
+    this.consumingInFlight.delete(producerId);
   }
 
   private async safePlayVideo(video: HTMLVideoElement) {

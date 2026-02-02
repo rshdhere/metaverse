@@ -16,6 +16,7 @@ import Network from "../services/Network";
 import { phaserEvents, Event } from "../events/EventCenter";
 import { toast } from "sonner";
 import Pathfinder from "../utils/Pathfinder";
+import { sittingShiftData } from "../characters/Player";
 
 type NavKeys = Phaser.Types.Input.Keyboard.CursorKeys & {
   W?: Phaser.Input.Keyboard.Key;
@@ -55,6 +56,7 @@ export default class Game extends Phaser.Scene {
   private meetingPromptActive = false;
   private meetingPromptTimer?: number;
   private isTeleportingToMeeting = false; // Flag to bypass server corrections during meeting teleport
+  private targetMeetingChair?: Chair | null;
   // Whiteboard removed
   private computerMap = new Map<string, Computer>();
   private chairs!: Phaser.Physics.Arcade.StaticGroup;
@@ -513,6 +515,9 @@ export default class Game extends Phaser.Scene {
         `🪑 Found chair at ${targetX}, ${targetY} (Dist: ${nearestDistance})`,
       );
 
+      // Save target chair to auto-sit when we reach it
+      this.targetMeetingChair = nearestChair;
+
       // Calculate path
       const start = { x: playerX, y: playerY };
       const target = { x: targetX, y: targetY };
@@ -565,6 +570,40 @@ export default class Game extends Phaser.Scene {
       this.time.delayedCall(500, () => {
         this.isTeleportingToMeeting = false;
       });
+
+      // If we have a target meeting chair, auto-sit now
+      if (this.targetMeetingChair) {
+        const chair = this.targetMeetingChair as Chair;
+        const dir = (chair.itemDirection || "down") as
+          | "up"
+          | "down"
+          | "left"
+          | "right";
+        const [dx, dy, dd] = sittingShiftData[dir];
+
+        // Stop and snap position/depth
+        this.myPlayer.setVelocity(0, 0);
+        this.myPlayer
+          .setPosition(chair.x + dx, chair.y + dy)
+          .setDepth(chair.depth + dd);
+        // Update non-physics container position as MyPlayer does
+        this.myPlayer.playerContainer.setPosition(
+          chair.x + dx,
+          chair.y + dy - 30,
+        );
+
+        // Play sitting animation
+        this.myPlayer.play(`${avatarName}_sit_${dir}`, true);
+        // Broadcast position/anim
+        this.network.updatePlayer(
+          this.myPlayer.x,
+          this.myPlayer.y,
+          this.myPlayer.anims.currentAnim?.key ?? "",
+        );
+
+        // Clear target so we don't re-seat repeatedly
+        this.targetMeetingChair = null;
+      }
       return;
     }
 
