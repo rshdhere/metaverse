@@ -270,34 +270,44 @@ export default class MediaSession {
       }
     }
 
-    if (remoteContainer) {
-      console.log(
-        `🎥 MediaSession: Attaching ${this.videoElementsByProducerId.size} remote videos to container`,
-      );
-      for (const [producerId, video] of this.videoElementsByProducerId) {
-        if (this.pausedProducerIds.has(producerId)) continue;
+    this.syncRemoteVideos();
+  }
 
-        let justAppended = false;
-        if (!remoteContainer.contains(video)) {
-          console.log("Adding remote video to container:", producerId);
-          remoteContainer.appendChild(video);
-          justAppended = true;
-        }
-
-        // Force play interaction for autoplay policies
-        if (video.paused || justAppended) {
-          video
-            .play()
-            .catch((e) =>
-              console.warn(`Video ${producerId} play retry failed:`, e),
-            );
-        }
-      }
-    } else {
-      console.log(
-        "🎥 MediaSession: No remote container available to attach videos",
-      );
+  // Idempotent sync function to ensure all ready videos are in the container
+  private syncRemoteVideos() {
+    if (!this.remoteVideoContainer) {
+      console.log("🎥 syncRemoteVideos: No container available.");
+      return;
     }
+
+    console.log(
+      `🎥 syncRemoteVideos: Syncing ${this.videoElementsByProducerId.size} videos...`,
+    );
+
+    let activeCount = 0;
+    for (const [producerId, video] of this.videoElementsByProducerId) {
+      if (this.pausedProducerIds.has(producerId)) continue;
+      activeCount++;
+
+      // Ensure attached
+      if (!this.remoteVideoContainer.contains(video)) {
+        console.log(
+          `🎥 syncRemoteVideos: Attaching video ${producerId} to container`,
+        );
+        this.remoteVideoContainer.appendChild(video);
+
+        // Force play on new attach
+        video
+          .play()
+          .catch((e) =>
+            console.warn(`Video ${producerId} play failed on sync:`, e),
+          );
+      }
+    }
+
+    console.log(
+      `🎥 syncRemoteVideos: Completed. Container children count: ${this.remoteVideoContainer.childElementCount}`,
+    );
   }
 
   setMeetingToastEnabled(enabled: boolean) {
@@ -672,15 +682,8 @@ export default class MediaSession {
   }
 
   private attachRemoteVideo(video: HTMLVideoElement) {
-    if (
-      this.remoteVideoContainer &&
-      !this.remoteVideoContainer.contains(video)
-    ) {
-      console.log("Adding remote video to container (late attach):", video.id);
-      this.remoteVideoContainer.appendChild(video);
-      // Ensure it plays
-      video.play().catch((e) => console.warn("Video play retry failed:", e));
-    }
+    // Just trigger the master sync logic
+    this.syncRemoteVideos();
   }
 
   private attachLocalPreview(stream: MediaStream) {
@@ -796,20 +799,27 @@ export default class MediaSession {
       return;
     }
 
-    // Transition to ACTIVE
+    await this.enableCamera();
+
+    // Explicitly fetch ALL media (audio + video) when meeting starts
+    console.log(
+      `🎥 handleMeetingStart: Fetching ALL media for peer ${action.peerId}`,
+    );
+    try {
+      await this.fetchAndConsumePeer(action.peerId); // No kind filter = all
+    } catch (err) {
+      console.error("Error fetching peer media during meeting start:", err);
+    }
+
+    // Delay setting ACTIVE until media is assumed ready (or failed).
+    // This ensures ArenaPage renders the container AFTER we have populated videoElementsByProducerId.
     this.peerStates.set(peerId, {
       status: "ACTIVE",
       meetingId: meetingId || currentState?.meetingId,
     });
-
-    await this.enableCamera();
-
-    // Explicitly fetch ALL media (audio + video) when meeting starts
-    // The previous call might have only fetched audio due to proximity
     console.log(
-      `🎥 handleMeetingStart: Fetching ALL media for peer ${action.peerId}`,
+      `🎥 handleMeetingStart: Peer ${peerId} set to ACTIVE. UI should now render container.`,
     );
-    await this.fetchAndConsumePeer(action.peerId); // No kind filter = all
 
     console.log("✨ Emitting NAVIGATE_TO_SITTING_AREA via Phaser Events");
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
