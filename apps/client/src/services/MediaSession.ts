@@ -803,7 +803,13 @@ export default class MediaSession {
     });
 
     await this.enableCamera();
-    await this.fetchAndConsumePeer(action.peerId);
+
+    // Explicitly fetch ALL media (audio + video) when meeting starts
+    // The previous call might have only fetched audio due to proximity
+    console.log(
+      `🎥 handleMeetingStart: Fetching ALL media for peer ${action.peerId}`,
+    );
+    await this.fetchAndConsumePeer(action.peerId); // No kind filter = all
 
     console.log("✨ Emitting NAVIGATE_TO_SITTING_AREA via Phaser Events");
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
@@ -845,6 +851,9 @@ export default class MediaSession {
     peerId: string;
   }) {
     console.log("📡 Proximity Update:", action);
+
+    // Proximity strictly handles AUDIO.
+    // Video is handled by MeetingStart/Stop events.
     if (action.media === "audio") {
       if (action.type === "enter") {
         await this.fetchAndConsumePeer(action.peerId, "audio");
