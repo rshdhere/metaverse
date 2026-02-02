@@ -52,6 +52,7 @@ export default function ArenaPage() {
   const [showNameInput, setShowNameInput] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [activeMeetingPeers, setActiveMeetingPeers] = useState<string[]>([]);
+  const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const remoteVideoRef = useRef<HTMLDivElement | null>(null);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -443,6 +444,22 @@ export default function ArenaPage() {
     return () => clearInterval(interval);
   }, [activeMeetingPeers.length, gameInitialized]);
 
+  // Detect remote video presence and toggle UI even if peer state lags
+  useEffect(() => {
+    if (!gameInitialized) return;
+    const container = remoteVideoRef.current;
+    if (!container) return;
+
+    const update = () => {
+      setHasRemoteVideo((container.childElementCount ?? 0) > 0);
+    };
+    update();
+
+    const observer = new MutationObserver(() => update());
+    observer.observe(container, { childList: true });
+    return () => observer.disconnect();
+  }, [gameInitialized]);
+
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (displayName.trim()) {
@@ -603,7 +620,7 @@ export default function ArenaPage() {
               </div>
             </div>
 
-            {activeMeetingPeers.length > 0 && (
+            {(activeMeetingPeers.length > 0 || hasRemoteVideo) && (
               <Button
                 size="sm"
                 variant="destructive"
@@ -619,7 +636,7 @@ export default function ArenaPage() {
           <div
             className={cn(
               "absolute bottom-4 left-4 z-20 flex flex-col gap-3 items-start max-w-[50vw] max-h-[80vh] p-2 transition-all duration-200",
-              activeMeetingPeers.length > 0
+              activeMeetingPeers.length > 0 || hasRemoteVideo
                 ? "pointer-events-auto animate-slide-in-left opacity-100"
                 : "pointer-events-none opacity-0 translate-y-4",
             )}

@@ -283,10 +283,9 @@ export default class MediaSession {
   }
 
   private getSelfId() {
-    if (!this.selfId) {
-      this.selfId = this.network.getMySessionId();
-    }
-    return this.selfId;
+    const id = this.network.getMySessionId();
+    if (id) this.selfId = id;
+    return id ?? this.selfId;
   }
 
   // Idempotent sync function to ensure all ready videos are in the container
@@ -758,6 +757,9 @@ export default class MediaSession {
       if (!state || state.localAccepted) return;
       this.peerStates.set(peerId, { ...state, localAccepted: true });
       phaserEvents.emit(Event.MEETING_ACCEPTED, peerId);
+      // Proactively ensure we start consuming the remote's video in case
+      // the server-side 'meeting-start' arrives late or is dropped for this client.
+      void this.ensureRemoteVideoForPeer(peerId);
     };
 
     if (!this.toastEnabled) {
@@ -808,6 +810,40 @@ export default class MediaSession {
 
     const timeoutId = window.setTimeout(() => respond(false), duration);
     this.meetingPrompts.set(action.requestId, { toastId, timeoutId });
+  }
+
+  private hasVideoForPeer(peerId: string) {
+    for (const [producerId, owner] of this.producerOwners) {
+      if (owner === peerId) {
+        const consumer = this.consumersByProducerId.get(producerId);
+        if (
+          consumer &&
+          consumer.kind === "video" &&
+          !this.pausedProducerIds.has(producerId)
+        )
+          return true;
+      }
+    }
+    return false;
+  }
+
+  private async ensureRemoteVideoForPeer(peerId: string) {
+    if (this.hasVideoForPeer(peerId)) return;
+    try {
+      await this.fetchAndConsumePeer(peerId, "video");
+    } catch (e) {
+      console.warn("ensureRemoteVideoForPeer: initial fetch failed", e);
+    }
+    // Light retry once after a short delay in case remote camera just enabled
+    setTimeout(async () => {
+      if (!this.hasVideoForPeer(peerId)) {
+        try {
+          await this.fetchAndConsumePeer(peerId, "video");
+        } catch (e) {
+          console.warn("ensureRemoteVideoForPeer: retry fetch failed", e);
+        }
+      }
+    }, 1200);
   }
 
   // Make meeting start handler public for Network.ts
@@ -1006,11 +1042,23 @@ export default class MediaSession {
   }
 
   getActiveMeetingPeers() {
-    // Return peers that are in ACTIVE state
-    const active: string[] = [];
+    // Return peers that are in ACTIVE state OR have an active video consumer
+    // Additionally, if the local user has accepted a prompt (localAccepted),
+    // consider that as an active meeting until server meeting-start arrives.
+    const activeSet = new Set<string>();
     for (const [peerId, state] of this.peerStates) {
-      if (state.status === "ACTIVE") active.push(peerId);
+      if (state.status === "ACTIVE" || state.localAccepted)
+        activeSet.add(peerId);
     }
-    return active;
+
+    // Fall back to currently consumed video owners if state hasn't propagated yet
+    for (const [producerId, video] of this.videoElementsByProducerId) {
+      if (!this.pausedProducerIds.has(producerId) && video.isConnected) {
+        const owner = this.producerOwners.get(producerId);
+        if (owner) activeSet.add(owner);
+      }
+    }
+
+    return Array.from(activeSet);
   }
 }
