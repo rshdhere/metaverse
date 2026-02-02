@@ -692,6 +692,10 @@ export default class Network {
     return this.mediaSession?.isCameraEnabled() ?? false;
   }
 
+  getMySessionId() {
+    return this.mySessionId;
+  }
+
   getActiveMeetingPeers() {
     return this.mediaSession?.getActiveMeetingPeers() ?? [];
   }

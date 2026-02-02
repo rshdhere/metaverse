@@ -326,13 +326,10 @@ export default function ArenaPage() {
       const network = preloader?.network;
 
       if (network?.setVideoContainers) {
-        // Always set containers if local video ref is ready
-        // Remote container may be null when not in a meeting (conditionally rendered)
-        if (localVideoRef.current) {
-          network.setVideoContainers(
-            remoteVideoRef.current,
-            localVideoRef.current,
-          );
+        const localContainer = localVideoRef.current;
+        const remoteContainer = remoteVideoRef.current;
+        if (localContainer && remoteContainer) {
+          network.setVideoContainers(remoteContainer, localContainer);
           if (network.setMeetingToastEnabled) {
             network.setMeetingToastEnabled(true);
           }

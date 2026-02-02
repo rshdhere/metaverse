@@ -73,6 +73,7 @@ export default class MediaSession {
   >();
   private network: Network;
   private activeMeetingPeers = new Set<string>(); // Legacy, removing
+  private selfId?: string;
   private peerStates = new Map<
     string,
     {
@@ -279,6 +280,13 @@ export default class MediaSession {
     }
 
     this.syncRemoteVideos();
+  }
+
+  private getSelfId() {
+    if (!this.selfId) {
+      this.selfId = this.network.getMySessionId();
+    }
+    return this.selfId;
   }
 
   // Idempotent sync function to ensure all ready videos are in the container
@@ -809,6 +817,7 @@ export default class MediaSession {
     const peerId = action.peerId;
     const meetingId = action.meetingId;
     const currentState = this.peerStates.get(peerId);
+    const selfId = this.getSelfId();
 
     // Strict state check?
     // If we have a state, ensure meetingId matches (if provided)
@@ -838,6 +847,15 @@ export default class MediaSession {
       meetingId: meetingId || currentState?.meetingId,
       localAccepted: currentState?.localAccepted ?? true,
     });
+
+    if (selfId) {
+      const selfState = this.peerStates.get(selfId);
+      this.peerStates.set(selfId, {
+        status: "ACTIVE",
+        meetingId: meetingId || selfState?.meetingId,
+        localAccepted: true,
+      });
+    }
     console.log(
       `🎥 handleMeetingStart: Peer ${peerId} set to ACTIVE. UI should now render container.`,
     );
@@ -857,6 +875,7 @@ export default class MediaSession {
     const peerId = action.peerId;
     const meetingId = action.meetingId;
     const currentState = this.peerStates.get(peerId);
+    const selfId = this.getSelfId();
 
     // Idempotency: Ignore if we are not in a meeting with this ID
     if (meetingId && currentState && currentState.meetingId !== meetingId) {
@@ -867,6 +886,13 @@ export default class MediaSession {
     }
 
     this.peerStates.delete(peerId);
+
+    if (selfId) {
+      const selfState = this.peerStates.get(selfId);
+      if (!meetingId || !selfState || selfState.meetingId === meetingId) {
+        this.peerStates.delete(selfId);
+      }
+    }
 
     // Stop consumers for this peer
     await this.stopPeerMedia(action.peerId);
@@ -953,6 +979,7 @@ export default class MediaSession {
   reset() {
     this.peerStates.clear();
     this.activeMeetingPeers.clear();
+    this.selfId = undefined;
     this.pendingMeetingPrompts.clear();
 
     this.meetingPrompts.forEach((p) => {
