@@ -86,7 +86,7 @@ jobs:
             # ---------- Stop PM2 (Fix for ETXTBSY) ----------
             echo "Stopping PM2 to release file locks..."
             # We stop to ensure binary files aren't locked during npm rebuild
-            pm2 stop all || true
+            pm2 stop metaverse-client metaverse-server || true
 
             # ---------- Install deps ----------
             bun install
