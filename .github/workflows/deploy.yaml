@@ -29,10 +29,6 @@ jobs:
             APP_DIR="${VPS_APP_DIR:-$HOME/metaverse}"
             cd "$APP_DIR"
 
-            echo "=========================================="
-            echo "Starting Metaverse deployment"
-            echo "=========================================="
-
             # ---------- Load shell ----------
             [ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc" || true
 
@@ -58,7 +54,7 @@ jobs:
             echo "Node: $(node --version)"
             echo "npm: $(npm --version)"
 
-            # ---------- PM2 (FORCE INSTALL) ----------
+            # ---------- PM2 (INSTALLATION) ----------
             echo "Installing PM2..."
             sudo npm install -g pm2
 
@@ -112,7 +108,6 @@ jobs:
             # ---------- PM2 reload ----------
             pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
             pm2 save
-            pm2 status
 
             # ---------- Go World WS ----------
             cd apps/world
@@ -121,7 +116,3 @@ jobs:
             sudo systemctl restart world
             sudo systemctl status world --no-pager
             cd "$APP_DIR"
-
-            echo "=========================================="
-            echo "Deployment completed successfully"
-            echo "=========================================="

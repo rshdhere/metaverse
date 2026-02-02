@@ -412,7 +412,7 @@ export default function ArenaPage() {
 
   // Sync video containers when peers change (and checking if remote ref is ready)
   useEffect(() => {
-    if (activeMeetingPeers.length === 0) return;
+    // We run this effect even if activeMeetingPeers is empty because we might need to detach or re-attach local video
 
     // Retry a few times to ensure ref is mounted
     const interval = setInterval(() => {
@@ -429,16 +429,24 @@ export default function ArenaPage() {
       const preloader = game?.scene?.keys?.preloader;
       const network = preloader?.network;
 
-      if (
-        network?.setVideoContainers &&
-        remoteVideoRef.current &&
-        localVideoRef.current
-      ) {
-        console.log("🎥 Syncing video containers to MediaSession");
-        network.setVideoContainers(
-          remoteVideoRef.current,
-          localVideoRef.current,
-        );
+      // Local video ref should always be present if game is initialized
+      const localReady = !!localVideoRef.current;
+      // Remote video ref is only present if we have peers, OR if we don't have peers it's null (which is fine)
+      const remoteReady =
+        activeMeetingPeers.length > 0 ? !!remoteVideoRef.current : true;
+
+      if (network?.setVideoContainers && localReady && remoteReady) {
+        // Pass null for remote container if no peers (it might not be in DOM)
+        const remoteContainer =
+          activeMeetingPeers.length > 0 ? remoteVideoRef.current : null;
+
+        console.log("🎥 Syncing video containers to MediaSession", {
+          peers: activeMeetingPeers.length,
+          hasRemoteContainer: !!remoteContainer,
+          hasLocalContainer: !!localVideoRef.current,
+        });
+
+        network.setVideoContainers(remoteContainer, localVideoRef.current);
         clearInterval(interval);
       }
     }, 200);

@@ -526,23 +526,15 @@ export default class Game extends Phaser.Scene {
   }
 
   private handleNavigateFromSittingArea(): void {
-    if (!this.preMeetingPosition || !this.myPlayer || !this.network) return;
+    if (this.myPlayer) {
+      // Just clear the pre-meeting position so we don't automatically go back
+      this.preMeetingPosition = null;
+      this.isTeleportingToMeeting = false;
 
-    const target = this.preMeetingPosition;
-    this.preMeetingPosition = null; // Clear it
-
-    const start = { x: this.myPlayer.x, y: this.myPlayer.y };
-    const path = this.pathfinder.findPath(start, target);
-
-    if (path.length > 0) {
-      path[path.length - 1] = target;
-    } else {
-      path.push(target);
+      // Ensure player is in IDLE animation to signify they are free to move
+      const avatarName = this.network.getMyAvatarName() || "adam";
+      this.myPlayer.anims.play(`${avatarName}_idle_down`, true);
     }
-
-    const avatarName = this.network.getMyAvatarName() || "adam";
-    this.isTeleportingToMeeting = true;
-    this.movePlayerAlongPath(path, avatarName);
   }
 
   private movePlayerAlongPath(
