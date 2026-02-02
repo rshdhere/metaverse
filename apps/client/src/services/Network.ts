@@ -570,41 +570,41 @@ export default class Network {
 
   onItemUserAdded(
     callback: (playerId: string, key: string, itemType: ItemType) => void,
-    context?: any,
+    context?: object,
   ) {
     phaserEvents.on("ITEM_USER_ADDED", callback.bind(context));
   }
 
   onItemUserRemoved(
     callback: (playerId: string, key: string, itemType: ItemType) => void,
-    context?: any,
+    context?: object,
   ) {
     phaserEvents.on("ITEM_USER_REMOVED", callback.bind(context));
   }
 
   onPlayerJoined(
     callback: (Player: IPlayer, key: string) => void,
-    context?: any,
+    context?: object,
   ) {
     phaserEvents.on(Event.PLAYER_JOINED, callback.bind(context));
   }
 
-  onPlayerLeft(callback: (key: string) => void, context?: any) {
+  onPlayerLeft(callback: (key: string) => void, context?: object) {
     phaserEvents.on(Event.PLAYER_LEFT, callback.bind(context));
   }
 
-  onMyPlayerReady(callback: (key: string) => void, context?: any) {
+  onMyPlayerReady(callback: (key: string) => void, context?: object) {
     phaserEvents.on(Event.MY_PLAYER_READY, callback.bind(context));
   }
 
   onPlayerUpdated(
     callback: (field: string, value: number | string, key: string) => void,
-    context?: any,
+    context?: object,
   ) {
     phaserEvents.on(Event.PLAYER_UPDATED, callback.bind(context));
   }
 
-  onMeetingAccepted(callback: (fromUserId: string) => void, context?: any) {
+  onMeetingAccepted(callback: (fromUserId: string) => void, context?: object) {
     phaserEvents.on(Event.MEETING_ACCEPTED, callback.bind(context));
   }
 
@@ -627,7 +627,7 @@ export default class Network {
       try {
         await client.user.signup.mutate({ email, password });
         // Signup success, now we can login
-      } catch (err: any) {
+      } catch {
         // Ignore conflict errors (user already exists), proceed to login
       }
 
@@ -698,6 +698,10 @@ export default class Network {
 
   getActiveMeetingPeers() {
     return this.mediaSession?.getActiveMeetingPeers() ?? [];
+  }
+
+  getRemoteVideoCount() {
+    return this.mediaSession?.getRemoteVideoCount() ?? 0;
   }
 
   async endMeetings() {

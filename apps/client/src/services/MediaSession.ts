@@ -35,6 +35,10 @@ type ProximityAction =
       meetingId?: string;
     };
 
+type ConsumerWithKeyFrame = types.Consumer & {
+  requestKeyFrame?: () => void;
+};
+
 export default class MediaSession {
   private device?: Device;
   private sendTransport?: types.Transport;
@@ -322,7 +326,7 @@ export default class MediaSession {
     }
 
     console.log(
-      `🎥 syncRemoteVideos: Completed. Container children count: ${this.remoteVideoContainer.childElementCount}`,
+      `🎥 syncRemoteVideos: Completed. Active videos: ${activeCount}. Container children count: ${this.remoteVideoContainer.childElementCount}`,
     );
   }
 
@@ -367,22 +371,14 @@ export default class MediaSession {
             this.pendingActions.push(action);
             break;
           }
-          await this.resumeConsumer(
-            action.producerId,
-            action.kind,
-            action.producerUserId,
-          );
+          await this.resumeConsumer(action.producerId, action.kind);
           break;
         case "pause":
           if (!canHandleMedia) {
             this.pendingActions.push(action);
             break;
           }
-          await this.pauseConsumer(
-            action.producerId,
-            action.kind,
-            action.producerUserId,
-          );
+          await this.pauseConsumer(action.producerId, action.kind);
           break;
         case "stop":
           if (!canHandleMedia) {
@@ -421,7 +417,7 @@ export default class MediaSession {
   ) {
     if (!this.device || !this.recvTransport) return;
     if (this.consumersByProducerId.has(producerId)) {
-      await this.resumeConsumer(producerId, kind, producerUserId);
+      await this.resumeConsumer(producerId, kind);
       return;
     }
 
@@ -564,7 +560,7 @@ export default class MediaSession {
         prev.remove();
       }
       this.videoElementsByProducerId.set(producerId, video);
-      this.attachRemoteVideo(video);
+      this.attachRemoteVideo();
 
       try {
         await this.safePlayVideo(video);
@@ -574,7 +570,7 @@ export default class MediaSession {
 
       // Request a keyframe to prevent black video when first attaching
       try {
-        (consumer as any).requestKeyFrame?.();
+        (consumer as ConsumerWithKeyFrame).requestKeyFrame?.();
       } catch {}
 
       // DEBUG: Monitor video flow
@@ -624,11 +620,7 @@ export default class MediaSession {
 
   private async stopConsumer(producerId: string, kind: "audio" | "video") {
     if (kind === "video") {
-      await this.pauseConsumer(
-        producerId,
-        kind,
-        this.producerOwners.get(producerId) ?? "",
-      );
+      await this.pauseConsumer(producerId, kind);
       return;
     }
     const consumer = this.consumersByProducerId.get(producerId);
@@ -645,11 +637,7 @@ export default class MediaSession {
     }
   }
 
-  private async pauseConsumer(
-    producerId: string,
-    kind: "audio" | "video",
-    _producerUserId: string,
-  ) {
+  private async pauseConsumer(producerId: string, kind: "audio" | "video") {
     if (kind !== "video") return;
     const consumer = this.consumersByProducerId.get(producerId);
     if (!consumer) return;
@@ -671,11 +659,7 @@ export default class MediaSession {
     }
   }
 
-  private async resumeConsumer(
-    producerId: string,
-    kind: "audio" | "video",
-    _producerUserId: string,
-  ) {
+  private async resumeConsumer(producerId: string, kind: "audio" | "video") {
     if (kind !== "video") return;
     const consumer = this.consumersByProducerId.get(producerId);
     if (!consumer) return;
@@ -685,7 +669,7 @@ export default class MediaSession {
 
     const video = this.videoElementsByProducerId.get(producerId);
     if (video) {
-      this.attachRemoteVideo(video);
+      this.attachRemoteVideo();
       video.play().catch(() => {});
     }
 
@@ -721,7 +705,7 @@ export default class MediaSession {
     this.producerOwners.delete(producerId);
   }
 
-  private attachRemoteVideo(video: HTMLVideoElement) {
+  private attachRemoteVideo() {
     // Just trigger the master sync logic
     this.syncRemoteVideos();
   }
@@ -1084,5 +1068,15 @@ export default class MediaSession {
     }
 
     return Array.from(activeSet);
+  }
+
+  getRemoteVideoCount() {
+    let count = 0;
+    for (const [producerId, video] of this.videoElementsByProducerId) {
+      if (this.pausedProducerIds.has(producerId)) continue;
+      if (!video.isConnected) continue;
+      count++;
+    }
+    return count;
   }
 }

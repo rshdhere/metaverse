@@ -406,6 +406,7 @@ export default function ArenaPage() {
       type ScenePreloader = {
         network?: {
           getActiveMeetingPeers?: () => string[];
+          getRemoteVideoCount?: () => number;
           setVideoContainers?: (
             remote: HTMLElement | null,
             local: HTMLElement | null,
@@ -427,6 +428,10 @@ export default function ArenaPage() {
           }
           return newPeers;
         });
+      }
+      if (network?.getRemoteVideoCount) {
+        const remoteCount = network.getRemoteVideoCount();
+        setHasRemoteVideo(remoteCount > 0);
       }
     }, 500);
 
