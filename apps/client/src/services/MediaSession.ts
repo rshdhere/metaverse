@@ -425,186 +425,189 @@ export default class MediaSession {
       return;
     }
     this.consumingInFlight.add(producerId);
-
-    if (
-      kind === "video" &&
-      this.videoElementsByProducerId.size >= this.maxVideoConsumers
-    ) {
-      console.warn(
-        "Video consumer limit reached, skipping producer",
-        producerId,
-      );
-      this.consumingInFlight.delete(producerId);
-      return;
-    }
-
-    console.log(
-      "Consuming producer:",
-      producerId,
-      "kind:",
-      kind,
-      "user:",
-      producerUserId,
-    );
-
-    console.log(
-      `🎥 consumeProducer: Requesting consume for ${producerId} on transport ${this.recvTransport.id}`,
-    );
-    const client = getTrpcClient();
-    const consumerInfo = await client.mediasoup.consume.mutate({
-      transportId: this.recvTransport.id,
-      producerId,
-      rtpCapabilities: this.device.rtpCapabilities,
-    });
-
-    console.log(
-      `🎥 consumeProducer: Received consumer info from server:`,
-      consumerInfo,
-    );
-
-    const consumer = await this.recvTransport.consume({
-      id: consumerInfo.id,
-      producerId: consumerInfo.producerId,
-      kind: consumerInfo.kind,
-      rtpParameters: consumerInfo.rtpParameters as types.RtpParameters,
-    });
-
-    console.log(
-      `🎥 consumeProducer: Consumer created locally. Kind: ${consumer.kind}, Track State:`,
-      {
-        enabled: consumer.track.enabled,
-        muted: consumer.track.muted,
-        readyState: consumer.track.readyState,
-        id: consumer.track.id,
-      },
-    );
-
-    this.consumersByProducerId.set(producerId, consumer);
-    this.producerOwners.set(producerId, producerUserId);
-
-    consumer.on("transportclose", () => {
-      this.cleanupConsumer(producerId);
-    });
-
-    (consumer as unknown as { on: (event: string, cb: () => void) => void }).on(
-      "producerclose",
-      () => {
-        this.cleanupConsumer(producerId);
-      },
-    );
-
-    // Ensure consumer is resumed on both client + server side
     try {
-      consumer.resume();
-    } catch {}
-    client.mediasoup.resumeConsumer
-      .mutate({ consumerId: consumer.id })
-      .catch((error) => {
-        console.warn("Failed to resume consumer:", error);
-      });
-
-    if (consumer.kind === "audio") {
-      const audio = new Audio();
-      audio.autoplay = true;
-      audio.srcObject = new MediaStream([consumer.track]);
-      audio.play().catch(() => {
-        // Autoplay can be blocked until user interacts with the page.
-      });
-      this.audioElementsByProducerId.set(producerId, audio);
-    } else if (consumer.kind === "video") {
-      const video = document.createElement("video");
-      video.autoplay = true;
-      video.playsInline = true;
-      video.muted = true;
-      video.setAttribute("autoplay", "");
-      video.setAttribute("playsinline", "");
-      video.setAttribute("webkit-playsinline", "");
-      video.setAttribute("muted", ""); // Attribute for initial parsing
-      video.setAttribute("disablePictureInPicture", "");
-      video.disablePictureInPicture = true;
-
-      video.controls = false; // Ensure controls don't appear
-      video.srcObject = new MediaStream([consumer.track]);
-      // Ensure the video has a concrete height so it is visible even if the Tailwind aspect-ratio plugin isn't enabled
-      video.className =
-        "w-full h-36 sm:h-40 rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
-      video.id = producerId;
-
-      // Video debugging
-      video.onloadedmetadata = () => {
-        console.log("🎥 Video metadata loaded:", {
-          width: video.videoWidth,
-          height: video.videoHeight,
-          id: producerId,
-        });
-        this.ensureRemoteVideoFlow(video, consumer.id);
-      };
-      video.oncanplay = () => {
-        this.ensureRemoteVideoFlow(video, consumer.id);
-      };
-      video.onresize = () => {
-        console.log("🎥 Video resized:", {
-          width: video.videoWidth,
-          height: video.videoHeight,
-        });
-      };
-      video.onplaying = () => {
-        console.log("🎥 Video started playing:", producerId);
-      };
-      video.onerror = (e) => {
-        console.error("🎥 Video error:", video.error, e);
-      };
+      if (
+        kind === "video" &&
+        this.videoElementsByProducerId.size >= this.maxVideoConsumers
+      ) {
+        console.warn(
+          "Video consumer limit reached, skipping producer",
+          producerId,
+        );
+        this.consumingInFlight.delete(producerId);
+        return;
+      }
 
       console.log(
-        "Created video element for producer:",
+        "Consuming producer:",
         producerId,
-        "Track settings:",
-        consumer.track.getSettings(),
-        "Track enabled:",
-        consumer.track.enabled,
-        "Track muted:",
-        consumer.track.muted,
+        "kind:",
+        kind,
+        "user:",
+        producerUserId,
       );
 
-      const prev = this.videoElementsByProducerId.get(producerId);
-      if (prev && prev !== video) {
-        try {
-          prev.srcObject = null;
-        } catch {}
-        prev.remove();
-      }
-      this.videoElementsByProducerId.set(producerId, video);
-      this.attachRemoteVideo();
-      this.ensureRemoteVideoFlow(video, consumer.id);
-      this.bindUserGestureRetry();
+      console.log(
+        `🎥 consumeProducer: Requesting consume for ${producerId} on transport ${this.recvTransport.id}`,
+      );
+      const client = getTrpcClient();
+      const consumerInfo = await client.mediasoup.consume.mutate({
+        transportId: this.recvTransport.id,
+        producerId,
+        rtpCapabilities: this.device.rtpCapabilities,
+      });
 
-      // DEBUG: Monitor video flow
-      const statsInterval = setInterval(async () => {
-        if (consumer.closed) {
-          clearInterval(statsInterval);
-          return;
-        }
-        try {
-          const stats = await consumer.getStats();
-          stats.forEach((report) => {
-            if (report.type === "inbound-rtp" && report.kind === "video") {
-              console.log(`📊 Video Stats (${producerId}):`, {
-                bytesReceived: report.bytesReceived,
-                packetsReceived: report.packetsReceived,
-                framesDecoded: report.framesDecoded,
-                frameWidth: report.frameWidth,
-                frameHeight: report.frameHeight,
-                videoReadyState: video.readyState,
-                videoPaused: video.paused,
-              });
-            }
+      console.log(
+        `🎥 consumeProducer: Received consumer info from server:`,
+        consumerInfo,
+      );
+
+      const consumer = await this.recvTransport.consume({
+        id: consumerInfo.id,
+        producerId: consumerInfo.producerId,
+        kind: consumerInfo.kind,
+        rtpParameters: consumerInfo.rtpParameters as types.RtpParameters,
+      });
+
+      console.log(
+        `🎥 consumeProducer: Consumer created locally. Kind: ${consumer.kind}, Track State:`,
+        {
+          enabled: consumer.track.enabled,
+          muted: consumer.track.muted,
+          readyState: consumer.track.readyState,
+          id: consumer.track.id,
+        },
+      );
+
+      this.consumersByProducerId.set(producerId, consumer);
+      this.producerOwners.set(producerId, producerUserId);
+
+      consumer.on("transportclose", () => {
+        this.cleanupConsumer(producerId);
+      });
+
+      (
+        consumer as unknown as { on: (event: string, cb: () => void) => void }
+      ).on("producerclose", () => {
+        this.cleanupConsumer(producerId);
+      });
+
+      // Ensure consumer is resumed on both client + server side
+      try {
+        consumer.resume();
+      } catch {}
+      client.mediasoup.resumeConsumer
+        .mutate({ consumerId: consumer.id })
+        .catch((error) => {
+          console.warn("Failed to resume consumer:", error);
+        });
+
+      if (consumer.kind === "audio") {
+        const audio = new Audio();
+        audio.autoplay = true;
+        audio.srcObject = new MediaStream([consumer.track]);
+        audio.play().catch(() => {
+          // Autoplay can be blocked until user interacts with the page.
+        });
+        this.audioElementsByProducerId.set(producerId, audio);
+      } else if (consumer.kind === "video") {
+        const video = document.createElement("video");
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = true;
+        video.setAttribute("autoplay", "");
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.setAttribute("muted", ""); // Attribute for initial parsing
+        video.setAttribute("disablePictureInPicture", "");
+        video.disablePictureInPicture = true;
+
+        video.controls = false; // Ensure controls don't appear
+        video.srcObject = new MediaStream([consumer.track]);
+        // Ensure the video has a concrete height so it is visible even if the Tailwind aspect-ratio plugin isn't enabled
+        video.className =
+          "w-full h-36 sm:h-40 rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
+        video.id = producerId;
+
+        // Video debugging
+        video.onloadedmetadata = () => {
+          console.log("🎥 Video metadata loaded:", {
+            width: video.videoWidth,
+            height: video.videoHeight,
+            id: producerId,
           });
-        } catch (e) {
-          console.error("Stats error:", e);
+          this.ensureRemoteVideoFlow(video, consumer.id);
+        };
+        video.oncanplay = () => {
+          this.ensureRemoteVideoFlow(video, consumer.id);
+        };
+        video.onresize = () => {
+          console.log("🎥 Video resized:", {
+            width: video.videoWidth,
+            height: video.videoHeight,
+          });
+        };
+        video.onplaying = () => {
+          console.log("🎥 Video started playing:", producerId);
+        };
+        video.onerror = (e) => {
+          console.error("🎥 Video error:", video.error, e);
+        };
+
+        console.log(
+          "Created video element for producer:",
+          producerId,
+          "Track settings:",
+          consumer.track.getSettings(),
+          "Track enabled:",
+          consumer.track.enabled,
+          "Track muted:",
+          consumer.track.muted,
+        );
+
+        const prev = this.videoElementsByProducerId.get(producerId);
+        if (prev && prev !== video) {
+          try {
+            prev.srcObject = null;
+          } catch {}
+          prev.remove();
         }
-      }, 2000);
+        this.videoElementsByProducerId.set(producerId, video);
+        this.attachRemoteVideo();
+        this.ensureRemoteVideoFlow(video, consumer.id);
+        this.bindUserGestureRetry();
+
+        // DEBUG: Monitor video flow
+        const statsInterval = setInterval(async () => {
+          if (consumer.closed) {
+            clearInterval(statsInterval);
+            return;
+          }
+          try {
+            const stats = await consumer.getStats();
+            stats.forEach((report) => {
+              if (report.type === "inbound-rtp" && report.kind === "video") {
+                console.log(`📊 Video Stats (${producerId}):`, {
+                  bytesReceived: report.bytesReceived,
+                  packetsReceived: report.packetsReceived,
+                  framesDecoded: report.framesDecoded,
+                  frameWidth: report.frameWidth,
+                  frameHeight: report.frameHeight,
+                  videoReadyState: video.readyState,
+                  videoPaused: video.paused,
+                });
+              }
+            });
+          } catch (e) {
+            console.error("Stats error:", e);
+          }
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Failed to consume producer:", error);
+    } finally {
+      this.consumingInFlight.delete(producerId);
     }
-    this.consumingInFlight.delete(producerId);
   }
 
   private async safePlayVideo(video: HTMLVideoElement) {
