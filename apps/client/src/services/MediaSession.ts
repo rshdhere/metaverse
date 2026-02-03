@@ -52,6 +52,7 @@ export default class MediaSession {
   private remoteVideoContainer: HTMLElement | null = null;
   private localVideoContainer: HTMLElement | null = null;
   private started = false;
+  private gestureRetryBound = false;
   // Polling removed
   private pendingActions: ProximityAction[] = [];
   private cameraEnabled = false;
@@ -492,6 +493,16 @@ export default class MediaSession {
       },
     );
 
+    // Ensure consumer is resumed on both client + server side
+    try {
+      consumer.resume();
+    } catch {}
+    client.mediasoup.resumeConsumer
+      .mutate({ consumerId: consumer.id })
+      .catch((error) => {
+        console.warn("Failed to resume consumer:", error);
+      });
+
     if (consumer.kind === "audio") {
       const audio = new Audio();
       audio.autoplay = true;
@@ -526,6 +537,10 @@ export default class MediaSession {
           height: video.videoHeight,
           id: producerId,
         });
+        this.ensureRemoteVideoFlow(video, consumer.id);
+      };
+      video.oncanplay = () => {
+        this.ensureRemoteVideoFlow(video, consumer.id);
       };
       video.onresize = () => {
         console.log("🎥 Video resized:", {
@@ -561,6 +576,7 @@ export default class MediaSession {
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo();
       this.ensureRemoteVideoFlow(video, consumer.id);
+      this.bindUserGestureRetry();
 
       // DEBUG: Monitor video flow
       const statsInterval = setInterval(async () => {
@@ -628,6 +644,56 @@ export default class MediaSession {
     void attempt();
     setTimeout(() => void attempt(), 500);
     setTimeout(() => void attempt(), 1500);
+  }
+
+  private bindUserGestureRetry() {
+    if (this.gestureRetryBound || typeof window === "undefined") return;
+    this.gestureRetryBound = true;
+
+    const retry = () => {
+      for (const [producerId, video] of this.videoElementsByProducerId) {
+        const consumer = this.consumersByProducerId.get(producerId);
+        if (!consumer) continue;
+        if (
+          video.paused ||
+          video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+        ) {
+          void this.safePlayVideo(video);
+          this.requestKeyFrame(consumer.id).catch((error) => {
+            console.warn("Failed to request keyframe:", error);
+          });
+        }
+      }
+      const stillBlocked = Array.from(
+        this.videoElementsByProducerId.values(),
+      ).some(
+        (video) =>
+          video.paused || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA,
+      );
+      if (stillBlocked) {
+        this.gestureRetryBound = false;
+        setTimeout(() => this.bindUserGestureRetry(), 250);
+      }
+    };
+    const clearHandler = () => {
+      window.removeEventListener("keydown", handleKeydown);
+    };
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key !== "t" && event.key !== "T") return;
+      clearHandler();
+      retry();
+    };
+
+    window.addEventListener(
+      "pointerdown",
+      () => {
+        clearHandler();
+        retry();
+      },
+      { once: true },
+    );
+    window.addEventListener("keydown", handleKeydown);
   }
 
   private async stopConsumer(producerId: string, kind: "audio" | "video") {
