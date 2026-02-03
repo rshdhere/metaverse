@@ -528,8 +528,16 @@ export const mediasoupRouter = router({
       peerState.consumers.set(consumer.id, consumer);
       peerState.consumersByProducerId.set(input.producerId, consumer);
 
-      if (consumer.kind === "audio") {
-        await consumer.resume();
+      // Resume both audio AND video consumers immediately on the server
+      // Video was previously left paused, causing race conditions with client-side resume
+      await consumer.resume();
+      if (consumer.kind === "video") {
+        // Also request initial keyframe for video to speed up first frame
+        try {
+          await consumer.requestKeyFrame();
+        } catch (error) {
+          console.warn("Failed to request initial keyframe on consume:", error);
+        }
       }
 
       consumer.on("transportclose", () => {
