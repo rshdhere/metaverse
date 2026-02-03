@@ -502,12 +502,15 @@ export default class MediaSession {
       this.audioElementsByProducerId.set(producerId, audio);
     } else if (consumer.kind === "video") {
       const video = document.createElement("video");
-      video.setAttribute("autoplay", "true");
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("muted", "true"); // Attribute for initial parsing
       video.autoplay = true;
       video.playsInline = true;
       video.muted = true;
+      video.setAttribute("autoplay", "");
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      video.setAttribute("muted", ""); // Attribute for initial parsing
+      video.setAttribute("disablePictureInPicture", "");
+      video.disablePictureInPicture = true;
 
       video.controls = false; // Ensure controls don't appear
       video.srcObject = new MediaStream([consumer.track]);
@@ -557,19 +560,7 @@ export default class MediaSession {
       }
       this.videoElementsByProducerId.set(producerId, video);
       this.attachRemoteVideo();
-
-      try {
-        await this.safePlayVideo(video);
-      } catch (e) {
-        console.warn(`Video ${producerId} play failed:`, e);
-      }
-
-      // Request a keyframe from the server to avoid black video on join
-      client.mediasoup.requestKeyFrame
-        .mutate({ consumerId: consumer.id })
-        .catch((error) => {
-          console.warn("Failed to request keyframe:", error);
-        });
+      this.ensureRemoteVideoFlow(video, consumer.id);
 
       // DEBUG: Monitor video flow
       const statsInterval = setInterval(async () => {
@@ -614,6 +605,27 @@ export default class MediaSession {
       );
       throw error;
     }
+  }
+
+  private requestKeyFrame(consumerId: string) {
+    const client = getTrpcClient();
+    return client.mediasoup.requestKeyFrame.mutate({ consumerId });
+  }
+
+  private ensureRemoteVideoFlow(video: HTMLVideoElement, consumerId: string) {
+    const attempt = async () => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      try {
+        await this.safePlayVideo(video);
+      } catch {}
+      this.requestKeyFrame(consumerId).catch((error) => {
+        console.warn("Failed to request keyframe:", error);
+      });
+    };
+
+    void attempt();
+    setTimeout(() => void attempt(), 500);
+    setTimeout(() => void attempt(), 1500);
   }
 
   private async stopConsumer(producerId: string, kind: "audio" | "video") {
