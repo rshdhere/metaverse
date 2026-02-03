@@ -651,7 +651,6 @@ export default class MediaSession {
     this.gestureRetryBound = true;
 
     const retry = () => {
-      this.gestureRetryBound = false;
       for (const [producerId, video] of this.videoElementsByProducerId) {
         const consumer = this.consumersByProducerId.get(producerId);
         if (!consumer) continue;
@@ -664,6 +663,16 @@ export default class MediaSession {
             console.warn("Failed to request keyframe:", error);
           });
         }
+      }
+      const stillBlocked = Array.from(
+        this.videoElementsByProducerId.values(),
+      ).some(
+        (video) =>
+          video.paused || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA,
+      );
+      if (stillBlocked) {
+        this.gestureRetryBound = false;
+        setTimeout(() => this.bindUserGestureRetry(), 250);
       }
     };
     const clearHandler = () => {
