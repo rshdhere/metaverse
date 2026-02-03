@@ -50,6 +50,9 @@ export default class MediaSession {
   private pausedProducerIds = new Set<string>();
   private producerOwners = new Map<string, string>();
   private videoRecoveryTimers = new Map<string, number>();
+  private videoReconsumeTimers = new Map<string, number>();
+  private videoRecoveryAttempts = new Map<string, number>();
+  private meetingVideoWatchdogs = new Map<string, number>();
   private remoteVideoContainer: HTMLElement | null = null;
   private localVideoContainer: HTMLElement | null = null;
   private started = false;
@@ -539,11 +542,15 @@ export default class MediaSession {
           });
           const timeoutId = this.videoRecoveryTimers.get(producerId);
           if (timeoutId) window.clearTimeout(timeoutId);
+          const reconsumeId = this.videoReconsumeTimers.get(producerId);
+          if (reconsumeId) window.clearTimeout(reconsumeId);
           this.ensureRemoteVideoFlow(video, consumer.id);
         };
         video.oncanplay = () => {
           const timeoutId = this.videoRecoveryTimers.get(producerId);
           if (timeoutId) window.clearTimeout(timeoutId);
+          const reconsumeId = this.videoReconsumeTimers.get(producerId);
+          if (reconsumeId) window.clearTimeout(reconsumeId);
           this.ensureRemoteVideoFlow(video, consumer.id);
         };
         video.onresize = () => {
@@ -556,6 +563,8 @@ export default class MediaSession {
           console.log("🎥 Video started playing:", producerId);
           const timeoutId = this.videoRecoveryTimers.get(producerId);
           if (timeoutId) window.clearTimeout(timeoutId);
+          const reconsumeId = this.videoReconsumeTimers.get(producerId);
+          if (reconsumeId) window.clearTimeout(reconsumeId);
         };
         video.onwaiting = () => {
           console.log("🎥 Video waiting for data:", producerId);
@@ -634,10 +643,6 @@ export default class MediaSession {
                 const bytesDelta =
                   lastStats.bytesReceived !== undefined
                     ? report.bytesReceived - lastStats.bytesReceived
-                    : undefined;
-                const packetsDelta =
-                  lastStats.packetsReceived !== undefined
-                    ? report.packetsReceived - lastStats.packetsReceived
                     : undefined;
                 const framesDelta =
                   lastStats.framesDecoded !== undefined &&
@@ -735,6 +740,8 @@ export default class MediaSession {
     if (typeof window === "undefined") return;
     const existing = this.videoRecoveryTimers.get(producerId);
     if (existing) window.clearTimeout(existing);
+    const existingReconsume = this.videoReconsumeTimers.get(producerId);
+    if (existingReconsume) window.clearTimeout(existingReconsume);
 
     const timeoutId = window.setTimeout(() => {
       if (consumer.closed) return;
@@ -756,6 +763,40 @@ export default class MediaSession {
     }, 2000);
 
     this.videoRecoveryTimers.set(producerId, timeoutId);
+
+    const reconsumeId = window.setTimeout(async () => {
+      if (consumer.closed) return;
+      if (this.pausedProducerIds.has(producerId)) return;
+      const hasFrames =
+        video.videoWidth > 0 &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+      if (hasFrames) return;
+
+      const attempts = (this.videoRecoveryAttempts.get(producerId) ?? 0) + 1;
+      if (attempts > 2) return;
+      this.videoRecoveryAttempts.set(producerId, attempts);
+
+      const ownerId = this.producerOwners.get(producerId);
+      if (!ownerId || this.consumingInFlight.has(producerId)) return;
+
+      console.warn("🎥 Re-consuming video after stall:", {
+        producerId,
+        attempts,
+      });
+
+      const client = getTrpcClient();
+      try {
+        await client.mediasoup.closeConsumer.mutate({
+          consumerId: consumer.id,
+        });
+      } catch (error) {
+        console.warn("Failed to close consumer during recovery:", error);
+      }
+      this.cleanupConsumer(producerId);
+      await this.consumeProducer(producerId, "video", ownerId);
+    }, 6000);
+
+    this.videoReconsumeTimers.set(producerId, reconsumeId);
   }
 
   private bindUserGestureRetry() {
@@ -877,6 +918,12 @@ export default class MediaSession {
       window.clearTimeout(timeoutId);
       this.videoRecoveryTimers.delete(producerId);
     }
+    const reconsumeId = this.videoReconsumeTimers.get(producerId);
+    if (reconsumeId) {
+      window.clearTimeout(reconsumeId);
+      this.videoReconsumeTimers.delete(producerId);
+    }
+    this.videoRecoveryAttempts.delete(producerId);
     const consumer = this.consumersByProducerId.get(producerId);
     if (consumer) {
       consumer.close();
@@ -1049,6 +1096,55 @@ export default class MediaSession {
     }, 1200);
   }
 
+  private startMeetingVideoWatchdog(peerId: string) {
+    if (typeof window === "undefined") return;
+    const existing = this.meetingVideoWatchdogs.get(peerId);
+    if (existing) window.clearInterval(existing);
+
+    let attempts = 0;
+    const intervalId = window.setInterval(async () => {
+      const state = this.peerStates.get(peerId);
+      if (!state || state.status !== "ACTIVE") {
+        window.clearInterval(intervalId);
+        this.meetingVideoWatchdogs.delete(peerId);
+        return;
+      }
+
+      let hasLiveFrames = false;
+      for (const [producerId, owner] of this.producerOwners) {
+        if (owner !== peerId) continue;
+        const consumer = this.consumersByProducerId.get(producerId);
+        if (!consumer || consumer.kind !== "video") continue;
+        const video = this.videoElementsByProducerId.get(producerId);
+        if (
+          video &&
+          video.videoWidth > 0 &&
+          video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        ) {
+          hasLiveFrames = true;
+          break;
+        }
+      }
+
+      if (hasLiveFrames) {
+        window.clearInterval(intervalId);
+        this.meetingVideoWatchdogs.delete(peerId);
+        return;
+      }
+
+      attempts += 1;
+      if (attempts > 6) {
+        window.clearInterval(intervalId);
+        this.meetingVideoWatchdogs.delete(peerId);
+        return;
+      }
+
+      await this.fetchAndConsumePeer(peerId, "video");
+    }, 2500);
+
+    this.meetingVideoWatchdogs.set(peerId, intervalId);
+  }
+
   // Make meeting start handler public for Network.ts
   async handleMeetingStart(action: { peerId: string; meetingId?: string }) {
     console.log("🎬 Meeting START with:", action.peerId);
@@ -1098,6 +1194,8 @@ export default class MediaSession {
     console.log(
       `🎥 handleMeetingStart: Peer ${peerId} set to ACTIVE. UI should now render container.`,
     );
+    void this.ensureRemoteVideoForPeer(peerId);
+    this.startMeetingVideoWatchdog(peerId);
 
     console.log("✨ Emitting NAVIGATE_TO_SITTING_AREA via Phaser Events");
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
@@ -1125,6 +1223,11 @@ export default class MediaSession {
     }
 
     this.peerStates.delete(peerId);
+    const watchdog = this.meetingVideoWatchdogs.get(peerId);
+    if (watchdog && typeof window !== "undefined") {
+      window.clearInterval(watchdog);
+      this.meetingVideoWatchdogs.delete(peerId);
+    }
 
     if (selfId) {
       const selfState = this.peerStates.get(selfId);
@@ -1162,6 +1265,11 @@ export default class MediaSession {
   // Make peer left handler public for Network.ts
   handlePeerLeft(peerId: string) {
     this.peerStates.delete(peerId);
+    const watchdog = this.meetingVideoWatchdogs.get(peerId);
+    if (watchdog && typeof window !== "undefined") {
+      window.clearInterval(watchdog);
+      this.meetingVideoWatchdogs.delete(peerId);
+    }
     void this.stopPeerMedia(peerId);
   }
 
@@ -1246,8 +1354,17 @@ export default class MediaSession {
       this.videoRecoveryTimers.forEach((timeoutId) =>
         window.clearTimeout(timeoutId),
       );
+      this.videoReconsumeTimers.forEach((timeoutId) =>
+        window.clearTimeout(timeoutId),
+      );
+      this.meetingVideoWatchdogs.forEach((intervalId) =>
+        window.clearInterval(intervalId),
+      );
     }
     this.videoRecoveryTimers.clear();
+    this.videoReconsumeTimers.clear();
+    this.videoRecoveryAttempts.clear();
+    this.meetingVideoWatchdogs.clear();
   }
 
   getActiveMeetingPeers() {
