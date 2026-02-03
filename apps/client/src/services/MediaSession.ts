@@ -52,7 +52,9 @@ export default class MediaSession {
   private videoRecoveryTimers = new Map<string, number>();
   private videoReconsumeTimers = new Map<string, number>();
   private videoRecoveryAttempts = new Map<string, number>();
+  private videoCreationTime = new Map<string, number>();
   private meetingVideoWatchdogs = new Map<string, number>();
+  private videoResumeRequested = new Set<string>();
   private remoteVideoContainer: HTMLElement | null = null;
   private localVideoContainer: HTMLElement | null = null;
   private started = false;
@@ -496,15 +498,28 @@ export default class MediaSession {
         this.cleanupConsumer(producerId);
       });
 
-      // Ensure consumer is resumed on both client + server side
+      // CRITICAL: Ensure consumer is resumed on both client + server side
+      // Mediasoup consumers are created paused by default - must resume for packets to flow
       try {
         consumer.resume();
       } catch {}
       client.mediasoup.resumeConsumer
         .mutate({ consumerId: consumer.id })
+        .then(() => {
+          console.log(
+            `🎥 Consumer ${consumer.id} (${consumer.kind}) resumed on server`,
+          );
+        })
         .catch((error) => {
           console.warn("Failed to resume consumer:", error);
         });
+
+      // For video, also request a keyframe immediately
+      if (consumer.kind === "video") {
+        this.requestKeyFrame(consumer.id).catch((error) => {
+          console.warn("Failed to request initial keyframe:", error);
+        });
+      }
 
       if (consumer.kind === "audio") {
         const audio = new Audio();
@@ -614,6 +629,7 @@ export default class MediaSession {
           prev.remove();
         }
         this.videoElementsByProducerId.set(producerId, video);
+        this.videoCreationTime.set(producerId, Date.now()); // Track creation time for grace period
         this.attachRemoteVideo();
         this.ensureRemoteVideoFlow(video, consumer.id);
         this.bindUserGestureRetry();
@@ -738,17 +754,46 @@ export default class MediaSession {
     video: HTMLVideoElement,
   ) {
     if (typeof window === "undefined") return;
+
+    // Skip recovery if already consuming this producer (prevents feedback loop)
+    if (this.consumingInFlight.has(producerId)) {
+      console.log(
+        `🎥 scheduleVideoRecovery: Skipping ${producerId} - already consuming`,
+      );
+      return;
+    }
+
+    // Check if video already has frames - no recovery needed
+    const hasFrames =
+      video.videoWidth > 0 &&
+      video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+    if (hasFrames) {
+      // Clear any existing timers and return
+      const existing = this.videoRecoveryTimers.get(producerId);
+      if (existing) window.clearTimeout(existing);
+      const existingReconsume = this.videoReconsumeTimers.get(producerId);
+      if (existingReconsume) window.clearTimeout(existingReconsume);
+      return;
+    }
+
+    // Grace period: don't trigger aggressive recovery within 10s of video creation
+    const creationTime = this.videoCreationTime.get(producerId);
+    const now = Date.now();
+    const gracePeriodMs = 10000; // 10 seconds grace period for initial keyframe
+    const isInGracePeriod = creationTime && now - creationTime < gracePeriodMs;
+
     const existing = this.videoRecoveryTimers.get(producerId);
     if (existing) window.clearTimeout(existing);
     const existingReconsume = this.videoReconsumeTimers.get(producerId);
     if (existingReconsume) window.clearTimeout(existingReconsume);
 
+    // Stall recovery timer: request keyframe and try resume (5s instead of 2s)
     const timeoutId = window.setTimeout(() => {
       if (consumer.closed) return;
-      const hasFrames =
+      const hasFramesNow =
         video.videoWidth > 0 &&
         video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
-      if (hasFrames) return;
+      if (hasFramesNow) return;
       console.warn("🎥 Video stalled. Forcing resume + keyframe:", producerId);
       try {
         consumer.resume();
@@ -760,43 +805,51 @@ export default class MediaSession {
           console.warn("Failed to resume consumer during recovery:", error);
         });
       this.ensureRemoteVideoFlow(video, consumer.id);
-    }, 2000);
+    }, 5000); // 5 seconds instead of 2
 
     this.videoRecoveryTimers.set(producerId, timeoutId);
 
-    const reconsumeId = window.setTimeout(async () => {
-      if (consumer.closed) return;
-      if (this.pausedProducerIds.has(producerId)) return;
-      const hasFrames =
-        video.videoWidth > 0 &&
-        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
-      if (hasFrames) return;
+    // Re-consume timer: Only schedule if NOT in grace period (15s instead of 6s)
+    if (!isInGracePeriod) {
+      const reconsumeId = window.setTimeout(async () => {
+        if (consumer.closed) return;
+        if (this.pausedProducerIds.has(producerId)) return;
+        if (this.consumingInFlight.has(producerId)) return;
+        const hasFramesNow =
+          video.videoWidth > 0 &&
+          video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+        if (hasFramesNow) return;
 
-      const attempts = (this.videoRecoveryAttempts.get(producerId) ?? 0) + 1;
-      if (attempts > 2) return;
-      this.videoRecoveryAttempts.set(producerId, attempts);
+        const attempts = (this.videoRecoveryAttempts.get(producerId) ?? 0) + 1;
+        if (attempts > 2) return;
+        this.videoRecoveryAttempts.set(producerId, attempts);
 
-      const ownerId = this.producerOwners.get(producerId);
-      if (!ownerId || this.consumingInFlight.has(producerId)) return;
+        const ownerId = this.producerOwners.get(producerId);
+        if (!ownerId) return;
 
-      console.warn("🎥 Re-consuming video after stall:", {
-        producerId,
-        attempts,
-      });
-
-      const client = getTrpcClient();
-      try {
-        await client.mediasoup.closeConsumer.mutate({
-          consumerId: consumer.id,
+        console.warn("🎥 Re-consuming video after stall:", {
+          producerId,
+          attempts,
         });
-      } catch (error) {
-        console.warn("Failed to close consumer during recovery:", error);
-      }
-      this.cleanupConsumer(producerId);
-      await this.consumeProducer(producerId, "video", ownerId);
-    }, 6000);
 
-    this.videoReconsumeTimers.set(producerId, reconsumeId);
+        const client = getTrpcClient();
+        try {
+          await client.mediasoup.closeConsumer.mutate({
+            consumerId: consumer.id,
+          });
+        } catch (error) {
+          console.warn("Failed to close consumer during recovery:", error);
+        }
+        this.cleanupConsumer(producerId);
+        await this.consumeProducer(producerId, "video", ownerId);
+      }, 15000); // 15 seconds instead of 6
+
+      this.videoReconsumeTimers.set(producerId, reconsumeId);
+    } else {
+      console.log(
+        `🎥 scheduleVideoRecovery: In grace period for ${producerId}, skipping re-consume timer`,
+      );
+    }
   }
 
   private bindUserGestureRetry() {
@@ -924,6 +977,7 @@ export default class MediaSession {
       this.videoReconsumeTimers.delete(producerId);
     }
     this.videoRecoveryAttempts.delete(producerId);
+    this.videoCreationTime.delete(producerId); // Clean up creation time tracking
     const consumer = this.consumersByProducerId.get(producerId);
     if (consumer) {
       consumer.close();
@@ -1133,14 +1187,15 @@ export default class MediaSession {
       }
 
       attempts += 1;
-      if (attempts > 6) {
+      if (attempts > 3) {
+        // Reduced from 6 to 3 attempts
         window.clearInterval(intervalId);
         this.meetingVideoWatchdogs.delete(peerId);
         return;
       }
 
       await this.fetchAndConsumePeer(peerId, "video");
-    }, 2500);
+    }, 5000); // Increased from 2500ms to 5000ms
 
     this.meetingVideoWatchdogs.set(peerId, intervalId);
   }

@@ -522,18 +522,14 @@ export const mediasoupRouter = router({
       const consumer = await transport.consume({
         producerId: input.producerId,
         rtpCapabilities: input.rtpCapabilities as ConsumerRtpCapabilities,
-        paused: false,
+        paused: true,
       });
 
       peerState.consumers.set(consumer.id, consumer);
       peerState.consumersByProducerId.set(input.producerId, consumer);
 
-      if (consumer.kind === "video") {
-        try {
-          await consumer.requestKeyFrame();
-        } catch (error) {
-          console.warn("Failed to request keyframe after consume:", error);
-        }
+      if (consumer.kind === "audio") {
+        await consumer.resume();
       }
 
       consumer.on("transportclose", () => {
