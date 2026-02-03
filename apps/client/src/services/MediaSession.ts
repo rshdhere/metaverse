@@ -318,14 +318,27 @@ export default class MediaSession {
           `🎥 syncRemoteVideos: Attaching video ${producerId} to container`,
         );
         this.remoteVideoContainer.appendChild(video);
-
-        // Force play on new attach
-        video
-          .play()
-          .catch((e) =>
-            console.warn(`Video ${producerId} play failed on sync:`, e),
-          );
       }
+
+      // Debug: Log video state
+      console.log(`🎥 syncRemoteVideos: Video ${producerId} state:`, {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        readyState: video.readyState,
+        paused: video.paused,
+        currentTime: video.currentTime,
+        srcObject: !!video.srcObject,
+        isConnected: video.isConnected,
+        offsetWidth: video.offsetWidth,
+        offsetHeight: video.offsetHeight,
+      });
+
+      // Force play on sync (in case it was paused)
+      video
+        .play()
+        .catch((e) =>
+          console.warn(`Video ${producerId} play failed on sync:`, e),
+        );
     }
 
     console.log(
