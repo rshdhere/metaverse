@@ -49,6 +49,7 @@ export default class MediaSession {
   private videoElementsByProducerId = new Map<string, HTMLVideoElement>();
   private pausedProducerIds = new Set<string>();
   private producerOwners = new Map<string, string>();
+  private videoRecoveryTimers = new Map<string, number>();
   private remoteVideoContainer: HTMLElement | null = null;
   private localVideoContainer: HTMLElement | null = null;
   private started = false;
@@ -536,9 +537,13 @@ export default class MediaSession {
             height: video.videoHeight,
             id: producerId,
           });
+          const timeoutId = this.videoRecoveryTimers.get(producerId);
+          if (timeoutId) window.clearTimeout(timeoutId);
           this.ensureRemoteVideoFlow(video, consumer.id);
         };
         video.oncanplay = () => {
+          const timeoutId = this.videoRecoveryTimers.get(producerId);
+          if (timeoutId) window.clearTimeout(timeoutId);
           this.ensureRemoteVideoFlow(video, consumer.id);
         };
         video.onresize = () => {
@@ -549,9 +554,36 @@ export default class MediaSession {
         };
         video.onplaying = () => {
           console.log("🎥 Video started playing:", producerId);
+          const timeoutId = this.videoRecoveryTimers.get(producerId);
+          if (timeoutId) window.clearTimeout(timeoutId);
+        };
+        video.onwaiting = () => {
+          console.log("🎥 Video waiting for data:", producerId);
+          this.scheduleVideoRecovery(producerId, consumer, video);
+        };
+        video.onstalled = () => {
+          console.warn("🎥 Video stalled:", producerId);
+          this.scheduleVideoRecovery(producerId, consumer, video);
+        };
+        video.onpause = () => {
+          console.log("🎥 Video paused:", producerId);
+        };
+        video.onplay = () => {
+          console.log("🎥 Video play event:", producerId);
         };
         video.onerror = (e) => {
           console.error("🎥 Video error:", video.error, e);
+        };
+        consumer.track.onunmute = () => {
+          const timeoutId = this.videoRecoveryTimers.get(producerId);
+          if (timeoutId) window.clearTimeout(timeoutId);
+          this.ensureRemoteVideoFlow(video, consumer.id);
+        };
+        consumer.track.onmute = () => {
+          this.scheduleVideoRecovery(producerId, consumer, video);
+        };
+        consumer.track.onended = () => {
+          console.warn("🎥 Consumer track ended:", producerId);
         };
 
         console.log(
@@ -576,8 +608,15 @@ export default class MediaSession {
         this.attachRemoteVideo();
         this.ensureRemoteVideoFlow(video, consumer.id);
         this.bindUserGestureRetry();
+        this.scheduleVideoRecovery(producerId, consumer, video);
 
         // DEBUG: Monitor video flow
+        let lastStats: {
+          bytesReceived?: number;
+          packetsReceived?: number;
+          framesDecoded?: number;
+          timestamp?: number;
+        } = {};
         const statsInterval = setInterval(async () => {
           if (consumer.closed) {
             clearInterval(statsInterval);
@@ -587,15 +626,54 @@ export default class MediaSession {
             const stats = await consumer.getStats();
             stats.forEach((report) => {
               if (report.type === "inbound-rtp" && report.kind === "video") {
+                const now = report.timestamp ?? performance.now();
+                const elapsedMs =
+                  lastStats.timestamp !== undefined
+                    ? now - lastStats.timestamp
+                    : undefined;
+                const bytesDelta =
+                  lastStats.bytesReceived !== undefined
+                    ? report.bytesReceived - lastStats.bytesReceived
+                    : undefined;
+                const packetsDelta =
+                  lastStats.packetsReceived !== undefined
+                    ? report.packetsReceived - lastStats.packetsReceived
+                    : undefined;
+                const framesDelta =
+                  lastStats.framesDecoded !== undefined &&
+                  report.framesDecoded !== undefined
+                    ? report.framesDecoded - lastStats.framesDecoded
+                    : undefined;
+                const kbps =
+                  elapsedMs && bytesDelta !== undefined
+                    ? Math.round((bytesDelta * 8) / elapsedMs)
+                    : undefined;
+                const fps =
+                  elapsedMs && framesDelta !== undefined
+                    ? Math.round((framesDelta * 1000) / elapsedMs)
+                    : undefined;
+
                 console.log(`📊 Video Stats (${producerId}):`, {
                   bytesReceived: report.bytesReceived,
                   packetsReceived: report.packetsReceived,
                   framesDecoded: report.framesDecoded,
                   frameWidth: report.frameWidth,
                   frameHeight: report.frameHeight,
+                  kbps,
+                  fps,
                   videoReadyState: video.readyState,
                   videoPaused: video.paused,
+                  trackEnabled: consumer.track.enabled,
+                  trackMuted: consumer.track.muted,
+                  trackReadyState: consumer.track.readyState,
                 });
+
+                lastStats = {
+                  bytesReceived: report.bytesReceived,
+                  packetsReceived: report.packetsReceived,
+                  framesDecoded: report.framesDecoded,
+                  timestamp: now,
+                };
               }
             });
           } catch (e) {
@@ -647,6 +725,37 @@ export default class MediaSession {
     void attempt();
     setTimeout(() => void attempt(), 500);
     setTimeout(() => void attempt(), 1500);
+  }
+
+  private scheduleVideoRecovery(
+    producerId: string,
+    consumer: types.Consumer,
+    video: HTMLVideoElement,
+  ) {
+    if (typeof window === "undefined") return;
+    const existing = this.videoRecoveryTimers.get(producerId);
+    if (existing) window.clearTimeout(existing);
+
+    const timeoutId = window.setTimeout(() => {
+      if (consumer.closed) return;
+      const hasFrames =
+        video.videoWidth > 0 &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+      if (hasFrames) return;
+      console.warn("🎥 Video stalled. Forcing resume + keyframe:", producerId);
+      try {
+        consumer.resume();
+      } catch {}
+      const client = getTrpcClient();
+      client.mediasoup.resumeConsumer
+        .mutate({ consumerId: consumer.id })
+        .catch((error) => {
+          console.warn("Failed to resume consumer during recovery:", error);
+        });
+      this.ensureRemoteVideoFlow(video, consumer.id);
+    }, 2000);
+
+    this.videoRecoveryTimers.set(producerId, timeoutId);
   }
 
   private bindUserGestureRetry() {
@@ -763,6 +872,11 @@ export default class MediaSession {
   }
 
   private cleanupConsumer(producerId: string) {
+    const timeoutId = this.videoRecoveryTimers.get(producerId);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      this.videoRecoveryTimers.delete(producerId);
+    }
     const consumer = this.consumersByProducerId.get(producerId);
     if (consumer) {
       consumer.close();
@@ -1128,6 +1242,12 @@ export default class MediaSession {
 
     this.pausedProducerIds.clear();
     this.producerOwners.clear();
+    if (typeof window !== "undefined") {
+      this.videoRecoveryTimers.forEach((timeoutId) =>
+        window.clearTimeout(timeoutId),
+      );
+    }
+    this.videoRecoveryTimers.clear();
   }
 
   getActiveMeetingPeers() {
