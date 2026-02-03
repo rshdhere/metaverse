@@ -516,22 +516,31 @@ export default class MediaSession {
       try {
         consumer.resume();
       } catch {}
-      client.mediasoup.resumeConsumer
-        .mutate({ consumerId: consumer.id })
-        .then(() => {
-          console.log(
-            `🎥 Consumer ${consumer.id} (${consumer.kind}) resumed on server`,
-          );
-        })
-        .catch((error) => {
-          console.warn("Failed to resume consumer:", error);
-        });
 
-      // For video, also request a keyframe immediately
+      // For video, we MUST await the server resume before requesting keyframe
+      // Otherwise the keyframe is requested while consumer is still paused
       if (consumer.kind === "video") {
-        this.requestKeyFrame(consumer.id).catch((error) => {
-          console.warn("Failed to request initial keyframe:", error);
-        });
+        try {
+          await client.mediasoup.resumeConsumer.mutate({
+            consumerId: consumer.id,
+          });
+          console.log(`🎥 Consumer ${consumer.id} (video) resumed on server`);
+          // Now request keyframe after server has resumed
+          await this.requestKeyFrame(consumer.id);
+          console.log(`🎥 Keyframe requested for ${consumer.id}`);
+        } catch (error) {
+          console.warn("Failed to resume/keyframe video consumer:", error);
+        }
+      } else {
+        // Audio can be fire-and-forget
+        client.mediasoup.resumeConsumer
+          .mutate({ consumerId: consumer.id })
+          .then(() => {
+            console.log(`🎥 Consumer ${consumer.id} (audio) resumed on server`);
+          })
+          .catch((error) => {
+            console.warn("Failed to resume audio consumer:", error);
+          });
       }
 
       if (consumer.kind === "audio") {
