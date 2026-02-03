@@ -614,7 +614,9 @@ export default class MediaSession {
 
   private ensureRemoteVideoFlow(video: HTMLVideoElement, consumerId: string) {
     const attempt = async () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      const hasData = video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+      const isPlaying = hasData && !video.paused && !video.ended;
+      if (isPlaying) return;
       try {
         await this.safePlayVideo(video);
       } catch {}
