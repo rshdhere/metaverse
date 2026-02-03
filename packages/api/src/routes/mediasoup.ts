@@ -525,6 +525,15 @@ export const mediasoupRouter = router({
         paused: true,
       });
 
+      // Log the producer-consumer pairing for debugging
+      console.log(`📡 Consumer created:`, {
+        consumerId: consumer.id,
+        producerId: input.producerId,
+        kind: consumer.kind,
+        consumerPaused: consumer.paused,
+        userId: ctx.user.userId,
+      });
+
       peerState.consumers.set(consumer.id, consumer);
       peerState.consumersByProducerId.set(input.producerId, consumer);
 
@@ -590,13 +599,30 @@ export const mediasoupRouter = router({
       const peerState = getPeerState(ctx.user.userId);
       const consumer = peerState.consumers.get(input.consumerId);
       if (!consumer) {
+        console.log(
+          `📡 resumeConsumer: Consumer not found: ${input.consumerId}`,
+        );
         return { success: true };
       }
 
+      console.log(`📡 resumeConsumer: Resuming consumer:`, {
+        consumerId: consumer.id,
+        kind: consumer.kind,
+        pausedBefore: consumer.paused,
+      });
+
       await consumer.resume();
+
+      console.log(
+        `📡 resumeConsumer: Consumer resumed, paused=${consumer.paused}`,
+      );
+
       if (consumer.kind === "video") {
         try {
           await consumer.requestKeyFrame();
+          console.log(
+            `📡 resumeConsumer: Keyframe requested for video consumer ${consumer.id}`,
+          );
         } catch (error) {
           console.warn("Failed to request keyframe on resume:", error);
         }
