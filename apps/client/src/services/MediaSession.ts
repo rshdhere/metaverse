@@ -1249,7 +1249,8 @@ export default class MediaSession {
     console.log(
       `🎥 handleMeetingStart: Peer ${peerId} set to ACTIVE. UI should now render container.`,
     );
-    void this.ensureRemoteVideoForPeer(peerId);
+    // Note: ensureRemoteVideoForPeer removed since fetchAndConsumePeer above already fetches video
+    // The watchdog below provides fallback retry if video doesn't arrive
     this.startMeetingVideoWatchdog(peerId);
 
     console.log("✨ Emitting NAVIGATE_TO_SITTING_AREA via Phaser Events");
@@ -1353,6 +1354,37 @@ export default class MediaSession {
           );
           continue;
         }
+
+        // Check if we already have a consumer for this producer
+        const existingConsumer = this.consumersByProducerId.get(p.producerId);
+        if (existingConsumer && !existingConsumer.closed) {
+          // Already have a consumer - just request a keyframe for video instead of re-consuming
+          if (p.kind === "video") {
+            console.log(
+              `🎥 Already consuming producer ${p.producerId}, requesting keyframe instead`,
+            );
+            this.requestKeyFrame(existingConsumer.id).catch((error) => {
+              console.warn(
+                "Failed to request keyframe for existing consumer:",
+                error,
+              );
+            });
+          } else {
+            console.log(
+              `🎥 Already consuming producer ${p.producerId} (audio), skipping`,
+            );
+          }
+          continue;
+        }
+
+        // Check if currently in-flight
+        if (this.consumingInFlight.has(p.producerId)) {
+          console.log(
+            `🎥 Producer ${p.producerId} already in-flight, skipping`,
+          );
+          continue;
+        }
+
         console.log(
           `🎥 Consuming matched producer: ${p.producerId}, kind: ${p.kind}`,
         );
