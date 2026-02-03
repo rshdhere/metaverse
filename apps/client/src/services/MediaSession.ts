@@ -564,7 +564,29 @@ export default class MediaSession {
         video.disablePictureInPicture = true;
 
         video.controls = false; // Ensure controls don't appear
-        video.srcObject = new MediaStream([consumer.track]);
+
+        // Log track state before creating MediaStream
+        const track = consumer.track;
+        console.log("🎥 Creating video with track:", {
+          trackId: track.id,
+          trackEnabled: track.enabled,
+          trackMuted: track.muted,
+          trackReadyState: track.readyState,
+          trackContentHint: track.contentHint,
+        });
+
+        // Listen for track events - unmute indicates RTP data is flowing
+        track.onunmute = () => {
+          console.log("🎥 Track UNMUTED (RTP data flowing):", producerId);
+        };
+        track.onmute = () => {
+          console.log("🎥 Track MUTED (no RTP data):", producerId);
+        };
+        track.onended = () => {
+          console.log("🎥 Track ENDED:", producerId);
+        };
+
+        video.srcObject = new MediaStream([track]);
         // Ensure the video has a concrete height so it is visible even if the Tailwind aspect-ratio plugin isn't enabled
         video.className =
           "w-full h-36 sm:h-40 rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20 cursor-pointer block";
