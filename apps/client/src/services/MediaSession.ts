@@ -466,6 +466,13 @@ export default class MediaSession {
         producerUserId,
       );
 
+      // Log recv transport state before consuming
+      console.log(`🎥 RecvTransport state before consume:`, {
+        id: this.recvTransport.id,
+        connectionState: this.recvTransport.connectionState,
+        closed: this.recvTransport.closed,
+      });
+
       console.log(
         `🎥 consumeProducer: Requesting consume for ${producerId} on transport ${this.recvTransport.id}`,
       );
