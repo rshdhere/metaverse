@@ -24,6 +24,8 @@ import {
   produceOutputSchema,
   resumeConsumerInputSchema,
   resumeConsumerOutputSchema,
+  requestKeyFrameInputSchema,
+  requestKeyFrameOutputSchema,
   transportParamsSchema,
 } from "@repo/validators";
 import { publicProcedure, protectedProcedure, router } from "../trpc.js";
@@ -578,6 +580,24 @@ export const mediasoupRouter = router({
       }
 
       await consumer.resume();
+      return { success: true };
+    }),
+
+  requestKeyFrame: protectedProcedure
+    .input(requestKeyFrameInputSchema)
+    .output(requestKeyFrameOutputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const peerState = getPeerState(ctx.user.userId);
+      const consumer = peerState.consumers.get(input.consumerId);
+      if (!consumer || consumer.kind !== "video") {
+        return { success: true };
+      }
+
+      try {
+        await consumer.requestKeyFrame();
+      } catch (error) {
+        console.warn("Failed to request keyframe:", error);
+      }
       return { success: true };
     }),
 

@@ -75,6 +75,14 @@ export const resumeConsumerOutputSchema = z.object({
   success: z.literal(true),
 });
 
+export const requestKeyFrameInputSchema = z.object({
+  consumerId: z.string(),
+});
+
+export const requestKeyFrameOutputSchema = z.object({
+  success: z.literal(true),
+});
+
 export const closeProducerInputSchema = z.object({
   producerId: z.string(),
 });

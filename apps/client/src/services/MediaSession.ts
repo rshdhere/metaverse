@@ -35,10 +35,6 @@ type ProximityAction =
       meetingId?: string;
     };
 
-type ConsumerWithKeyFrame = types.Consumer & {
-  requestKeyFrame?: () => void;
-};
-
 export default class MediaSession {
   private device?: Device;
   private sendTransport?: types.Transport;
@@ -568,10 +564,12 @@ export default class MediaSession {
         console.warn(`Video ${producerId} play failed:`, e);
       }
 
-      // Request a keyframe to prevent black video when first attaching
-      try {
-        (consumer as ConsumerWithKeyFrame).requestKeyFrame?.();
-      } catch {}
+      // Request a keyframe from the server to avoid black video on join
+      client.mediasoup.requestKeyFrame
+        .mutate({ consumerId: consumer.id })
+        .catch((error) => {
+          console.warn("Failed to request keyframe:", error);
+        });
 
       // DEBUG: Monitor video flow
       const statsInterval = setInterval(async () => {
