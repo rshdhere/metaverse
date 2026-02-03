@@ -130,6 +130,11 @@ export default class MediaSession {
     const sendTransportInfo = await client.mediasoup.createTransport.mutate({
       direction: "send",
     });
+    console.log("🎥 Send Transport Options:", {
+      id: sendTransportInfo.id,
+      iceCandidates: sendTransportInfo.iceCandidates,
+      dtlsParameters: sendTransportInfo.dtlsParameters,
+    });
     this.sendTransport = this.device.createSendTransport(
       sendTransportInfo as types.TransportOptions,
     );
@@ -137,6 +142,10 @@ export default class MediaSession {
 
     const recvTransportInfo = await client.mediasoup.createTransport.mutate({
       direction: "recv",
+    });
+    console.log("🎥 Recv Transport Options:", {
+      id: recvTransportInfo.id,
+      iceCandidates: recvTransportInfo.iceCandidates,
     });
     this.recvTransport = this.device.createRecvTransport(
       recvTransportInfo as types.TransportOptions,
