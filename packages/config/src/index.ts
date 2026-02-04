@@ -71,6 +71,14 @@ import { BACKEND_PORT as DEFAULT_BACKEND_PORT } from "./constants.js";
 export const BACKEND_PORT =
   getEnvVar("BACKEND_PORT", false) || String(DEFAULT_BACKEND_PORT);
 
+// Mediasoup
+export const MEDIASOUP_LISTEN_IP =
+  getEnvVar("MEDIASOUP_LISTEN_IP", false) || "0.0.0.0";
+export const MEDIASOUP_ANNOUNCED_IP = getEnvVar(
+  "MEDIASOUP_ANNOUNCED_IP",
+  false,
+);
+
 // Export all env vars as a single object for convenience
 export const env = {
   DATABASE_URL,
@@ -80,4 +88,6 @@ export const env = {
   GITHUB_CLIENT_SECRET,
   BACKEND_PORT,
   RESEND_API_KEY,
+  MEDIASOUP_LISTEN_IP,
+  MEDIASOUP_ANNOUNCED_IP,
 } as const;

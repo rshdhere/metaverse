@@ -1,6 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import mediasoup from "mediasoup";
-import { WORLD_SERVER_SECRET } from "@repo/config";
+import {
+  WORLD_SERVER_SECRET,
+  MEDIASOUP_LISTEN_IP,
+  MEDIASOUP_ANNOUNCED_IP,
+} from "@repo/config";
 import {
   closeConsumerInputSchema,
   closeConsumerOutputSchema,
@@ -96,9 +100,6 @@ type MeetingState = {
 const meetingStates = new Map<string, MeetingState>();
 const MEETING_TIMEOUT_MS = 15000;
 const MEETING_COOLDOWN_MS = 10000;
-
-const MEDIASOUP_LISTEN_IP = process.env.MEDIASOUP_LISTEN_IP ?? "0.0.0.0";
-const MEDIASOUP_ANNOUNCED_IP = process.env.MEDIASOUP_ANNOUNCED_IP;
 
 let worker: Worker | null = null;
 let routerInstance: Router | null = null;
