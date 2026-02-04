@@ -99,14 +99,13 @@ export default function ArenaPage() {
         isCameraEnabled?: () => boolean;
         isMicrophoneEnabled?: () => boolean;
         isPeerCameraEnabled?: (id: string) => boolean;
+        hasActiveVideoForPeer?: (id: string) => boolean;
         toggleMicrophone?: () => Promise<boolean>;
         setMeetingToastEnabled?: (enabled: boolean) => void;
         getActiveMeetingPeers?: () => string[];
         getRemoteVideoCount?: () => number;
         getPeerName?: (id: string) => string;
         getPeerAudioStatus?: (id: string) => boolean;
-        // Helper to check if we have video for a specific peer (if logic allows)
-        // For now we use getRemoteVideoCount > 0
       };
     };
     type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
@@ -411,10 +410,8 @@ export default function ArenaPage() {
             id,
             name: network.getPeerName?.(id) || "Unknown",
             hasAudio: network.getPeerAudioStatus?.(id) ?? false,
-            // Simple assumption: if remote has > 0 videos, the active peer has video.
-            // This is a simplification; a more robust way would be asking mediaSession per peer.
-            // But since we assume 1-on-1 mostly, this is likely fine or we check count.
-            hasVideo: (network.getRemoteVideoCount?.() ?? 0) > 0, // This is global, but sufficient for single peer
+            // Use the more accurate hasActiveVideoForPeer method
+            hasVideo: network.hasActiveVideoForPeer?.(id) ?? false,
             isCameraEnabled: network.isPeerCameraEnabled?.(id) ?? true,
           }));
 
@@ -459,7 +456,7 @@ export default function ArenaPage() {
           id,
           name: network.getPeerName?.(id) || "Unknown",
           hasAudio: network.getPeerAudioStatus?.(id) ?? false,
-          hasVideo: (network.getRemoteVideoCount?.() ?? 0) > 0, // Approximation
+          hasVideo: network.hasActiveVideoForPeer?.(id) ?? false,
           isCameraEnabled: network.isPeerCameraEnabled?.(id) ?? true,
         }));
 
@@ -730,11 +727,11 @@ export default function ArenaPage() {
             <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl relative">
               <StableVideoMount ref={setRemoteVideoMount} />
 
-              {/* Overlay for inactive video or specific peer info */}
+              {/* Overlay for when peer explicitly disabled their camera */}
               {activeMeetingPeers.length > 0 &&
-                (!activeMeetingPeers[0].isCameraEnabled || !hasRemoteVideo) && (
+                !activeMeetingPeers[0].isCameraEnabled && (
                   <div
-                    className="absolute inset-0 flex items-center justify-center bg-zinc-900/90 rounded-xl"
+                    className="flex items-center justify-center bg-zinc-900/90 rounded-xl"
                     style={{ minWidth: "320px", minHeight: "180px" }}
                   >
                     <div className="text-center p-4">
@@ -756,8 +753,8 @@ export default function ArenaPage() {
                         </svg>
                       </div>
                       <p className="text-white font-medium">
-                        {activeMeetingPeers[0]?.name || "Remote User"} stopped
-                        their camera
+                        {activeMeetingPeers[0]?.name || "Remote User"} turned
+                        off their camera
                       </p>
                     </div>
                   </div>

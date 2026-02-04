@@ -381,6 +381,36 @@ export default class MediaSession {
 
   handleCameraToggle(action: { peerId: string; enabled: boolean }) {
     this.peerCameraStatus.set(action.peerId, action.enabled);
+
+    // When peer disables camera, immediately cleanup their video consumer
+    // to prevent video from appearing frozen/stuck
+    if (!action.enabled) {
+      // Find and cleanup video consumers for this peer
+      for (const [producerId, owner] of this.producerOwners) {
+        if (owner === action.peerId) {
+          const consumer = this.consumersByProducerId.get(producerId);
+          if (consumer && consumer.kind === "video") {
+            // Pause and hide the video element immediately
+            const video = this.videoElementsByProducerId.get(producerId);
+            if (video) {
+              video.pause();
+              video.srcObject = null;
+              video.remove();
+            }
+            // Clean up the consumer
+            this.cleanupConsumer(producerId);
+          }
+        }
+      }
+    } else {
+      // When peer re-enables camera, try to fetch their video again
+      // Use a small delay to allow the producer to be created on the server
+      setTimeout(() => {
+        this.fetchAndConsumePeer(action.peerId, "video").catch((e) => {
+          console.warn("Failed to fetch peer video after camera enable:", e);
+        });
+      }, 500);
+    }
   }
 
   isPeerCameraEnabled(peerId: string) {
@@ -388,19 +418,34 @@ export default class MediaSession {
     if (this.peerCameraStatus.has(peerId)) {
       return this.peerCameraStatus.get(peerId)!;
     }
-    // Fallback: check if we have consumers.
-    // However, for the specific requirement of showing "stopped camera" message,
-    // we want to rely on the signaling if available.
-    // If no signaling (e.g. before any toggle), we might assume it follows the stream presence?
-    // But initially, stream presence is 0.
-    // If we return false here, UI shows "Stopped camera".
-    // Maybe default to true if we have video elements?
-    // Let's say: if we have video elements, it's enabled.
-    // If not, and we have explicit 'false', it's disabled.
-    // If no video elements and no explicit status? It's just ... no video (could be loading).
+    // Default to true if we don't have explicit signaling yet (assume camera is on initially)
+    // This prevents showing "stopped camera" before we've received any status
+    return true;
+  }
 
-    // Let's try:
-    return this.peerCameraStatus.get(peerId) ?? false;
+  // Check if we have an active video element for a peer that is actually showing frames
+  hasActiveVideoForPeer(peerId: string): boolean {
+    for (const [producerId, owner] of this.producerOwners) {
+      if (owner === peerId) {
+        const consumer = this.consumersByProducerId.get(producerId);
+        if (
+          !consumer ||
+          consumer.kind !== "video" ||
+          this.pausedProducerIds.has(producerId)
+        ) {
+          continue;
+        }
+        const video = this.videoElementsByProducerId.get(producerId);
+        if (
+          video &&
+          video.isConnected &&
+          video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private async handleActions(actions: ProximityAction[]) {

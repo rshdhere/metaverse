@@ -708,6 +708,10 @@ export default class Network {
     return this.mediaSession?.isPeerCameraEnabled(peerId) ?? false;
   }
 
+  hasActiveVideoForPeer(peerId: string): boolean {
+    return this.mediaSession?.hasActiveVideoForPeer(peerId) ?? false;
+  }
+
   getPeerAudioStatus(peerId: string): boolean {
     return this.mediaSession?.hasAudioForPeer(peerId) ?? false;
   }
