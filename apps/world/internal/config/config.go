@@ -37,7 +37,7 @@ func Load() error {
 		ServerURL:         getEnv("BACKEND_URL", "http://localhost:8082"),
 		WorldServerSecret: getEnv("WORLD_SERVER_SECRET", ""),
 		// Hard-coded proximity radii to keep behavior deterministic.
-		AudioRadius: 200,
+		AudioRadius: 320,
 		VideoRadius: 120,
 	}
 
