@@ -83,7 +83,7 @@ export default class Preloader extends Phaser.Scene {
   }
 
   setPendingAvatarName(name: string) {
-    const chosen = (name || "ron").toLowerCase();
+    const chosen = (name || "harry").toLowerCase();
     this.pendingAvatarName = chosen;
     if (this.network && typeof this.network.setMyAvatarName === "function") {
       this.network.setMyAvatarName(chosen);
