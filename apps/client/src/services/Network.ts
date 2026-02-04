@@ -405,6 +405,11 @@ export default class Network {
           break;
         }
 
+        case "camera-toggle": {
+          this.mediaSession?.handleCameraToggle(data.payload);
+          break;
+        }
+
         default:
           break;
       }
@@ -512,12 +517,24 @@ export default class Network {
   }
 
   // Send meeting response (accept/decline)
+  // Send meeting response (accept/decline)
   sendMeetingResponse(requestId: string, accept: boolean, peerId: string) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(
         JSON.stringify({
           type: "meeting-response",
           payload: { requestId, accept, peerId },
+        }),
+      );
+    }
+  }
+
+  sendCameraToggle(enabled: boolean) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: "camera-toggle",
+          payload: { enabled },
         }),
       );
     }
@@ -685,6 +702,10 @@ export default class Network {
 
   getPeerName(peerId: string): string {
     return this.userSnapshots.get(peerId)?.name || "Unknown";
+  }
+
+  isPeerCameraEnabled(peerId: string): boolean {
+    return this.mediaSession?.isPeerCameraEnabled(peerId) ?? false;
   }
 
   getPeerAudioStatus(peerId: string): boolean {

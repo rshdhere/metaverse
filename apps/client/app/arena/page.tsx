@@ -76,7 +76,13 @@ export default function ArenaPage() {
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
   const [activeMeetingPeers, setActiveMeetingPeers] = useState<
-    { id: string; name: string; hasAudio: boolean; hasVideo: boolean }[]
+    {
+      id: string;
+      name: string;
+      hasAudio: boolean;
+      hasVideo: boolean;
+      isCameraEnabled: boolean;
+    }[]
   >([]);
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const remoteVideoRef = useRef<HTMLDivElement | null>(null);
@@ -92,6 +98,7 @@ export default function ArenaPage() {
         ) => void;
         isCameraEnabled?: () => boolean;
         isMicrophoneEnabled?: () => boolean;
+        isPeerCameraEnabled?: (id: string) => boolean;
         toggleMicrophone?: () => Promise<boolean>;
         setMeetingToastEnabled?: (enabled: boolean) => void;
         getActiveMeetingPeers?: () => string[];
@@ -408,6 +415,7 @@ export default function ArenaPage() {
             // This is a simplification; a more robust way would be asking mediaSession per peer.
             // But since we assume 1-on-1 mostly, this is likely fine or we check count.
             hasVideo: (network.getRemoteVideoCount?.() ?? 0) > 0, // This is global, but sufficient for single peer
+            isCameraEnabled: network.isPeerCameraEnabled?.(id) ?? true,
           }));
 
           setActiveMeetingPeers((prev) => {
@@ -452,6 +460,7 @@ export default function ArenaPage() {
           name: network.getPeerName?.(id) || "Unknown",
           hasAudio: network.getPeerAudioStatus?.(id) ?? false,
           hasVideo: (network.getRemoteVideoCount?.() ?? 0) > 0, // Approximation
+          isCameraEnabled: network.isPeerCameraEnabled?.(id) ?? true,
         }));
 
         setActiveMeetingPeers((prev) => {
@@ -722,36 +731,37 @@ export default function ArenaPage() {
               <StableVideoMount ref={setRemoteVideoMount} />
 
               {/* Overlay for inactive video or specific peer info */}
-              {activeMeetingPeers.length > 0 && !hasRemoteVideo && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center bg-zinc-900/90 rounded-xl"
-                  style={{ minWidth: "320px", minHeight: "180px" }}
-                >
-                  <div className="text-center p-4">
-                    <div className="w-16 h-16 bg-zinc-800 rounded-full mx-auto mb-3 flex items-center justify-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-zinc-500"
-                      >
-                        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
+              {activeMeetingPeers.length > 0 &&
+                (!activeMeetingPeers[0].isCameraEnabled || !hasRemoteVideo) && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center bg-zinc-900/90 rounded-xl"
+                    style={{ minWidth: "320px", minHeight: "180px" }}
+                  >
+                    <div className="text-center p-4">
+                      <div className="w-16 h-16 bg-zinc-800 rounded-full mx-auto mb-3 flex items-center justify-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-zinc-500"
+                        >
+                          <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      </div>
+                      <p className="text-white font-medium">
+                        {activeMeetingPeers[0]?.name || "Remote User"} stopped
+                        their camera
+                      </p>
                     </div>
-                    <p className="text-white font-medium">
-                      {activeMeetingPeers[0]?.name || "Remote User"} has stopped
-                      the camera
-                    </p>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Remote Controls Overlay (Name & Audio Icon) */}
               {activeMeetingPeers.length > 0 && (

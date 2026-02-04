@@ -33,6 +33,11 @@ type ProximityAction =
       type: "meetingEnd";
       peerId: string;
       meetingId?: string;
+    }
+  | {
+      type: "cameraToggle";
+      peerId: string;
+      enabled: boolean;
     };
 
 export default class MediaSession {
@@ -90,6 +95,7 @@ export default class MediaSession {
       localAccepted?: boolean;
     }
   >();
+  private peerCameraStatus = new Map<string, boolean>();
 
   constructor(network: Network) {
     this.network = network;
@@ -231,6 +237,7 @@ export default class MediaSession {
     this.cameraEnabled = true;
 
     this.attachLocalPreview(stream);
+    this.network.sendCameraToggle(true);
   }
 
   disableCamera() {
@@ -259,8 +266,9 @@ export default class MediaSession {
     if (this.localVideoElement) {
       this.localVideoElement.srcObject = null;
       this.localVideoElement.remove();
-      this.localVideoElement = undefined;
     }
+
+    this.network.sendCameraToggle(false);
   }
 
   isCameraEnabled() {
@@ -371,6 +379,30 @@ export default class MediaSession {
     }
   }
 
+  handleCameraToggle(action: { peerId: string; enabled: boolean }) {
+    this.peerCameraStatus.set(action.peerId, action.enabled);
+  }
+
+  isPeerCameraEnabled(peerId: string) {
+    // If we have an explicit status from signaling, use it.
+    if (this.peerCameraStatus.has(peerId)) {
+      return this.peerCameraStatus.get(peerId)!;
+    }
+    // Fallback: check if we have consumers.
+    // However, for the specific requirement of showing "stopped camera" message,
+    // we want to rely on the signaling if available.
+    // If no signaling (e.g. before any toggle), we might assume it follows the stream presence?
+    // But initially, stream presence is 0.
+    // If we return false here, UI shows "Stopped camera".
+    // Maybe default to true if we have video elements?
+    // Let's say: if we have video elements, it's enabled.
+    // If not, and we have explicit 'false', it's disabled.
+    // If no video elements and no explicit status? It's just ... no video (could be loading).
+
+    // Let's try:
+    return this.peerCameraStatus.get(peerId) ?? false;
+  }
+
   private async handleActions(actions: ProximityAction[]) {
     const canHandleMedia = !!this.device && !!this.recvTransport;
     for (const action of actions) {
@@ -415,6 +447,9 @@ export default class MediaSession {
           break;
         case "meetingEnd":
           await this.handleMeetingEnd(action);
+          break;
+        case "cameraToggle":
+          this.handleCameraToggle(action);
           break;
         default:
           break;

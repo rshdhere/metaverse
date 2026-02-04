@@ -16,6 +16,7 @@ const (
 	TypeMeetingEnd       = "meeting-end"
 	TypeProximityUpdate  = "proximity-update"
 	TypeMeetingResponse  = "meeting-response"
+	TypeCameraToggle     = "camera-toggle"
 )
 
 // BaseMessage represents the common structure for all messages
@@ -132,4 +133,5 @@ type IncomingPayload struct {
 	MeetingID string `json:"meetingId,omitempty"`
 	RequestID string `json:"requestId,omitempty"`
 	Accept    bool   `json:"accept,omitempty"`
+	Enabled   bool   `json:"enabled,omitempty"`
 }

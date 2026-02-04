@@ -207,6 +207,8 @@ func (h *Hub) ProcessMessage(client *Client, rawMessage []byte) {
 		h.handleMeetingResponse(client, msg.Payload)
 	case messages.TypeMeetingEnd:
 		h.handleMeetingEnd(client, msg.Payload)
+	case messages.TypeCameraToggle:
+		h.handleCameraToggle(client, msg.Payload)
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 	}
