@@ -627,7 +627,7 @@ export default function ArenaPage() {
               <Button
                 size="sm"
                 variant="destructive"
-                className="w-full rounded-xl shadow-lg hover:bg-red-600/90 transition-all font-medium text-xs h-8 cursor-pointer"
+                className="w-full rounded-xl shadow-lg hover:bg-red-600/90 transition-all font-medium text-xs h-8 cursor-pointer text-white"
                 onClick={handleLeaveMeeting}
               >
                 Leave Meeting
