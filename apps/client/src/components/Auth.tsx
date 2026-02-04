@@ -10,7 +10,7 @@ import Network from "../services/Network";
 
 const subtitleClass = "m-0 text-sm text-[#c2c2c2] text-center";
 
-const defaultAvatars = ["ron", "harry", "ginny", "hermoine"];
+const defaultAvatars = ["harry", "ron", "ginny", "hermoine"];
 
 export default function Auth() {
   const {
@@ -135,7 +135,7 @@ export default function Auth() {
         const preloader = game?.scene?.keys?.preloader;
         // Ensure the shared Phaser side receives the chosen avatar
         if (preloader && typeof preloader.setPendingAvatarName === "function") {
-          preloader.setPendingAvatarName(avatarName || "ron");
+          preloader.setPendingAvatarName(avatarName || "harry");
         }
         // Launch game FIRST so event listeners are registered
         if (preloader && typeof preloader.launchGame === "function") {

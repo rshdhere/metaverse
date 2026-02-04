@@ -71,10 +71,13 @@ export default function ArenaPage() {
   const [gameInitialized, setGameInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [selectedAvatar, setSelectedAvatar] = useState("ron");
+  const [selectedAvatar, setSelectedAvatar] = useState("harry");
   const [showNameInput, setShowNameInput] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(false);
-  const [activeMeetingPeers, setActiveMeetingPeers] = useState<string[]>([]);
+  const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
+  const [activeMeetingPeers, setActiveMeetingPeers] = useState<
+    { id: string; name: string; hasAudio: boolean; hasVideo: boolean }[]
+  >([]);
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const remoteVideoRef = useRef<HTMLDivElement | null>(null);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
@@ -88,9 +91,15 @@ export default function ArenaPage() {
           local: HTMLElement | null,
         ) => void;
         isCameraEnabled?: () => boolean;
+        isMicrophoneEnabled?: () => boolean;
+        toggleMicrophone?: () => Promise<boolean>;
         setMeetingToastEnabled?: (enabled: boolean) => void;
         getActiveMeetingPeers?: () => string[];
         getRemoteVideoCount?: () => number;
+        getPeerName?: (id: string) => string;
+        getPeerAudioStatus?: (id: string) => boolean;
+        // Helper to check if we have video for a specific peer (if logic allows)
+        // For now we use getRemoteVideoCount > 0
       };
     };
     type WindowGame = { scene?: { keys?: Record<string, ScenePreloader> } };
@@ -217,14 +226,14 @@ export default function ArenaPage() {
 
   const availableAvatars = [
     {
-      id: "ron",
-      name: "Ron",
-      image: "/assets/character/single/Ron_idle_anim_1.png",
-    },
-    {
       id: "harry",
       name: "Harry",
       image: "/assets/character/single/Harry_idle_anim_1.png",
+    },
+    {
+      id: "ron",
+      name: "Ron",
+      image: "/assets/character/single/Ron_idle_anim_1.png",
     },
     {
       id: "ginny",
@@ -310,7 +319,7 @@ export default function ArenaPage() {
               }
 
               // Set the avatar name
-              const finalAvatar = avatarName || "ron";
+              const finalAvatar = avatarName || "harry";
               if (preloader.setPendingAvatarName) {
                 preloader.setPendingAvatarName(finalAvatar);
               }
@@ -388,15 +397,23 @@ export default function ArenaPage() {
           setCameraEnabled(network.isCameraEnabled());
         }
         if (active && network.getActiveMeetingPeers) {
-          const newPeers = network.getActiveMeetingPeers();
+          const peerIds = network.getActiveMeetingPeers();
+
+          // Enrich peer data
+          const peerData = peerIds.map((id) => ({
+            id,
+            name: network.getPeerName?.(id) || "Unknown",
+            hasAudio: network.getPeerAudioStatus?.(id) ?? false,
+            // Simple assumption: if remote has > 0 videos, the active peer has video.
+            // This is a simplification; a more robust way would be asking mediaSession per peer.
+            // But since we assume 1-on-1 mostly, this is likely fine or we check count.
+            hasVideo: (network.getRemoteVideoCount?.() ?? 0) > 0, // This is global, but sufficient for single peer
+          }));
+
           setActiveMeetingPeers((prev) => {
-            if (
-              prev.length === newPeers.length &&
-              prev.every((p, i) => p === newPeers[i])
-            ) {
-              return prev;
-            }
-            return newPeers;
+            // Deep equality check simplified
+            if (JSON.stringify(prev) === JSON.stringify(peerData)) return prev;
+            return peerData;
           });
         }
         clearInterval(interval);
@@ -429,20 +446,25 @@ export default function ArenaPage() {
     const interval = setInterval(() => {
       const network = getNetwork();
       if (network?.getActiveMeetingPeers) {
-        const newPeers = network.getActiveMeetingPeers();
+        const peerIds = network.getActiveMeetingPeers();
+        const peerData = peerIds.map((id) => ({
+          id,
+          name: network.getPeerName?.(id) || "Unknown",
+          hasAudio: network.getPeerAudioStatus?.(id) ?? false,
+          hasVideo: (network.getRemoteVideoCount?.() ?? 0) > 0, // Approximation
+        }));
+
         setActiveMeetingPeers((prev) => {
-          if (
-            prev.length === newPeers.length &&
-            prev.every((p, i) => p === newPeers[i])
-          ) {
-            return prev;
-          }
-          return newPeers;
+          if (JSON.stringify(prev) === JSON.stringify(peerData)) return prev;
+          return peerData;
         });
       }
       if (network?.getRemoteVideoCount) {
         const remoteCount = network.getRemoteVideoCount();
         setHasRemoteVideo(remoteCount > 0);
+      }
+      if (network?.isMicrophoneEnabled) {
+        setMicrophoneEnabled(network.isMicrophoneEnabled());
       }
     }, 500);
 
@@ -484,6 +506,7 @@ export default function ArenaPage() {
   };
 
   const handleCameraToggle = async () => {
+    // ... same as before
     type ScenePreloader = {
       network?: {
         enableCamera?: () => Promise<void>;
@@ -504,6 +527,14 @@ export default function ArenaPage() {
     } else {
       await network.enableCamera?.();
       setCameraEnabled(true);
+    }
+  };
+
+  const handleMicrophoneToggle = async () => {
+    const network = getNetwork();
+    if (network?.toggleMicrophone) {
+      const enabled = await network.toggleMicrophone();
+      setMicrophoneEnabled(enabled);
     }
   };
 
@@ -567,54 +598,101 @@ export default function ArenaPage() {
               <div className="relative group">
                 <StableLocalVideoMount ref={setLocalVideoMount} />
                 <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-[10px] font-medium text-white/80 bg-black/50 px-2 py-0.5 rounded-full">
-                    You
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
-                    onClick={handleCameraToggle}
-                  >
-                    {cameraEnabled ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M23 7l-7 5 7 5V7z" />
-                        <rect
-                          x="1"
-                          y="5"
-                          width="15"
-                          height="14"
-                          rx="2"
-                          ry="2"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-medium text-white/80 bg-black/50 px-2 py-0.5 rounded-full">
+                      You
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                      onClick={handleMicrophoneToggle}
+                    >
+                      {microphoneEnabled ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                          <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+                          <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                      )}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                      onClick={handleCameraToggle}
+                    >
+                      {cameraEnabled ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M23 7l-7 5 7 5V7z" />
+                          <rect
+                            x="1"
+                            y="5"
+                            width="15"
+                            height="14"
+                            rx="2"
+                            ry="2"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -635,13 +713,75 @@ export default function ArenaPage() {
           <div
             className={cn(
               "absolute bottom-4 left-4 z-20 flex flex-col gap-3 items-start max-w-[50vw] max-h-[80vh] p-2 transition-all duration-200",
-              activeMeetingPeers.length > 0 || hasRemoteVideo
+              activeMeetingPeers.length > 0
                 ? "pointer-events-auto animate-slide-in-left opacity-100"
                 : "pointer-events-none opacity-0 translate-y-4",
             )}
           >
-            <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl">
+            <div className="p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-2xl relative">
               <StableVideoMount ref={setRemoteVideoMount} />
+
+              {/* Overlay for inactive video or specific peer info */}
+              {activeMeetingPeers.length > 0 && !hasRemoteVideo && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center bg-zinc-900/90 rounded-xl"
+                  style={{ minWidth: "320px", minHeight: "180px" }}
+                >
+                  <div className="text-center p-4">
+                    <div className="w-16 h-16 bg-zinc-800 rounded-full mx-auto mb-3 flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-zinc-500"
+                      >
+                        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    </div>
+                    <p className="text-white font-medium">
+                      {activeMeetingPeers[0]?.name || "Remote User"} has stopped
+                      the camera
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Remote Controls Overlay (Name & Audio Icon) */}
+              {activeMeetingPeers.length > 0 && (
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between opacity-0 hover:opacity-100 transition-opacity z-10">
+                  <span className="text-[10px] font-medium text-white/80 bg-black/50 px-2 py-0.5 rounded-full">
+                    {activeMeetingPeers[0]?.name || "Remote User"}
+                  </span>
+                  {activeMeetingPeers[0]?.hasAudio && (
+                    <div className="h-6 w-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-green-400"
+                      >
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </>

@@ -23,7 +23,7 @@ export default class Network {
 
   private token?: string;
   private username?: string;
-  private myAvatarName: string = "ron";
+  private myAvatarName: string = "harry";
   private wsEndpoint: string;
   private knownUsers = new Set<string>();
   private userSnapshots = new Map<
@@ -673,6 +673,22 @@ export default class Network {
 
   getMySessionId() {
     return this.mySessionId;
+  }
+
+  async toggleMicrophone() {
+    return this.mediaSession?.toggleMicrophone() ?? false;
+  }
+
+  isMicrophoneEnabled() {
+    return this.mediaSession?.isMicrophoneEnabled() ?? false;
+  }
+
+  getPeerName(peerId: string): string {
+    return this.userSnapshots.get(peerId)?.name || "Unknown";
+  }
+
+  getPeerAudioStatus(peerId: string): boolean {
+    return this.mediaSession?.hasAudioForPeer(peerId) ?? false;
   }
 
   getActiveMeetingPeers() {

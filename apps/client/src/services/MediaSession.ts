@@ -267,6 +267,40 @@ export default class MediaSession {
     return this.cameraEnabled;
   }
 
+  async toggleMicrophone() {
+    if (!this.audioProducer) {
+      // If not started, try to start
+      await this.startMicrophone();
+      return true;
+    }
+
+    if (this.audioProducer.paused) {
+      this.audioProducer.resume();
+      // Server-side resume not yet implemented/exposed
+      return true;
+    } else {
+      this.audioProducer.pause();
+      // Server-side pause not yet implemented/exposed
+      return false;
+    }
+  }
+
+  isMicrophoneEnabled() {
+    return this.audioProducer ? !this.audioProducer.paused : false;
+  }
+
+  hasAudioForPeer(peerId: string) {
+    for (const [producerId, owner] of this.producerOwners) {
+      if (owner === peerId) {
+        const consumer = this.consumersByProducerId.get(producerId);
+        if (consumer && consumer.kind === "audio" && !consumer.paused) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   setVideoContainers(
     remoteContainer: HTMLElement | null,
     localContainer: HTMLElement | null,
