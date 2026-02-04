@@ -266,6 +266,7 @@ export default class MediaSession {
     if (this.localVideoElement) {
       this.localVideoElement.srcObject = null;
       this.localVideoElement.remove();
+      this.localVideoElement = undefined; // Reset so a fresh element is created next time
     }
 
     this.network.sendCameraToggle(false);
@@ -320,10 +321,9 @@ export default class MediaSession {
     }
     this.localVideoContainer = localContainer;
 
-    if (this.localVideoStream && this.localVideoElement && localContainer) {
-      if (!localContainer.contains(this.localVideoElement)) {
-        localContainer.appendChild(this.localVideoElement);
-      }
+    // If we have a local video stream, ensure the preview is attached
+    if (this.localVideoStream && localContainer) {
+      this.attachLocalPreview(this.localVideoStream);
     }
 
     this.syncRemoteVideos();
@@ -998,12 +998,15 @@ export default class MediaSession {
       video.autoplay = true;
       video.playsInline = true;
       video.muted = true;
-      video.srcObject = stream;
       video.className =
         "h-full w-full rounded-xl border-2 border-white/10 bg-zinc-900/90 object-cover shadow-2xl transition-all hover:border-white/20";
       this.localVideoElement = video;
     }
 
+    // Always update srcObject to the current stream (handles re-enable case)
+    this.localVideoElement.srcObject = stream;
+
+    // Ensure the video element is in the container
     if (
       this.localVideoContainer &&
       this.localVideoElement &&
@@ -1011,6 +1014,11 @@ export default class MediaSession {
     ) {
       this.localVideoContainer.appendChild(this.localVideoElement);
     }
+
+    // Explicitly try to play (handles autoplay policies)
+    this.localVideoElement.play().catch((e) => {
+      console.warn("Local video autoplay failed:", e);
+    });
   }
 
   // Make prompt handler public for Network.ts
