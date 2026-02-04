@@ -57,8 +57,8 @@ func main() {
 	})
 
 	addr := ":" + config.AppConfig.Port
-	log.Printf("🌍 World WebSocket server starting on %s", addr)
-	log.Printf("📡 WebSocket endpoint: ws://localhost%s/ws", addr)
+	log.Printf("world ws-server starting on %s", addr)
+	log.Printf("ws endpoint: ws://localhost%s/ws", addr)
 
 	if err := http.ListenAndServe(addr, r); err != nil {
 		log.Fatalf("Server failed: %v", err)
