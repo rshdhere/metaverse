@@ -137,9 +137,7 @@ export default function ArenaPage() {
 
     // Try to play on user interaction/load
     const playAudio = () => {
-      audio.play().catch((e) => {
-        console.log("Audio autoplay blocked, waiting for interaction", e);
-      });
+      audio.play().catch((e) => {});
     };
 
     // Audio is now triggered in handleNameSubmit to satisfy browser autoplay policies
@@ -151,9 +149,7 @@ export default function ArenaPage() {
     const handleGlobalClick = () => {
       const audio = audioRef.current;
       if (audio && audio.paused) {
-        audio
-          .play()
-          .catch((e) => console.log("Global click audio play failed", e));
+        audio.play().catch((e) => {});
       }
       // Remove listener after first interaction attempt
       window.removeEventListener("click", handleGlobalClick);
@@ -482,7 +478,7 @@ export default function ArenaPage() {
       const audio = audioRef.current;
       if (audio) {
         audio.volume = 0.05;
-        audio.play().catch((e) => console.log("Audio play failed", e));
+        audio.play().catch((e) => {});
       }
     }
   };

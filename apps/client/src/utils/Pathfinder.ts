@@ -69,7 +69,6 @@ export default class Pathfinder {
     }
 
     const openList: Node[] = [startNode];
-    const closedList: boolean[][] = []; // Sparse array or map
 
     // Helper key
     const toKey = (n: Node) => `${n.x},${n.y}`;

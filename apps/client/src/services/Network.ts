@@ -82,7 +82,6 @@ export default class Network {
         timestamp: Date.now(),
       };
       localStorage.setItem("lastPlayerPosition", JSON.stringify(positionData));
-      console.log("💾 Position saved:", positionData);
     }
   }
 
@@ -91,7 +90,6 @@ export default class Network {
    * This clears ALL state including join flags, allowing a fresh join.
    */
   resetForRejoin() {
-    console.log("🔄 Network.resetForRejoin() - Full state reset for rejoin");
     this.knownUsers.clear();
     this.userSnapshots.clear();
     this.eventQueue = [];
@@ -119,7 +117,6 @@ export default class Network {
         data.userId === this.mySessionId &&
         Date.now() - data.timestamp < 24 * 60 * 60 * 1000
       ) {
-        console.log("📍 Restored last position:", data.x, data.y);
         return { x: data.x, y: data.y };
       }
     } catch {
@@ -147,7 +144,6 @@ export default class Network {
    * This ensures no stale data causes issues.
    */
   resetState() {
-    console.log("🔄 Network.resetState() - Clearing all player state");
     this.knownUsers.clear();
     this.userSnapshots.clear();
     this.eventQueue = [];
@@ -164,13 +160,7 @@ export default class Network {
   setGameSceneReady() {
     if (this.gameSceneReady) {
       // Already ready - but still flush any pending events
-      console.log(
-        `🎯 Game scene already ready. Flushing ${this.eventQueue.length} pending events.`,
-      );
     } else {
-      console.log(
-        `🎯 Game scene now ready. Flushing ${this.eventQueue.length} queued events.`,
-      );
       this.gameSceneReady = true;
     }
 
@@ -198,7 +188,6 @@ export default class Network {
     if (this.gameSceneReady) {
       this.emitEvent(event);
     } else {
-      console.log(`📦 Queuing event (scene not ready):`, event.type, event.id);
       this.eventQueue.push(event);
     }
   }
@@ -212,10 +201,9 @@ export default class Network {
       case "PLAYER_JOINED":
         // Prevent duplicate player creation
         if (this.createdPlayers.has(event.id)) {
-          console.log("⏭️ Player already created, skipping:", event.id);
           return;
         }
-        console.log("🎮 Emitting PLAYER_JOINED:", event.id, event.player);
+
         this.createdPlayers.add(event.id);
         phaserEvents.emit(Event.PLAYER_JOINED, event.player, event.id);
         break;
@@ -253,14 +241,10 @@ export default class Network {
     if (!this.wsEndpoint) return;
 
     try {
-      console.log(`Connecting to WebSocket: ${this.wsEndpoint}`);
       this.ws = new WebSocket(this.wsEndpoint);
-      this.ws.onopen = () => {
-        console.log("WebSocket connected successfully");
-      };
+      this.ws.onopen = () => {};
       this.ws.onmessage = (evt) => this.handleWsMessage(evt);
       this.ws.onclose = () => {
-        console.log("WebSocket disconnected");
         toast.error("Connection lost", {
           description: "Please refresh to reconnect.",
           action: {
@@ -281,11 +265,10 @@ export default class Network {
   private handleWsMessage(evt: MessageEvent) {
     try {
       const data = JSON.parse(evt.data);
-      console.log("WS Message received:", data.type, data.payload);
+
       switch (data.type) {
         case "space-joined": {
           const sessionId = data.payload?.sessionId;
-          console.log("📥 space-joined received, sessionId:", sessionId);
 
           // Reset state to clear any stale player data from previous join attempts
           this.resetState();
@@ -301,7 +284,7 @@ export default class Network {
             avatarName?: string;
             name?: string;
           }> = data.payload?.users ?? [];
-          console.log("📋 Existing users in space:", users.length, users);
+
           users.forEach((u) => {
             const uid = u.id || u.userId;
             if (!uid) return;
@@ -326,7 +309,7 @@ export default class Network {
         case "user-join": {
           const { userId, x, y, avatarName, name } = data.payload;
           const uid = userId;
-          console.log("user-join received:", { uid, x, y, avatarName, name });
+
           if (!uid) break;
           if (!this.knownUsers.has(uid)) {
             this.knownUsers.add(uid);
@@ -431,13 +414,11 @@ export default class Network {
   async joinOrCreatePublic() {
     // Prevent multiple concurrent join attempts
     if (this.joinInProgress) {
-      console.log("⏸️ Join already in progress, skipping duplicate request");
       return;
     }
 
     // Prevent re-joining if already joined (unless explicitly reset)
     if (this.hasJoinedSpace) {
-      console.log("✅ Already joined space, skipping duplicate join");
       return;
     }
 
@@ -467,7 +448,6 @@ export default class Network {
       }
 
       if (this.ws && this.ws.readyState === WebSocket.OPEN && this.token) {
-        console.log("📤 Sending join request for space:", spaceId);
         this.ws.send(
           JSON.stringify({
             type: "join",
@@ -608,8 +588,7 @@ export default class Network {
     phaserEvents.on(Event.MEETING_ACCEPTED, callback.bind(context));
   }
 
-  connectToComputer(id: string) {
-    console.log("Connect to computer:", id);
+  connectToComputer(_id: string) {
     // TODO: Implement computer connection logic or emit event
   }
 
@@ -658,7 +637,7 @@ export default class Network {
     // Use a fixed public space ID so ALL users join the same room
     // This ensures multiplayer works - everyone sees each other
     const PUBLIC_SPACE_ID = "public-lobby";
-    console.log("🏠 Joining shared public space:", PUBLIC_SPACE_ID);
+
     return PUBLIC_SPACE_ID;
   }
 
@@ -705,7 +684,6 @@ export default class Network {
   }
 
   async endMeetings() {
-    console.log("🛑 Network.endMeetings() called");
     const peers = this.getActiveMeetingPeers();
     if (peers.length === 0) return;
 

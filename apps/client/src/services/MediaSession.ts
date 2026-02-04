@@ -130,11 +130,7 @@ export default class MediaSession {
     const sendTransportInfo = await client.mediasoup.createTransport.mutate({
       direction: "send",
     });
-    console.log("🎥 Send Transport Options:", {
-      id: sendTransportInfo.id,
-      iceCandidates: sendTransportInfo.iceCandidates,
-      dtlsParameters: sendTransportInfo.dtlsParameters,
-    });
+
     this.sendTransport = this.device.createSendTransport(
       sendTransportInfo as types.TransportOptions,
     );
@@ -143,10 +139,7 @@ export default class MediaSession {
     const recvTransportInfo = await client.mediasoup.createTransport.mutate({
       direction: "recv",
     });
-    console.log("🎥 Recv Transport Options:", {
-      id: recvTransportInfo.id,
-      iceCandidates: recvTransportInfo.iceCandidates,
-    });
+
     this.recvTransport = this.device.createRecvTransport(
       recvTransportInfo as types.TransportOptions,
     );
@@ -157,27 +150,22 @@ export default class MediaSession {
     const client = getTrpcClient();
     transport.on("connect", async ({ dtlsParameters }, callback, errback) => {
       try {
-        console.log(`QT Transport ${transport.direction} connecting...`);
         await client.mediasoup.connectTransport.mutate({
           transportId: transport.id,
           dtlsParameters,
         });
-        console.log(`QT Transport ${transport.direction} connected to server.`);
+
         callback();
       } catch (error) {
         console.error(
-          `QT Transport ${transport.direction} connect failed:`,
+          `Transport ${transport.direction} connect failed:`,
           error,
         );
         errback(error as Error);
       }
     });
 
-    transport.on("connectionstatechange", (state) => {
-      console.log(
-        `QT Transport ${transport.direction} connection state changed: ${state}`,
-      );
-    });
+    transport.on("connectionstatechange", () => {});
 
     if (transport.direction === "send") {
       transport.on(
@@ -308,39 +296,16 @@ export default class MediaSession {
   // Idempotent sync function to ensure all ready videos are in the container
   private syncRemoteVideos() {
     if (!this.remoteVideoContainer) {
-      console.log("🎥 syncRemoteVideos: No container available.");
       return;
     }
 
-    console.log(
-      `🎥 syncRemoteVideos: Syncing ${this.videoElementsByProducerId.size} videos...`,
-    );
-
-    let activeCount = 0;
     for (const [producerId, video] of this.videoElementsByProducerId) {
       if (this.pausedProducerIds.has(producerId)) continue;
-      activeCount++;
 
       // Ensure attached
       if (!this.remoteVideoContainer.contains(video)) {
-        console.log(
-          `🎥 syncRemoteVideos: Attaching video ${producerId} to container`,
-        );
         this.remoteVideoContainer.appendChild(video);
       }
-
-      // Debug: Log video state
-      console.log(`🎥 syncRemoteVideos: Video ${producerId} state:`, {
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        readyState: video.readyState,
-        paused: video.paused,
-        currentTime: video.currentTime,
-        srcObject: !!video.srcObject,
-        isConnected: video.isConnected,
-        offsetWidth: video.offsetWidth,
-        offsetHeight: video.offsetHeight,
-      });
 
       // Force play on sync (in case it was paused)
       video
@@ -349,10 +314,6 @@ export default class MediaSession {
           console.warn(`Video ${producerId} play failed on sync:`, e),
         );
     }
-
-    console.log(
-      `🎥 syncRemoteVideos: Completed. Active videos: ${activeCount}. Container children count: ${this.remoteVideoContainer.childElementCount}`,
-    );
   }
 
   setMeetingToastEnabled(enabled: boolean) {
@@ -447,9 +408,6 @@ export default class MediaSession {
     }
 
     if (this.consumingInFlight.has(producerId)) {
-      console.log(
-        `🎥 consumeProducer: Already in-flight for ${producerId}, skipping duplicate.`,
-      );
       return;
     }
     this.consumingInFlight.add(producerId);
@@ -466,25 +424,8 @@ export default class MediaSession {
         return;
       }
 
-      console.log(
-        "Consuming producer:",
-        producerId,
-        "kind:",
-        kind,
-        "user:",
-        producerUserId,
-      );
-
       // Log recv transport state before consuming
-      console.log(`🎥 RecvTransport state before consume:`, {
-        id: this.recvTransport.id,
-        connectionState: this.recvTransport.connectionState,
-        closed: this.recvTransport.closed,
-      });
 
-      console.log(
-        `🎥 consumeProducer: Requesting consume for ${producerId} on transport ${this.recvTransport.id}`,
-      );
       const client = getTrpcClient();
       const consumerInfo = await client.mediasoup.consume.mutate({
         transportId: this.recvTransport.id,
@@ -492,27 +433,12 @@ export default class MediaSession {
         rtpCapabilities: this.device.rtpCapabilities,
       });
 
-      console.log(
-        `🎥 consumeProducer: Received consumer info from server:`,
-        consumerInfo,
-      );
-
       const consumer = await this.recvTransport.consume({
         id: consumerInfo.id,
         producerId: consumerInfo.producerId,
         kind: consumerInfo.kind,
         rtpParameters: consumerInfo.rtpParameters as types.RtpParameters,
       });
-
-      console.log(
-        `🎥 consumeProducer: Consumer created locally. Kind: ${consumer.kind}, Track State:`,
-        {
-          enabled: consumer.track.enabled,
-          muted: consumer.track.muted,
-          readyState: consumer.track.readyState,
-          id: consumer.track.id,
-        },
-      );
 
       this.consumersByProducerId.set(producerId, consumer);
       this.producerOwners.set(producerId, producerUserId);
@@ -540,10 +466,9 @@ export default class MediaSession {
           await client.mediasoup.resumeConsumer.mutate({
             consumerId: consumer.id,
           });
-          console.log(`🎥 Consumer ${consumer.id} (video) resumed on server`);
+
           // Now request keyframe after server has resumed
           await this.requestKeyFrame(consumer.id);
-          console.log(`🎥 Keyframe requested for ${consumer.id}`);
         } catch (error) {
           console.warn("Failed to resume/keyframe video consumer:", error);
         }
@@ -551,9 +476,7 @@ export default class MediaSession {
         // Audio can be fire-and-forget
         client.mediasoup.resumeConsumer
           .mutate({ consumerId: consumer.id })
-          .then(() => {
-            console.log(`🎥 Consumer ${consumer.id} (audio) resumed on server`);
-          })
+          .then(() => {})
           .catch((error) => {
             console.warn("Failed to resume audio consumer:", error);
           });
@@ -583,24 +506,11 @@ export default class MediaSession {
 
         // Log track state before creating MediaStream
         const track = consumer.track;
-        console.log("🎥 Creating video with track:", {
-          trackId: track.id,
-          trackEnabled: track.enabled,
-          trackMuted: track.muted,
-          trackReadyState: track.readyState,
-          trackContentHint: track.contentHint,
-        });
 
         // Listen for track events - unmute indicates RTP data is flowing
-        track.onunmute = () => {
-          console.log("🎥 Track UNMUTED (RTP data flowing):", producerId);
-        };
-        track.onmute = () => {
-          console.log("🎥 Track MUTED (no RTP data):", producerId);
-        };
-        track.onended = () => {
-          console.log("🎥 Track ENDED:", producerId);
-        };
+        track.onunmute = () => {};
+        track.onmute = () => {};
+        track.onended = () => {};
 
         video.srcObject = new MediaStream([track]);
         // Ensure the video has a concrete height so it is visible even if the Tailwind aspect-ratio plugin isn't enabled
@@ -610,11 +520,6 @@ export default class MediaSession {
 
         // Video debugging
         video.onloadedmetadata = () => {
-          console.log("🎥 Video metadata loaded:", {
-            width: video.videoWidth,
-            height: video.videoHeight,
-            id: producerId,
-          });
           const timeoutId = this.videoRecoveryTimers.get(producerId);
           if (timeoutId) window.clearTimeout(timeoutId);
           const reconsumeId = this.videoReconsumeTimers.get(producerId);
@@ -628,35 +533,24 @@ export default class MediaSession {
           if (reconsumeId) window.clearTimeout(reconsumeId);
           this.ensureRemoteVideoFlow(video, consumer.id);
         };
-        video.onresize = () => {
-          console.log("🎥 Video resized:", {
-            width: video.videoWidth,
-            height: video.videoHeight,
-          });
-        };
+        video.onresize = () => {};
         video.onplaying = () => {
-          console.log("🎥 Video started playing:", producerId);
           const timeoutId = this.videoRecoveryTimers.get(producerId);
           if (timeoutId) window.clearTimeout(timeoutId);
           const reconsumeId = this.videoReconsumeTimers.get(producerId);
           if (reconsumeId) window.clearTimeout(reconsumeId);
         };
         video.onwaiting = () => {
-          console.log("🎥 Video waiting for data:", producerId);
           this.scheduleVideoRecovery(producerId, consumer, video);
         };
         video.onstalled = () => {
-          console.warn("🎥 Video stalled:", producerId);
+          console.warn("Video stalled:", producerId);
           this.scheduleVideoRecovery(producerId, consumer, video);
         };
-        video.onpause = () => {
-          console.log("🎥 Video paused:", producerId);
-        };
-        video.onplay = () => {
-          console.log("🎥 Video play event:", producerId);
-        };
+        video.onpause = () => {};
+        video.onplay = () => {};
         video.onerror = (e) => {
-          console.error("🎥 Video error:", video.error, e);
+          console.error("Video error:", video.error, e);
         };
         consumer.track.onunmute = () => {
           const timeoutId = this.videoRecoveryTimers.get(producerId);
@@ -667,19 +561,8 @@ export default class MediaSession {
           this.scheduleVideoRecovery(producerId, consumer, video);
         };
         consumer.track.onended = () => {
-          console.warn("🎥 Consumer track ended:", producerId);
+          console.warn("Consumer track ended:", producerId);
         };
-
-        console.log(
-          "Created video element for producer:",
-          producerId,
-          "Track settings:",
-          consumer.track.getSettings(),
-          "Track enabled:",
-          consumer.track.enabled,
-          "Track muted:",
-          consumer.track.muted,
-        );
 
         const prev = this.videoElementsByProducerId.get(producerId);
         if (prev && prev !== video) {
@@ -696,71 +579,6 @@ export default class MediaSession {
         this.scheduleVideoRecovery(producerId, consumer, video);
 
         // DEBUG: Monitor video flow
-        let lastStats: {
-          bytesReceived?: number;
-          packetsReceived?: number;
-          framesDecoded?: number;
-          timestamp?: number;
-        } = {};
-        const statsInterval = setInterval(async () => {
-          if (consumer.closed) {
-            clearInterval(statsInterval);
-            return;
-          }
-          try {
-            const stats = await consumer.getStats();
-            stats.forEach((report) => {
-              if (report.type === "inbound-rtp" && report.kind === "video") {
-                const now = report.timestamp ?? performance.now();
-                const elapsedMs =
-                  lastStats.timestamp !== undefined
-                    ? now - lastStats.timestamp
-                    : undefined;
-                const bytesDelta =
-                  lastStats.bytesReceived !== undefined
-                    ? report.bytesReceived - lastStats.bytesReceived
-                    : undefined;
-                const framesDelta =
-                  lastStats.framesDecoded !== undefined &&
-                  report.framesDecoded !== undefined
-                    ? report.framesDecoded - lastStats.framesDecoded
-                    : undefined;
-                const kbps =
-                  elapsedMs && bytesDelta !== undefined
-                    ? Math.round((bytesDelta * 8) / elapsedMs)
-                    : undefined;
-                const fps =
-                  elapsedMs && framesDelta !== undefined
-                    ? Math.round((framesDelta * 1000) / elapsedMs)
-                    : undefined;
-
-                console.log(`📊 Video Stats (${producerId}):`, {
-                  bytesReceived: report.bytesReceived,
-                  packetsReceived: report.packetsReceived,
-                  framesDecoded: report.framesDecoded,
-                  frameWidth: report.frameWidth,
-                  frameHeight: report.frameHeight,
-                  kbps,
-                  fps,
-                  videoReadyState: video.readyState,
-                  videoPaused: video.paused,
-                  trackEnabled: consumer.track.enabled,
-                  trackMuted: consumer.track.muted,
-                  trackReadyState: consumer.track.readyState,
-                });
-
-                lastStats = {
-                  bytesReceived: report.bytesReceived,
-                  packetsReceived: report.packetsReceived,
-                  framesDecoded: report.framesDecoded,
-                  timestamp: now,
-                };
-              }
-            });
-          } catch (e) {
-            console.error("Stats error:", e);
-          }
-        }, 2000);
       }
     } catch (error) {
       console.error("Failed to consume producer:", error);
@@ -817,9 +635,6 @@ export default class MediaSession {
 
     // Skip recovery if already consuming this producer (prevents feedback loop)
     if (this.consumingInFlight.has(producerId)) {
-      console.log(
-        `🎥 scheduleVideoRecovery: Skipping ${producerId} - already consuming`,
-      );
       return;
     }
 
@@ -854,7 +669,7 @@ export default class MediaSession {
         video.videoWidth > 0 &&
         video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
       if (hasFramesNow) return;
-      console.warn("🎥 Video stalled. Forcing resume + keyframe:", producerId);
+      console.warn("Video stalled. Forcing resume + keyframe:", producerId);
       try {
         consumer.resume();
       } catch {}
@@ -887,7 +702,7 @@ export default class MediaSession {
         const ownerId = this.producerOwners.get(producerId);
         if (!ownerId) return;
 
-        console.warn("🎥 Re-consuming video after stall:", {
+        console.warn("Re-consuming video after stall:", {
           producerId,
           attempts,
         });
@@ -906,9 +721,6 @@ export default class MediaSession {
 
       this.videoReconsumeTimers.set(producerId, reconsumeId);
     } else {
-      console.log(
-        `🎥 scheduleVideoRecovery: In grace period for ${producerId}, skipping re-consume timer`,
-      );
     }
   }
 
@@ -1262,8 +1074,6 @@ export default class MediaSession {
 
   // Make meeting start handler public for Network.ts
   async handleMeetingStart(action: { peerId: string; meetingId?: string }) {
-    console.log("🎬 Meeting START with:", action.peerId);
-
     const peerId = action.peerId;
     const meetingId = action.meetingId;
     const currentState = this.peerStates.get(peerId);
@@ -1281,9 +1091,7 @@ export default class MediaSession {
     await this.enableCamera();
 
     // Explicitly fetch ALL media (audio + video) when meeting starts
-    console.log(
-      `🎥 handleMeetingStart: Fetching ALL media for peer ${action.peerId}`,
-    );
+
     try {
       await this.fetchAndConsumePeer(action.peerId); // No kind filter = all
     } catch (err) {
@@ -1306,14 +1114,11 @@ export default class MediaSession {
         localAccepted: true,
       });
     }
-    console.log(
-      `🎥 handleMeetingStart: Peer ${peerId} set to ACTIVE. UI should now render container.`,
-    );
+
     // Note: ensureRemoteVideoForPeer removed since fetchAndConsumePeer above already fetches video
     // The watchdog below provides fallback retry if video doesn't arrive
     this.startMeetingVideoWatchdog(peerId);
 
-    console.log("✨ Emitting NAVIGATE_TO_SITTING_AREA via Phaser Events");
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
   }
 
@@ -1323,8 +1128,6 @@ export default class MediaSession {
     meetingId?: string;
     reason?: string;
   }) {
-    console.log("🎬 Meeting END with:", action.peerId);
-
     const peerId = action.peerId;
     const meetingId = action.meetingId;
     const currentState = this.peerStates.get(peerId);
@@ -1365,8 +1168,6 @@ export default class MediaSession {
     media: "audio" | "video";
     peerId: string;
   }) {
-    console.log("📡 Proximity Update:", action);
-
     // Proximity strictly handles AUDIO.
     // Video is handled by MeetingStart/Stop events.
     if (action.media === "audio") {
@@ -1394,24 +1195,13 @@ export default class MediaSession {
     kindChanged?: "audio" | "video",
   ) {
     try {
-      console.log(
-        `🎥 Fetching producers for peer: ${peerId}, kind filter: ${kindChanged || "all"}`,
-      );
       const client = getTrpcClient();
       const producers = await client.mediasoup.getPeerProducers.query({
         peerId,
       });
 
-      console.log(
-        `🎥 Found ${producers.length} producers for peer ${peerId}:`,
-        producers,
-      );
-
       for (const p of producers) {
         if (kindChanged && p.kind !== kindChanged) {
-          console.log(
-            `🎥 Skipping producer ${p.producerId} (kind ${p.kind}) due to filter ${kindChanged}`,
-          );
           continue;
         }
 
@@ -1420,9 +1210,6 @@ export default class MediaSession {
         if (existingConsumer && !existingConsumer.closed) {
           // Already have a consumer - just request a keyframe for video instead of re-consuming
           if (p.kind === "video") {
-            console.log(
-              `🎥 Already consuming producer ${p.producerId}, requesting keyframe instead`,
-            );
             this.requestKeyFrame(existingConsumer.id).catch((error) => {
               console.warn(
                 "Failed to request keyframe for existing consumer:",
@@ -1430,24 +1217,15 @@ export default class MediaSession {
               );
             });
           } else {
-            console.log(
-              `🎥 Already consuming producer ${p.producerId} (audio), skipping`,
-            );
           }
           continue;
         }
 
         // Check if currently in-flight
         if (this.consumingInFlight.has(p.producerId)) {
-          console.log(
-            `🎥 Producer ${p.producerId} already in-flight, skipping`,
-          );
           continue;
         }
 
-        console.log(
-          `🎥 Consuming matched producer: ${p.producerId}, kind: ${p.kind}`,
-        );
         await this.consumeProducer(p.producerId, p.kind, peerId);
       }
     } catch (e) {
