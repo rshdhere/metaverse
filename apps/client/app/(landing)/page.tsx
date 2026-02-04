@@ -63,7 +63,7 @@ export default function Home() {
           isReady ? "opacity-100" : "opacity-0"
         }`}
       >
-        <h1 className="text-5xl md:text-6xl lg:text-7xl tracking-tight bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent font-instrument-serif leading-[1.1]">
+        <h1 className="text-4xl md:text-6xl lg:text-7xl tracking-tight bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent font-instrument-serif leading-[1.1]">
           Your workspace, reimagined
           <br className="hidden md:block" />
           in the{" "}

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { CheckCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { GITHUB_OAUTH_URL } from "@repo/config/constants";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -17,7 +18,7 @@ function getErrorMessage(error: { message: string }): string {
       return parsed[0].message;
     }
   } catch {
-    // Not JSON, return as-is
+    // not JSON, return as-is
   }
   return error.message;
 }
@@ -73,8 +74,11 @@ function LoginContent() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("authToken", data.token);
       localStorage.setItem("username", data.user.email);
-      toast.success("Welcome back!", {
+      toast("Welcome back!", {
         description: "You have been logged in successfully.",
+        icon: <CheckCircle className="h-5 w-5 text-black dark:text-white" />,
+        className:
+          "!bg-white !text-black dark:!bg-black dark:!text-white !border-black dark:!border-white",
       });
       router.push("/");
     },

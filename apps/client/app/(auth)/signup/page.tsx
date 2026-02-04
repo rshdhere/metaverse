@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { CheckCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { GITHUB_OAUTH_URL } from "@repo/config/constants";
 import { PasswordInput, isPasswordValid } from "@/components/ui/password-input";
@@ -46,8 +47,11 @@ export default function SignupPage() {
     onSuccess: (data) => {
       setSentToEmail(data.email);
       setVerificationSent(true);
-      toast.success("Check your email", {
+      toast("Check your email", {
         description: data.message,
+        icon: <CheckCircle className="h-5 w-5 text-black dark:text-white" />,
+        className:
+          "!bg-white !text-black dark:!bg-black dark:!text-white !border-black dark:!border-white",
       });
     },
     onError: (err) => {

@@ -14,8 +14,8 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Metaverse - Office in your browser",
-  description: "Full-stack TypeScript monorepo template",
+  title: "Metaverse - remote office in your browser",
+  description: "a metaverse office in your browser",
   icons: {
     icon: "/circle_logo.png",
     apple: "/circle_logo.png",
