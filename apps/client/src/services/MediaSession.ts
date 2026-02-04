@@ -1202,13 +1202,20 @@ export default class MediaSession {
     media: "audio" | "video";
     peerId: string;
   }) {
-    // Proximity strictly handles AUDIO.
-    // Video is handled by MeetingStart/Stop events.
     if (action.media === "audio") {
       if (action.type === "enter") {
         await this.fetchAndConsumePeer(action.peerId, "audio");
       } else {
         await this.stopPeerMedia(action.peerId, "audio");
+      }
+    } else if (action.media === "video") {
+      if (action.type === "enter") {
+        // Only fetch if we are in a meeting or configured to see video
+        // For now, if we receive a proximity enter for video, we assume we shoulder check if we want it.
+        // fetchAndConsumePeer already checks if we have a consumer, etc.
+        await this.fetchAndConsumePeer(action.peerId, "video");
+      } else {
+        await this.stopPeerMedia(action.peerId, "video");
       }
     }
   }

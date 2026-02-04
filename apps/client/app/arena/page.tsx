@@ -607,7 +607,7 @@ export default function ArenaPage() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                      className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white hover:text-white cursor-pointer"
                       onClick={handleMicrophoneToggle}
                     >
                       {microphoneEnabled ? (
@@ -650,7 +650,7 @@ export default function ArenaPage() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                      className="h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-white hover:text-white cursor-pointer"
                       onClick={handleCameraToggle}
                     >
                       {cameraEnabled ? (
