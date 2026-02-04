@@ -100,9 +100,7 @@ export const userRouter = router({
 
       // Send verification email (fire-and-forget for faster response)
       sendVerificationEmail(email, verificationToken)
-        .then(() => {
-          console.log("Verification email sent successfully:", email);
-        })
+        .then(() => {})
         .catch((err) => {
           console.error("Failed to send verification email:", err);
           // TODO: Add to retry queue

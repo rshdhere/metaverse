@@ -111,7 +111,6 @@ export default class Preloader extends Phaser.Scene {
 
     // Check if game scene is already running
     if (this.scene.isActive("game")) {
-      console.log("Game scene already running");
       return true;
     }
 
@@ -140,7 +139,6 @@ export default class Preloader extends Phaser.Scene {
 
     await Promise.race([gameReadyPromise, timeoutPromise]);
 
-    console.log("Game scene launched and ready");
     return true;
   }
 }

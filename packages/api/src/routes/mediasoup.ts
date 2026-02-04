@@ -272,55 +272,26 @@ function enqueueConsumeOrResume(
 }
 
 function enqueueMeetingMedia(userA: string, userB: string) {
-  console.log(`enqueueMeetingMedia: Checking media for ${userA} and ${userB}`);
   const stateA = peers.get(userA);
   const stateB = peers.get(userB);
 
-  // Debug why state might be missing
-  if (!stateA)
-    console.log(
-      `enqueueMeetingMedia: Peer state for userA (${userA}) not found`,
-    );
-  if (!stateB)
-    console.log(
-      `enqueueMeetingMedia: Peer state for userB (${userB}) not found`,
-    );
-
   if (!stateA || !stateB) return;
 
-  console.log(
-    `enqueueMeetingMedia: Found peer states. ProducersA=${stateA.audioProducers.size}, ProducersB=${stateB.audioProducers.size}`,
-  );
-
   for (const producer of stateA.audioProducers.values()) {
-    console.log(
-      `enqueueMeetingMedia: Enqueuing audio from A to B: ${producer.id}`,
-    );
     enqueueConsumeOrResume(userB, userA, producer);
   }
   for (const producer of stateB.audioProducers.values()) {
-    console.log(
-      `enqueueMeetingMedia: Enqueuing audio from B to A: ${producer.id}`,
-    );
     enqueueConsumeOrResume(userA, userB, producer);
   }
 
   if (stateA.videoProducer) {
-    console.log(
-      `enqueueMeetingMedia: Enqueuing video from A to B: ${stateA.videoProducer.id}`,
-    );
     enqueueConsumeOrResume(userB, userA, stateA.videoProducer);
   } else {
-    console.log(`enqueueMeetingMedia: No video producer for userA (${userA})`);
   }
 
   if (stateB.videoProducer) {
-    console.log(
-      `enqueueMeetingMedia: Enqueuing video from B to A: ${stateB.videoProducer.id}`,
-    );
     enqueueConsumeOrResume(userA, userB, stateB.videoProducer);
   } else {
-    console.log(`enqueueMeetingMedia: No video producer for userB (${userB})`);
   }
 }
 
@@ -527,13 +498,6 @@ export const mediasoupRouter = router({
       });
 
       // Log the producer-consumer pairing for debugging
-      console.log(`📡 Consumer created:`, {
-        consumerId: consumer.id,
-        producerId: input.producerId,
-        kind: consumer.kind,
-        consumerPaused: consumer.paused,
-        userId: ctx.user.userId,
-      });
 
       peerState.consumers.set(consumer.id, consumer);
       peerState.consumersByProducerId.set(input.producerId, consumer);
@@ -600,30 +564,14 @@ export const mediasoupRouter = router({
       const peerState = getPeerState(ctx.user.userId);
       const consumer = peerState.consumers.get(input.consumerId);
       if (!consumer) {
-        console.log(
-          `📡 resumeConsumer: Consumer not found: ${input.consumerId}`,
-        );
         return { success: true };
       }
 
-      console.log(`📡 resumeConsumer: Resuming consumer:`, {
-        consumerId: consumer.id,
-        kind: consumer.kind,
-        pausedBefore: consumer.paused,
-      });
-
       await consumer.resume();
-
-      console.log(
-        `📡 resumeConsumer: Consumer resumed, paused=${consumer.paused}`,
-      );
 
       if (consumer.kind === "video") {
         try {
           await consumer.requestKeyFrame();
-          console.log(
-            `📡 resumeConsumer: Keyframe requested for video consumer ${consumer.id}`,
-          );
         } catch (error) {
           console.warn("Failed to request keyframe on resume:", error);
         }
@@ -679,28 +627,17 @@ export const mediasoupRouter = router({
       const meetingKey = getMeetingKey(ctx.user.userId, input.peerId);
       const state = meetingStates.get(meetingKey);
 
-      console.log(
-        `meetingRespond: User=${ctx.user.userId} Peer=${input.peerId} Key=${meetingKey} RequestId=${input.requestId} Accept=${input.accept}`,
-      );
-
       if (!state) {
-        console.log(`meetingRespond: No state found for key ${meetingKey}`);
         return { success: true };
       }
       if (
         input.requestId !== "SKIP_CHECK" &&
         state.requestId !== input.requestId
       ) {
-        console.log(
-          `meetingRespond: Request ID mismatch. State=${state.requestId} Input=${input.requestId}`,
-        );
         return { success: true };
       }
 
       if (state.expiresAt && state.expiresAt < now) {
-        console.log(
-          `meetingRespond: Request expired. Expires=${state.expiresAt} Now=${now}`,
-        );
         meetingStates.set(meetingKey, {
           ...state,
           requestId: "",
@@ -713,7 +650,6 @@ export const mediasoupRouter = router({
       }
 
       if (!input.accept) {
-        console.log("meetingRespond: User declined");
         meetingStates.set(meetingKey, {
           ...state,
           requestId: "",
@@ -732,12 +668,7 @@ export const mediasoupRouter = router({
         state.acceptB = true;
       }
 
-      console.log(
-        `meetingRespond: New State: AcceptA=${state.acceptA} AcceptB=${state.acceptB}`,
-      );
-
       if (state.acceptA && state.acceptB) {
-        console.log("meetingRespond: Both accepted! Starting meeting.");
         state.active = true;
         state.requestId = "";
         state.expiresAt = 0;
@@ -745,7 +676,7 @@ export const mediasoupRouter = router({
         setMeetingActive(state.userA, state.userB, true);
         enqueueMeetingStart(state.userA, state.userB);
         enqueueMeetingStart(state.userA, state.userB);
-        console.log("meetingRespond: Enqueuing meeting media...");
+
         enqueueMeetingMedia(state.userA, state.userB);
         return { success: true };
       }
@@ -758,14 +689,10 @@ export const mediasoupRouter = router({
     .input(meetingEndInputSchema)
     .output(meetingEndOutputSchema)
     .mutation(({ ctx, input }) => {
-      console.log(
-        `❌ meetingEnd mutation called by ${ctx.user.userId} for peer ${input.peerId}`,
-      );
       const now = Date.now();
       const meetingKey = getMeetingKey(ctx.user.userId, input.peerId);
       const state = meetingStates.get(meetingKey);
       if (!state) {
-        console.log(`meetingEnd: No meeting state found for key ${meetingKey}`);
         return { success: true };
       }
 
