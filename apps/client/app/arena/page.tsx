@@ -71,7 +71,7 @@ export default function ArenaPage() {
   const [gameInitialized, setGameInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [selectedAvatar, setSelectedAvatar] = useState("adam");
+  const [selectedAvatar, setSelectedAvatar] = useState("ron");
   const [showNameInput, setShowNameInput] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [activeMeetingPeers, setActiveMeetingPeers] = useState<string[]>([]);
@@ -217,24 +217,24 @@ export default function ArenaPage() {
 
   const availableAvatars = [
     {
-      id: "adam",
+      id: "ron",
       name: "Ron",
-      image: "/assets/character/single/Adam_idle_anim_1.png",
+      image: "/assets/character/single/Ron_idle_anim_1.png",
     },
     {
-      id: "ash",
+      id: "harry",
       name: "Harry",
-      image: "/assets/character/single/Ash_idle_anim_1.png",
+      image: "/assets/character/single/Harry_idle_anim_1.png",
     },
     {
-      id: "lucy",
+      id: "ginny",
       name: "Ginny",
-      image: "/assets/character/single/Lucy_idle_anim_1.png",
+      image: "/assets/character/single/Ginny_idle_anim_1.png",
     },
     {
-      id: "nancy",
+      id: "hermoine",
       name: "Hermoine",
-      image: "/assets/character/single/Nancy_idle_anim_1.png",
+      image: "/assets/character/single/Hermoine_idle_anim_1.png",
     },
   ];
 
@@ -310,7 +310,7 @@ export default function ArenaPage() {
               }
 
               // Set the avatar name
-              const finalAvatar = avatarName || "adam";
+              const finalAvatar = avatarName || "ron";
               if (preloader.setPendingAvatarName) {
                 preloader.setPendingAvatarName(finalAvatar);
               }

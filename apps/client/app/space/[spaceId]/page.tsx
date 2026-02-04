@@ -217,7 +217,7 @@ export default function SpacePage() {
                       removeAuthCookie();
                       setToken("");
                       setUsername("");
-                      setAvatarName("adam");
+                      setAvatarName("ron");
                       router.push("/login");
                     }}
                     className="text-gray-500 hover:text-white text-xs cursor-pointer"

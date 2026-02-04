@@ -202,7 +202,7 @@ export default class MyPlayer extends Player {
           this.play(`${this.playerTexture}_run_up`, true);
         } else {
           const parts = this.anims.currentAnim?.key.split("_") ?? [
-            "adam",
+            "ron",
             "idle",
             "down",
           ];
@@ -225,7 +225,7 @@ export default class MyPlayer extends Player {
         // back to idle if player press E while sitting
         if (Phaser.Input.Keyboard.JustDown(keyE)) {
           const parts = this.anims.currentAnim?.key.split("_") ?? [
-            "adam",
+            "ron",
             "idle",
             "down",
           ];

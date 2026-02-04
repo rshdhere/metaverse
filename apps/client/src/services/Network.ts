@@ -23,7 +23,7 @@ export default class Network {
 
   private token?: string;
   private username?: string;
-  private myAvatarName: string = "adam";
+  private myAvatarName: string = "ron";
   private wsEndpoint: string;
   private knownUsers = new Set<string>();
   private userSnapshots = new Map<
@@ -293,7 +293,7 @@ export default class Network {
               const x = u.x ?? 0;
               const y = u.y ?? 0;
               this.userSnapshots.set(uid, { x, y, name: u.name || "" });
-              const avatar = (u.avatarName || "adam").toLowerCase();
+              const avatar = (u.avatarName || "ron").toLowerCase();
               const player: IPlayer = {
                 x,
                 y,
@@ -314,7 +314,7 @@ export default class Network {
           if (!this.knownUsers.has(uid)) {
             this.knownUsers.add(uid);
             this.userSnapshots.set(uid, { x, y, name: name || "" });
-            const avatar = (avatarName || "adam").toLowerCase();
+            const avatar = (avatarName || "ron").toLowerCase();
             const player: IPlayer = {
               x,
               y,

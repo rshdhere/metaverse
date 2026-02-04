@@ -10,7 +10,7 @@ import Network from "../services/Network";
 
 const subtitleClass = "m-0 text-sm text-[#c2c2c2] text-center";
 
-const defaultAvatars = ["adam", "ash", "lucy", "nancy"];
+const defaultAvatars = ["ron", "harry", "ginny", "hermoine"];
 
 export default function Auth() {
   const {
@@ -135,7 +135,7 @@ export default function Auth() {
         const preloader = game?.scene?.keys?.preloader;
         // Ensure the shared Phaser side receives the chosen avatar
         if (preloader && typeof preloader.setPendingAvatarName === "function") {
-          preloader.setPendingAvatarName(avatarName || "adam");
+          preloader.setPendingAvatarName(avatarName || "ron");
         }
         // Launch game FIRST so event listeners are registered
         if (preloader && typeof preloader.launchGame === "function") {
@@ -167,7 +167,7 @@ export default function Auth() {
       : defaultAvatars.map((name, index) => ({
           id: `default-${index}`,
           name,
-          imageUrl: "",
+          imageUrl: `/assets/character/single/${name.charAt(0).toUpperCase() + name.slice(1)}_idle_anim_1.png`,
         }));
 
   return (
@@ -224,8 +224,13 @@ export default function Auth() {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <div className="w-40 h-[220px] rounded-lg bg-[#dbdbe0] flex justify-center items-center overflow-hidden">
-                  <span className="text-[#222] text-xl capitalize">
+                <div className="w-40 h-[220px] rounded-lg bg-[#dbdbe0] flex flex-col justify-center items-center overflow-hidden gap-4">
+                  <img
+                    src={displayAvatars[selectedAvatarIndex]?.imageUrl}
+                    alt={displayAvatars[selectedAvatarIndex]?.name}
+                    className="h-32 w-auto object-contain rendering-pixelated"
+                  />
+                  <span className="text-[#222] text-xl capitalize font-medium">
                     {displayAvatars[selectedAvatarIndex]?.name || "Avatar"}
                   </span>
                 </div>
@@ -255,10 +260,15 @@ export default function Auth() {
                       key={a.id}
                       type="button"
                       onClick={() => setSelectedAvatarIndex(idx)}
-                      className={`h-20 rounded-lg bg-[#2b2f45] flex items-center justify-center overflow-hidden border ${isSelected ? "border-[#1ea2df] ring-2 ring-[#1ea2df]" : "border-transparent"} hover:border-[#1ea2df]`}
+                      className={`h-24 rounded-lg bg-[#2b2f45] flex flex-col items-center justify-center gap-2 overflow-hidden border transition-all ${isSelected ? "border-[#1ea2df] ring-2 ring-[#1ea2df] bg-[#363b52]" : "border-transparent opacity-70 hover:opacity-100 hover:bg-[#363b52]"} hover:border-[#1ea2df]`}
                       aria-label={`Select avatar ${name || idx}`}
                     >
-                      <span className="text-[#eee] text-sm capitalize">
+                      <img
+                        src={a.imageUrl}
+                        alt={name}
+                        className="h-10 w-auto object-contain rendering-pixelated"
+                      />
+                      <span className="text-[#eee] text-xs capitalize">
                         {name || "avatar"}
                       </span>
                     </button>

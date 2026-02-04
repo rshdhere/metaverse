@@ -6,8 +6,8 @@ export const createCharacterAnims = (
   const animsFrameRate = 15;
 
   anims.create({
-    key: "nancy_idle_right",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_idle_right",
+    frames: anims.generateFrameNames("hermoine", {
       start: 0,
       end: 5,
     }),
@@ -16,8 +16,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_idle_up",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_idle_up",
+    frames: anims.generateFrameNames("hermoine", {
       start: 6,
       end: 11,
     }),
@@ -26,8 +26,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_idle_left",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_idle_left",
+    frames: anims.generateFrameNames("hermoine", {
       start: 12,
       end: 17,
     }),
@@ -36,8 +36,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_idle_down",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_idle_down",
+    frames: anims.generateFrameNames("hermoine", {
       start: 18,
       end: 23,
     }),
@@ -46,8 +46,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_run_right",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_run_right",
+    frames: anims.generateFrameNames("hermoine", {
       start: 24,
       end: 29,
     }),
@@ -56,8 +56,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_run_up",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_run_up",
+    frames: anims.generateFrameNames("hermoine", {
       start: 30,
       end: 35,
     }),
@@ -66,8 +66,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_run_left",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_run_left",
+    frames: anims.generateFrameNames("hermoine", {
       start: 36,
       end: 41,
     }),
@@ -76,8 +76,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_run_down",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_run_down",
+    frames: anims.generateFrameNames("hermoine", {
       start: 42,
       end: 47,
     }),
@@ -86,8 +86,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_sit_down",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_sit_down",
+    frames: anims.generateFrameNames("hermoine", {
       start: 48,
       end: 48,
     }),
@@ -96,8 +96,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_sit_left",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_sit_left",
+    frames: anims.generateFrameNames("hermoine", {
       start: 49,
       end: 49,
     }),
@@ -106,8 +106,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_sit_right",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_sit_right",
+    frames: anims.generateFrameNames("hermoine", {
       start: 50,
       end: 50,
     }),
@@ -116,8 +116,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "nancy_sit_up",
-    frames: anims.generateFrameNames("nancy", {
+    key: "hermoine_sit_up",
+    frames: anims.generateFrameNames("hermoine", {
       start: 51,
       end: 51,
     }),
@@ -126,8 +126,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_idle_right",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_idle_right",
+    frames: anims.generateFrameNames("ginny", {
       start: 0,
       end: 5,
     }),
@@ -136,8 +136,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_idle_up",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_idle_up",
+    frames: anims.generateFrameNames("ginny", {
       start: 6,
       end: 11,
     }),
@@ -146,8 +146,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_idle_left",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_idle_left",
+    frames: anims.generateFrameNames("ginny", {
       start: 12,
       end: 17,
     }),
@@ -156,8 +156,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_idle_down",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_idle_down",
+    frames: anims.generateFrameNames("ginny", {
       start: 18,
       end: 23,
     }),
@@ -166,8 +166,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_run_right",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_run_right",
+    frames: anims.generateFrameNames("ginny", {
       start: 24,
       end: 29,
     }),
@@ -176,8 +176,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_run_up",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_run_up",
+    frames: anims.generateFrameNames("ginny", {
       start: 30,
       end: 35,
     }),
@@ -186,8 +186,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_run_left",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_run_left",
+    frames: anims.generateFrameNames("ginny", {
       start: 36,
       end: 41,
     }),
@@ -196,8 +196,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_run_down",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_run_down",
+    frames: anims.generateFrameNames("ginny", {
       start: 42,
       end: 47,
     }),
@@ -206,8 +206,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_sit_down",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_sit_down",
+    frames: anims.generateFrameNames("ginny", {
       start: 48,
       end: 48,
     }),
@@ -216,8 +216,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_sit_left",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_sit_left",
+    frames: anims.generateFrameNames("ginny", {
       start: 49,
       end: 49,
     }),
@@ -226,8 +226,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_sit_right",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_sit_right",
+    frames: anims.generateFrameNames("ginny", {
       start: 50,
       end: 50,
     }),
@@ -236,8 +236,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "lucy_sit_up",
-    frames: anims.generateFrameNames("lucy", {
+    key: "ginny_sit_up",
+    frames: anims.generateFrameNames("ginny", {
       start: 51,
       end: 51,
     }),
@@ -246,8 +246,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_idle_right",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_idle_right",
+    frames: anims.generateFrameNames("harry", {
       start: 0,
       end: 5,
     }),
@@ -256,8 +256,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_idle_up",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_idle_up",
+    frames: anims.generateFrameNames("harry", {
       start: 6,
       end: 11,
     }),
@@ -266,8 +266,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_idle_left",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_idle_left",
+    frames: anims.generateFrameNames("harry", {
       start: 12,
       end: 17,
     }),
@@ -276,8 +276,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_idle_down",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_idle_down",
+    frames: anims.generateFrameNames("harry", {
       start: 18,
       end: 23,
     }),
@@ -286,8 +286,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_run_right",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_run_right",
+    frames: anims.generateFrameNames("harry", {
       start: 24,
       end: 29,
     }),
@@ -296,8 +296,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_run_up",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_run_up",
+    frames: anims.generateFrameNames("harry", {
       start: 30,
       end: 35,
     }),
@@ -306,8 +306,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_run_left",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_run_left",
+    frames: anims.generateFrameNames("harry", {
       start: 36,
       end: 41,
     }),
@@ -316,8 +316,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_run_down",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_run_down",
+    frames: anims.generateFrameNames("harry", {
       start: 42,
       end: 47,
     }),
@@ -326,8 +326,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_sit_down",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_sit_down",
+    frames: anims.generateFrameNames("harry", {
       start: 48,
       end: 48,
     }),
@@ -336,8 +336,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_sit_left",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_sit_left",
+    frames: anims.generateFrameNames("harry", {
       start: 49,
       end: 49,
     }),
@@ -346,8 +346,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_sit_right",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_sit_right",
+    frames: anims.generateFrameNames("harry", {
       start: 50,
       end: 50,
     }),
@@ -356,8 +356,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "ash_sit_up",
-    frames: anims.generateFrameNames("ash", {
+    key: "harry_sit_up",
+    frames: anims.generateFrameNames("harry", {
       start: 51,
       end: 51,
     }),
@@ -366,8 +366,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_idle_right",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_idle_right",
+    frames: anims.generateFrameNames("ron", {
       start: 0,
       end: 5,
     }),
@@ -376,8 +376,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_idle_up",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_idle_up",
+    frames: anims.generateFrameNames("ron", {
       start: 6,
       end: 11,
     }),
@@ -386,8 +386,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_idle_left",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_idle_left",
+    frames: anims.generateFrameNames("ron", {
       start: 12,
       end: 17,
     }),
@@ -396,8 +396,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_idle_down",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_idle_down",
+    frames: anims.generateFrameNames("ron", {
       start: 18,
       end: 23,
     }),
@@ -406,8 +406,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_run_right",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_run_right",
+    frames: anims.generateFrameNames("ron", {
       start: 24,
       end: 29,
     }),
@@ -416,8 +416,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_run_up",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_run_up",
+    frames: anims.generateFrameNames("ron", {
       start: 30,
       end: 35,
     }),
@@ -426,8 +426,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_run_left",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_run_left",
+    frames: anims.generateFrameNames("ron", {
       start: 36,
       end: 41,
     }),
@@ -436,8 +436,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_run_down",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_run_down",
+    frames: anims.generateFrameNames("ron", {
       start: 42,
       end: 47,
     }),
@@ -446,8 +446,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_sit_down",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_sit_down",
+    frames: anims.generateFrameNames("ron", {
       start: 48,
       end: 48,
     }),
@@ -456,8 +456,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_sit_left",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_sit_left",
+    frames: anims.generateFrameNames("ron", {
       start: 49,
       end: 49,
     }),
@@ -466,8 +466,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_sit_right",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_sit_right",
+    frames: anims.generateFrameNames("ron", {
       start: 50,
       end: 50,
     }),
@@ -476,8 +476,8 @@ export const createCharacterAnims = (
   });
 
   anims.create({
-    key: "adam_sit_up",
-    frames: anims.generateFrameNames("adam", {
+    key: "ron_sit_up",
+    frames: anims.generateFrameNames("ron", {
       start: 51,
       end: 51,
     }),

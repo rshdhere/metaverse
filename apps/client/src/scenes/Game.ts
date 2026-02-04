@@ -128,7 +128,7 @@ export default class Game extends Phaser.Scene {
     const avatarName =
       (typeof this.network.getMyAvatarName === "function"
         ? this.network.getMyAvatarName()
-        : "adam") || "adam";
+        : "ron") || "ron";
 
     // Try to restore last position, or use default spawn point
     const DEFAULT_SPAWN_X = 705;
@@ -395,9 +395,9 @@ export default class Game extends Phaser.Scene {
       return;
     }
 
-    // Derive texture from the incoming anim prefix (e.g., "lucy_idle_down")
-    const animKey = newPlayer.anim || "adam_idle_down";
-    const texture = (animKey.split("_")[0] || "adam").toLowerCase();
+    // Derive texture from the incoming anim prefix (e.g., "ginny_idle_down")
+    const animKey = newPlayer.anim || "ron_idle_down";
+    const texture = (animKey.split("_")[0] || "ron").toLowerCase();
     const otherPlayer = (
       this.add as unknown as {
         otherPlayer: (
@@ -517,7 +517,7 @@ export default class Game extends Phaser.Scene {
       }
 
       // Start walking
-      const avatarName = this.network.getMyAvatarName() || "adam";
+      const avatarName = this.network.getMyAvatarName() || "ron";
       this.isTeleportingToMeeting = true;
       this.movePlayerAlongPath(path, avatarName);
     } else {
@@ -532,7 +532,7 @@ export default class Game extends Phaser.Scene {
       this.isTeleportingToMeeting = false;
 
       // Ensure player is in IDLE animation to signify they are free to move
-      const avatarName = this.network.getMyAvatarName() || "adam";
+      const avatarName = this.network.getMyAvatarName() || "ron";
       this.myPlayer.anims.play(`${avatarName}_idle_down`, true);
     }
   }

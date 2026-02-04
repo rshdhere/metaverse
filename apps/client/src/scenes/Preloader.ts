@@ -31,7 +31,6 @@ export default class Preloader extends Phaser.Scene {
       frameWidth: 96,
       frameHeight: 64,
     });
-    // Whiteboard sprites removed
     this.load.spritesheet(
       "vendingmachines",
       "/assets/items/vendingmachine.png",
@@ -56,19 +55,19 @@ export default class Preloader extends Phaser.Scene {
       frameWidth: 32,
       frameHeight: 32,
     });
-    this.load.spritesheet("adam", "/assets/character/adam.png", {
+    this.load.spritesheet("ron", "/assets/character/ron.png", {
       frameWidth: 32,
       frameHeight: 48,
     });
-    this.load.spritesheet("ash", "/assets/character/ash.png", {
+    this.load.spritesheet("harry", "/assets/character/harry.png", {
       frameWidth: 32,
       frameHeight: 48,
     });
-    this.load.spritesheet("lucy", "/assets/character/lucy.png", {
+    this.load.spritesheet("ginny", "/assets/character/ginny.png", {
       frameWidth: 32,
       frameHeight: 48,
     });
-    this.load.spritesheet("nancy", "/assets/character/nancy.png", {
+    this.load.spritesheet("hermoine", "/assets/character/hermoine.png", {
       frameWidth: 32,
       frameHeight: 48,
     });
@@ -84,7 +83,7 @@ export default class Preloader extends Phaser.Scene {
   }
 
   setPendingAvatarName(name: string) {
-    const chosen = (name || "adam").toLowerCase();
+    const chosen = (name || "ron").toLowerCase();
     this.pendingAvatarName = chosen;
     if (this.network && typeof this.network.setMyAvatarName === "function") {
       this.network.setMyAvatarName(chosen);

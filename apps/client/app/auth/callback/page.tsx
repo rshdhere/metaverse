@@ -52,7 +52,7 @@ function CallbackContent() {
     }
     // Set default avatar if not already set
     if (!localStorage.getItem("avatarName")) {
-      localStorage.setItem("avatarName", "adam");
+      localStorage.setItem("avatarName", "ron");
     }
 
     toast.success("Welcome!", {

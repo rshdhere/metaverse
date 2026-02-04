@@ -27,7 +27,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [lobbyJoined, setLobbyJoined] = useState(false);
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("");
-  const [avatarName, setAvatarName] = useState("adam");
+  const [avatarName, setAvatarName] = useState("ron");
 
   const value = useMemo(
     () => ({

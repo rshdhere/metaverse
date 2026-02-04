@@ -111,7 +111,7 @@ export default class OtherPlayer extends Player {
     this.lastUpdateTimestamp = t;
     this.setDepth(this.y); // change player.depth based on player.y
     const animParts = this.anims.currentAnim?.key.split("_") ?? [
-      "adam",
+      "ron",
       "idle",
       "down",
     ];

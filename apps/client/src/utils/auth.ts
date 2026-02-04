@@ -61,5 +61,5 @@ export function getStoredCredentials() {
 
   if (!token || !username) return null;
 
-  return { token, username, avatarName: avatarName || "adam" };
+  return { token, username, avatarName: avatarName || "ron" };
 }
