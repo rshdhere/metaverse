@@ -8,6 +8,7 @@ dotenv.config({
 });
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   // Expose env vars from the shared config package
   env: {
     DATABASE_URL: process.env.DATABASE_URL,

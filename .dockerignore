@@ -1,4 +1,7 @@
-# Dependencies and caches (reinstalled in image)
+# Single .dockerignore at repo root. Dockerfiles control what gets copied (COPY).
+# Exclude only what is never needed by any image.
+
+# Dependencies and caches (reinstalled or not used in image)
 node_modules
 .pnp
 .pnp.js
@@ -12,7 +15,7 @@ bun.lockb
 .husky
 .github
 
-# Build outputs
+# Build outputs (rebuilt in image or not used)
 .next
 out
 build
@@ -29,12 +32,6 @@ dist
 coverage
 *.log
 *.pem
-
-# Other apps (not needed for server image; apps/world needed for websocket image)
-apps/client
-
-# Other packages (server only needs api, config, store, validators)
-packages/ui
 
 # Docker assets (avoid copying into context)
 docker
