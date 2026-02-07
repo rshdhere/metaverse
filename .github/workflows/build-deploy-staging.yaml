@@ -1,7 +1,7 @@
 # Build images, push to Docker Hub, then update staging-ops deployment manifests (GitOps).
 # Requires: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, STAGING_OPS_TOKEN
 
-name: Build & Deploy to Production (GitOps)
+name: Deploy to Production (GitOps)
 
 on:
   push:
@@ -78,23 +78,26 @@ jobs:
       - name: Update backend image tag in deployment.yaml
         run: |
           cd staging-ops
+          export CONTAINER_NAME=backend
           export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-backend:${{ github.sha }}"
-          yq e -i '.spec.template.spec.containers |= map(if .name == "backend" then .image = env(IMAGE) else . end)' production/metaverse/deployment.yaml
+          yq e -i '.spec.template.spec.containers |= map(if .name == strenv(CONTAINER_NAME) then .image = env(IMAGE) else . end)' production/metaverse/deployment.yaml
 
       - name: Update frontend image tag in deployment-frontend.yaml
         run: |
           cd staging-ops
           if [ -f production/metaverse/deployment-frontend.yaml ]; then
+            export CONTAINER_NAME=frontend
             export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-frontend:${{ github.sha }}"
-            yq e -i '.spec.template.spec.containers |= map(if .name == "frontend" then .image = env(IMAGE) else . end)' production/metaverse/deployment-frontend.yaml
+            yq e -i '.spec.template.spec.containers |= map(if .name == strenv(CONTAINER_NAME) then .image = env(IMAGE) else . end)' production/metaverse/deployment-frontend.yaml
           fi
 
       - name: Update websocket image tag in deployment-websocket.yaml
         run: |
           cd staging-ops
           if [ -f production/metaverse/deployment-websocket.yaml ]; then
+            export CONTAINER_NAME=websocket
             export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-websocket:${{ github.sha }}"
-            yq e -i '.spec.template.spec.containers |= map(if .name == "websocket" then .image = env(IMAGE) else . end)' production/metaverse/deployment-websocket.yaml
+            yq e -i '.spec.template.spec.containers |= map(if .name == strenv(CONTAINER_NAME) then .image = env(IMAGE) else . end)' production/metaverse/deployment-websocket.yaml
           fi
 
       - name: Commit & push (GitOps)
