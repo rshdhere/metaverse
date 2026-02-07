@@ -78,23 +78,23 @@ jobs:
       - name: Update backend image tag in deployment.yaml
         run: |
           cd staging-ops
-          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-backend:${{ github.sha }}"
-          yq e -i ".spec.template.spec.containers |= map(if .name == \"backend\" then .image = \"$IMAGE\" else . end)" production/metaverse/deployment.yaml
+          export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-backend:${{ github.sha }}"
+          yq e -i '.spec.template.spec.containers |= map(if .name == "backend" then .image = env(IMAGE) else . end)' production/metaverse/deployment.yaml
 
       - name: Update frontend image tag in deployment-frontend.yaml
         run: |
           cd staging-ops
           if [ -f production/metaverse/deployment-frontend.yaml ]; then
-            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-frontend:${{ github.sha }}"
-            yq e -i ".spec.template.spec.containers |= map(if .name == \"frontend\" then .image = \"$IMAGE\" else . end)" production/metaverse/deployment-frontend.yaml
+            export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-frontend:${{ github.sha }}"
+            yq e -i '.spec.template.spec.containers |= map(if .name == "frontend" then .image = env(IMAGE) else . end)' production/metaverse/deployment-frontend.yaml
           fi
 
       - name: Update websocket image tag in deployment-websocket.yaml
         run: |
           cd staging-ops
           if [ -f production/metaverse/deployment-websocket.yaml ]; then
-            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-websocket:${{ github.sha }}"
-            yq e -i ".spec.template.spec.containers |= map(if .name == \"websocket\" then .image = \"$IMAGE\" else . end)" production/metaverse/deployment-websocket.yaml
+            export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-websocket:${{ github.sha }}"
+            yq e -i '.spec.template.spec.containers |= map(if .name == "websocket" then .image = env(IMAGE) else . end)' production/metaverse/deployment-websocket.yaml
           fi
 
       - name: Commit & push (GitOps)
