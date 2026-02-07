@@ -1,0 +1,76 @@
+# Local development: build context is repo root (parent of docker/).
+# From repo root:  docker compose -f docker/docker-compose.yaml up --build
+# From docker/:    docker compose up --build
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    ports:
+      - "8082:8082"
+    env_file:
+      - ../packages/config/.env
+    environment:
+      NODE_ENV: production
+      BACKEND_PORT: "8082"
+    # Optional: use local Postgres instead of .env DATABASE_URL
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    # Uncomment and set DATABASE_URL in environment to override .env:
+    # DATABASE_URL: postgresql://postgres:postgres@postgres:5432/metaverse
+    healthcheck:
+      # tRPC has no GET /; just check that the server accepts connections
+      test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:8082').then(()=>process.exit(0)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend/Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - ../packages/config/.env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  websocket:
+    build:
+      context: ..
+      dockerfile: docker/websocket/Dockerfile
+    ports:
+      - "8083:8083"
+    env_file:
+      - ../packages/config/.env
+    environment:
+      WS_PORT: "8083"
+      # Backend reachable by service name from inside Docker
+      BACKEND_URL: http://backend:8082
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Uncomment for local Postgres (and set DATABASE_URL for backend/websocket).
+  # postgres:
+  #   image: postgres:16-alpine
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: metaverse
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5

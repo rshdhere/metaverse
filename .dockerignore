@@ -6,7 +6,6 @@ node_modules
 .pnp
 .pnp.js
 .turbo
-bun.lockb
 
 # Version control and IDE
 .git
@@ -23,8 +22,8 @@ dist
 *.tsbuildinfo
 
 # Env and secrets (inject at runtime)
-.env
-.env.*
+**/.env
+**/.env.*
 !.env.sample
 !.env.example
 
