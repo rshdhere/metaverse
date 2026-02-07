@@ -1,0 +1,45 @@
+# Dependencies and caches (reinstalled in image)
+node_modules
+.pnp
+.pnp.js
+.turbo
+bun.lockb
+
+# Version control and IDE
+.git
+.cursor
+.vscode
+.husky
+.github
+
+# Build outputs
+.next
+out
+build
+dist
+*.tsbuildinfo
+
+# Env and secrets (inject at runtime)
+.env
+.env.*
+!.env.sample
+!.env.example
+
+# Testing and debug
+coverage
+*.log
+*.pem
+
+# Other apps (not needed for server image)
+apps/client
+apps/world
+
+# Other packages (server only needs api, config, store, validators)
+packages/ui
+
+# Docker assets (avoid copying into context)
+docker
+
+# Misc
+.DS_Store
+*.md
