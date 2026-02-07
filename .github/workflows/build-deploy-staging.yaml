@@ -1,7 +1,7 @@
 # Build images, push to Docker Hub, then update staging-ops deployment manifests (GitOps).
 # Requires: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, STAGING_OPS_TOKEN
 
-name: Deploy to Production (GitOps)
+name: (GitOps)
 
 on:
   push:
@@ -70,40 +70,19 @@ jobs:
           token: ${{ secrets.STAGING_OPS_TOKEN }}
           path: staging-ops
 
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: Update backend image tag in deployment.yaml
+      - name: Update deployment manifests (sed)
         run: |
           cd staging-ops
-          export CONTAINER_NAME=backend
-          export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-backend:${{ github.sha }}"
-          yq e -i '.spec.template.spec.containers |= map(if .name == strenv(CONTAINER_NAME) then .image = env(IMAGE) else . end)' production/metaverse/deployment.yaml
-
-      - name: Update frontend image tag in deployment-frontend.yaml
-        run: |
-          cd staging-ops
-          if [ -f production/metaverse/deployment-frontend.yaml ]; then
-            export CONTAINER_NAME=frontend
-            export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-frontend:${{ github.sha }}"
-            yq e -i '.spec.template.spec.containers |= map(if .name == strenv(CONTAINER_NAME) then .image = env(IMAGE) else . end)' production/metaverse/deployment-frontend.yaml
-          fi
-
-      - name: Update websocket image tag in deployment-websocket.yaml
-        run: |
-          cd staging-ops
-          if [ -f production/metaverse/deployment-websocket.yaml ]; then
-            export CONTAINER_NAME=websocket
-            export IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/metaverse-websocket:${{ github.sha }}"
-            yq e -i '.spec.template.spec.containers |= map(if .name == strenv(CONTAINER_NAME) then .image = env(IMAGE) else . end)' production/metaverse/deployment-websocket.yaml
-          fi
+          SHA="${{ github.sha }}"
+          USER="${{ secrets.DOCKERHUB_USERNAME }}"
+          sed -i "s|image: .*metaverse-backend:.*|image: ${USER}/metaverse-backend:${SHA}|" production/metaverse/deployment.yaml
+          [ -f production/metaverse/deployment-frontend.yaml ] && sed -i "s|image: .*metaverse-frontend:.*|image: ${USER}/metaverse-frontend:${SHA}|" production/metaverse/deployment-frontend.yaml || true
+          [ -f production/metaverse/deployment-websocket.yaml ] && sed -i "s|image: .*metaverse-websocket:.*|image: ${USER}/metaverse-websocket:${SHA}|" production/metaverse/deployment-websocket.yaml || true
 
       - name: Commit & push (GitOps)
         run: |
           cd staging-ops
-          git config user.name "actions-user"
+          git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git add production/metaverse/deployment.yaml
           [ -f production/metaverse/deployment-frontend.yaml ] && git add production/metaverse/deployment-frontend.yaml || true
