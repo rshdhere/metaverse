@@ -62,6 +62,18 @@ Run with env vars (e.g. `WS_PORT`, `JWT_SECRET`, `DATABASE_URL`, `BACKEND_URL`, 
 docker run --rm -p 8083:8083 -e JWT_SECRET=... -e DATABASE_URL=... metaverse-websocket
 ```
 
+## CI / Docker Hub
+
+The workflow `.github/workflows/docker-push.yaml` builds and pushes images to Docker Hub on push to `main`, on version tags `v*`, or via **workflow_dispatch**.
+
+**Required repository secrets:**
+
+- `DOCKERHUB_USERNAME` – Docker Hub username or org
+- `DOCKERHUB_TOKEN` – Docker Hub access token (Account → Security → Access Tokens)
+
+**Image names:** `{DOCKERHUB_USERNAME}/metaverse-backend`, `metaverse-frontend`, `metaverse-websocket`  
+**Tags:** `latest`, short git SHA (e.g. `a1b2c3d`), and on version tags the tag name (e.g. `v1.0.0`).
+
 ## Development
 
 docker compose up --build
