@@ -131,7 +131,9 @@ export default function SignupPage() {
           </div>
 
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">Check your email</h1>
+            <h1 className="text-2xl font-semibold text-foreground">
+              Check your email
+            </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               We&apos;ve sent a verification link to{" "}
               <span className="font-medium text-gray-900 dark:text-white">
