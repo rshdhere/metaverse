@@ -77,7 +77,7 @@ describe("Proximity audio (avatars can listen when close)", () => {
 
   it("when another avatar enters proximity, client can listen (audio proximity count increases)", () => {
     cy.visit("/arena", arenaAuth);
-    cy.window().then({ timeout: 35000 }, (win) =>
+    cy.window().then((win) =>
       waitForNetworkAndSimulate(win, [
         { type: "enter", media: "audio", peerId: "peer-1" },
       ]),
@@ -87,7 +87,7 @@ describe("Proximity audio (avatars can listen when close)", () => {
 
   it("when the other avatar leaves proximity, client stops listening (count goes to 0)", () => {
     cy.visit("/arena", arenaAuth);
-    cy.window().then({ timeout: 35000 }, (win) =>
+    cy.window().then((win) =>
       waitForNetworkAndSimulate(win, [
         { type: "enter", media: "audio", peerId: "peer-1" },
         { type: "leave", media: "audio", peerId: "peer-1" },
@@ -96,14 +96,20 @@ describe("Proximity audio (avatars can listen when close)", () => {
     expectAudioProximityCount(0);
   });
 
-  it("when two peers are in proximity, client can listen to both (count is 2)", () => {
-    cy.visit("/arena", arenaAuth);
-    cy.window().then({ timeout: 35000 }, (win) =>
-      waitForNetworkAndSimulate(win, [
-        { type: "enter", media: "audio", peerId: "peer-1" },
-        { type: "enter", media: "audio", peerId: "peer-2" },
-      ]),
-    );
-    expectAudioProximityCount(2);
-  });
+  it(
+    "when two peers are in proximity, client can listen to both (count is 2)",
+    { defaultCommandTimeout: 35000 },
+    () => {
+      cy.visit("/arena", arenaAuth);
+      cy.window().then((win) =>
+        waitForNetworkAndSimulate(win, [
+          { type: "enter", media: "audio", peerId: "peer-1" },
+          { type: "enter", media: "audio", peerId: "peer-2" },
+        ]),
+      );
+      // Give CI time for both handleProximityUpdate calls to run and sync (no audio device in CI)
+      cy.wait(500, { log: false });
+      expectAudioProximityCount(2);
+    },
+  );
 });
