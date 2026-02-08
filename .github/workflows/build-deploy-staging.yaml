@@ -102,11 +102,12 @@ jobs:
           # Update backend image (main deployment file)
           sed -i "s|image: .*metaverse-backend:.*|image: ${USER}/metaverse-backend:${SHA}|" production/metaverse/deployment.yaml
           # Update frontend and websocket in main file and/or in separate files if present
+          # Use || true so sed exiting 1 (no match) does not fail the step when a file has no such image line
           for f in production/metaverse/deployment.yaml production/metaverse/deployment-frontend.yaml; do
-            [ -f "$f" ] && sed -i "s|image: .*metaverse-frontend:.*|image: ${USER}/metaverse-frontend:${SHA}|" "$f"
+            [ -f "$f" ] && sed -i "s|image: .*metaverse-frontend:.*|image: ${USER}/metaverse-frontend:${SHA}|" "$f" || true
           done
           for f in production/metaverse/deployment.yaml production/metaverse/deployment-websocket.yaml; do
-            [ -f "$f" ] && sed -i "s|image: .*metaverse-websocket:.*|image: ${USER}/metaverse-websocket:${SHA}|" "$f"
+            [ -f "$f" ] && sed -i "s|image: .*metaverse-websocket:.*|image: ${USER}/metaverse-websocket:${SHA}|" "$f" || true
           done
 
       - name: Commit & push (GitOps)
