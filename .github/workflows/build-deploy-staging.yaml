@@ -99,9 +99,15 @@ jobs:
           cd staging-ops
           SHA="${{ github.sha }}"
           USER="${{ secrets.DOCKERHUB_USERNAME }}"
+          # Update backend image (main deployment file)
           sed -i "s|image: .*metaverse-backend:.*|image: ${USER}/metaverse-backend:${SHA}|" production/metaverse/deployment.yaml
-          [ -f production/metaverse/deployment-frontend.yaml ] && sed -i "s|image: .*metaverse-frontend:.*|image: ${USER}/metaverse-frontend:${SHA}|" production/metaverse/deployment-frontend.yaml || true
-          [ -f production/metaverse/deployment-websocket.yaml ] && sed -i "s|image: .*metaverse-websocket:.*|image: ${USER}/metaverse-websocket:${SHA}|" production/metaverse/deployment-websocket.yaml || true
+          # Update frontend and websocket in main file and/or in separate files if present
+          for f in production/metaverse/deployment.yaml production/metaverse/deployment-frontend.yaml; do
+            [ -f "$f" ] && sed -i "s|image: .*metaverse-frontend:.*|image: ${USER}/metaverse-frontend:${SHA}|" "$f"
+          done
+          for f in production/metaverse/deployment.yaml production/metaverse/deployment-websocket.yaml; do
+            [ -f "$f" ] && sed -i "s|image: .*metaverse-websocket:.*|image: ${USER}/metaverse-websocket:${SHA}|" "$f"
+          done
 
       - name: Commit & push (GitOps)
         run: |
