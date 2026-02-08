@@ -84,6 +84,8 @@ export default class MediaSession {
     { toastId: string | number; timeoutId: number }
   >();
   private network: Network;
+  /** Peers we are in audio proximity with (for e2e: can listen to each other). */
+  private audioProximityPeerIds = new Set<string>();
   private activeMeetingPeers = new Set<string>(); // Legacy, removing
   private selfId?: string;
   private consumingInFlight = new Set<string>();
@@ -99,6 +101,7 @@ export default class MediaSession {
 
   constructor(network: Network) {
     this.network = network;
+    this.syncAudioProximityCountForE2E();
   }
 
   async start() {
@@ -1292,10 +1295,13 @@ export default class MediaSession {
   }) {
     if (action.media === "audio") {
       if (action.type === "enter") {
+        this.audioProximityPeerIds.add(action.peerId);
         await this.fetchAndConsumePeer(action.peerId, "audio");
       } else {
+        this.audioProximityPeerIds.delete(action.peerId);
         await this.stopPeerMedia(action.peerId, "audio");
       }
+      this.syncAudioProximityCountForE2E();
     } else if (action.media === "video") {
       if (action.type === "enter") {
         // Only fetch if we are in a meeting or configured to see video
@@ -1308,8 +1314,20 @@ export default class MediaSession {
     }
   }
 
+  /** Expose audio proximity count for Cypress e2e (avatars in range can listen). */
+  private syncAudioProximityCountForE2E() {
+    if (typeof window === "undefined") return;
+    const w = window as unknown as {
+      Cypress?: unknown;
+      __audioProximityCount?: number;
+    };
+    if (w.Cypress) w.__audioProximityCount = this.audioProximityPeerIds.size;
+  }
+
   // Make peer left handler public for Network.ts
   handlePeerLeft(peerId: string) {
+    this.audioProximityPeerIds.delete(peerId);
+    this.syncAudioProximityCountForE2E();
     this.peerStates.delete(peerId);
     const watchdog = this.meetingVideoWatchdogs.get(peerId);
     if (watchdog && typeof window !== "undefined") {

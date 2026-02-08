@@ -1,5 +1,6 @@
 # Build and push Docker images to Docker Hub.
 # Requires repository secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+# E2E must pass before build and push run.
 
 name: Docker Hub Push
 
@@ -12,7 +13,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Cypress system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgbm1 libgtk-3-0 libnotify-dev libnss3 libxss1 libasound2 libxtst6 xauth xvfb
+
+      - name: Run E2E
+        run: bun run e2e
+
   build-and-push:
+    needs: e2e
     runs-on: ubuntu-latest
     permissions:
       contents: read

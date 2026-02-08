@@ -16,7 +16,9 @@
     "test:all": "bun run test && bun run test:go",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "prepare": "husky"
+    "prepare": "husky",
+    "e2e": "bun run --cwd apps/client e2e",
+    "e2e:open": "bun run --cwd apps/client e2e:open"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

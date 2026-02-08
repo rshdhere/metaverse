@@ -741,4 +741,21 @@ export default class Network {
       this.mediaSession?.handleMeetingEnd({ peerId, reason: "local-leave" });
     }
   }
+
+  /**
+   * E2E only: simulate a proximity-update (e.g. another avatar came close so we can listen).
+   * Only callable when Cypress is running.
+   */
+  simulateProximityUpdate(payload: {
+    type: "enter" | "leave";
+    media: "audio" | "video";
+    peerId: string;
+  }) {
+    if (
+      typeof window !== "undefined" &&
+      (window as unknown as { Cypress?: unknown }).Cypress
+    ) {
+      this.mediaSession?.handleProximityUpdate(payload);
+    }
+  }
 }
