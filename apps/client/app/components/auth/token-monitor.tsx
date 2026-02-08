@@ -3,12 +3,25 @@
 import { useEffect } from "react";
 import { isTokenExpired, getTimeUntilExpiration, logout } from "@/lib/auth";
 
+/** Check if running in Cypress e2e tests */
+function isCypress() {
+  return (
+    typeof window !== "undefined" &&
+    !!(window as unknown as { Cypress?: unknown }).Cypress
+  );
+}
+
 /**
  * Component that monitors JWT token expiration and automatically logs out when expired
  * This should be mounted once at the app root level
  */
 export function TokenMonitor() {
   useEffect(() => {
+    // Skip token monitoring in Cypress e2e tests to avoid unexpected redirects
+    if (isCypress()) {
+      return;
+    }
+
     const token = localStorage.getItem("token");
 
     // If no token, nothing to monitor

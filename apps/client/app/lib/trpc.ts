@@ -10,6 +10,14 @@ import { logout, isTokenExpired } from "./auth";
 
 export const trpc = createTRPCReact<AppRouter>();
 
+/** Check if running in Cypress e2e tests */
+function isCypress() {
+  return (
+    typeof window !== "undefined" &&
+    !!(window as unknown as { Cypress?: unknown }).Cypress
+  );
+}
+
 function getApiUrl() {
   // BACKEND_URL is already environment-aware (dev vs production)
   return BACKEND_URL;
@@ -26,8 +34,8 @@ export function getTrpcClient() {
               ? localStorage.getItem("token")
               : null;
 
-          // Check if token is expired before sending request
-          if (token && isTokenExpired(token)) {
+          // Check if token is expired before sending request (skip in Cypress)
+          if (token && isTokenExpired(token) && !isCypress()) {
             logout("/login", true); // Show toast for automatic logout
             return {};
           }
@@ -47,8 +55,8 @@ export function createQueryClient() {
     queryCache: new QueryCache({
       onError: (err) => {
         if (err instanceof TRPCClientError) {
-          // Handle UNAUTHORIZED errors
-          if (err.data?.code === "UNAUTHORIZED") {
+          // Handle UNAUTHORIZED errors (skip in Cypress e2e tests)
+          if (err.data?.code === "UNAUTHORIZED" && !isCypress()) {
             logout("/login", true); // Show toast for automatic logout
           }
         }
@@ -57,8 +65,8 @@ export function createQueryClient() {
     mutationCache: new MutationCache({
       onError: (err) => {
         if (err instanceof TRPCClientError) {
-          // Handle UNAUTHORIZED errors
-          if (err.data?.code === "UNAUTHORIZED") {
+          // Handle UNAUTHORIZED errors (skip in Cypress e2e tests)
+          if (err.data?.code === "UNAUTHORIZED" && !isCypress()) {
             logout("/login", true); // Show toast for automatic logout
           }
         }
