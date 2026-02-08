@@ -8,9 +8,7 @@ describe("Proximity audio (avatars can listen when close)", () => {
     cy.clearAuth();
   });
 
-  function getNetworkFromGame(
-    win: Window,
-  ): {
+  function getNetworkFromGame(win: Window): {
     simulateProximityUpdate: (p: {
       type: "enter" | "leave";
       media: "audio" | "video";
@@ -37,9 +35,9 @@ describe("Proximity audio (avatars can listen when close)", () => {
       peerId: string;
     }>,
     timeoutMs = 30000,
-  ): Cypress.Promise<void> {
+  ): Promise<void> {
     const deadline = Date.now() + timeoutMs;
-    return new Cypress.Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const check = () => {
         const network = getNetworkFromGame(win);
         if (network) {
