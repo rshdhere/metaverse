@@ -18,9 +18,19 @@ export const FRONTEND_URL = isProduction
 
 // WebSocket (World Server)
 export const WS_PORT = 8083;
-export const WS_URL = isProduction
-  ? "wss://game.raashed.xyz/ws"
-  : `ws://localhost:${WS_PORT}/ws`;
+export const WS_URL =
+  typeof window !== "undefined"
+    ? window.location.hostname === "localhost"
+      ? `ws://localhost:${WS_PORT}/ws`
+      : // VPS production (frontend → dedicated WS host)
+        window.location.hostname === "metaverse.raashed.xyz"
+        ? "wss://game.raashed.xyz/ws"
+        : // K8s production (same-origin WS via ingress)
+          window.location.hostname === "k8s-metaverse.raashed.xyz"
+          ? "wss://k8s-metaverse.raashed.xyz/ws"
+          : // fallback (safe default)
+            `wss://${window.location.host}/ws`
+    : `ws://localhost:${WS_PORT}/ws`;
 
 // CORS allowed origins
 export const CORS_ORIGINS = [

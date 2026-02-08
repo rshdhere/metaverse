@@ -1,7 +1,7 @@
 # Build images, push to Docker Hub, then update staging-ops deployment manifests (GitOps).
 # Requires: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, STAGING_OPS_TOKEN
 
-name: (GitOps)
+name: GitOps
 
 on:
   push:
