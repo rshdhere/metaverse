@@ -6,9 +6,19 @@ const isProduction =
 
 // Backend API
 export const BACKEND_PORT = 8082;
-export const BACKEND_URL = isProduction
-  ? "https://game-server.raashed.xyz"
-  : `http://localhost:${BACKEND_PORT}`;
+export const BACKEND_URL =
+  typeof window !== "undefined"
+    ? window.location.hostname === "localhost"
+      ? `http://localhost:${BACKEND_PORT}`
+      : // VPS production (frontend → dedicated backend host)
+        window.location.hostname === "metaverse.raashed.xyz"
+        ? "https://game-server.raashed.xyz"
+        : // K8s production (same-origin API via ingress)
+          window.location.hostname === "k8s-metaverse.raashed.xyz"
+          ? "https://k8s-metaverse.raashed.xyz"
+          : // fallback (safe default)
+            `https://${window.location.host}`
+    : `http://localhost:${BACKEND_PORT}`;
 
 // Frontend
 export const FRONTEND_PORT = 3001;
