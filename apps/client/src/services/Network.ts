@@ -744,18 +744,21 @@ export default class Network {
 
   /**
    * E2E only: simulate a proximity-update (e.g. another avatar came close so we can listen).
-   * Only callable when Cypress is running.
+   * Only callable when Cypress is running. Returns a promise so tests can await completion.
    */
   simulateProximityUpdate(payload: {
     type: "enter" | "leave";
     media: "audio" | "video";
     peerId: string;
-  }) {
+  }): Promise<void> {
     if (
       typeof window !== "undefined" &&
       (window as unknown as { Cypress?: unknown }).Cypress
     ) {
-      this.mediaSession?.handleProximityUpdate(payload);
+      return (
+        this.mediaSession?.handleProximityUpdate(payload) ?? Promise.resolve()
+      );
     }
+    return Promise.resolve();
   }
 }

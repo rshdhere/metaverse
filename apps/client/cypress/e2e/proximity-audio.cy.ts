@@ -38,11 +38,11 @@ describe("Proximity audio (avatars can listen when close)", () => {
   ): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     return new Promise((resolve, reject) => {
-      const check = () => {
+      const check = async () => {
         const network = getNetworkFromGame(win);
         if (network) {
           for (const a of actions) {
-            network.simulateProximityUpdate(a);
+            await network.simulateProximityUpdate(a);
           }
           resolve();
           return;
