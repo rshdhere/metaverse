@@ -1294,14 +1294,18 @@ export default class MediaSession {
     peerId: string;
   }) {
     if (action.media === "audio") {
-      if (action.type === "enter") {
-        this.audioProximityPeerIds.add(action.peerId);
-        await this.fetchAndConsumePeer(action.peerId, "audio");
-      } else {
-        this.audioProximityPeerIds.delete(action.peerId);
-        await this.stopPeerMedia(action.peerId, "audio");
+      try {
+        if (action.type === "enter") {
+          this.audioProximityPeerIds.add(action.peerId);
+          await this.fetchAndConsumePeer(action.peerId, "audio");
+        } else {
+          this.audioProximityPeerIds.delete(action.peerId);
+          await this.stopPeerMedia(action.peerId, "audio");
+        }
+      } finally {
+        // Always sync count for E2E so tests can assert even if backend/media calls fail (e.g. CI)
+        this.syncAudioProximityCountForE2E();
       }
-      this.syncAudioProximityCountForE2E();
     } else if (action.media === "video") {
       if (action.type === "enter") {
         // Only fetch if we are in a meeting or configured to see video

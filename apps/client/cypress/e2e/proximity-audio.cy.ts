@@ -13,7 +13,7 @@ describe("Proximity audio (avatars can listen when close)", () => {
       type: "enter" | "leave";
       media: "audio" | "video";
       peerId: string;
-    }) => void;
+    }) => Promise<void>;
   } | null {
     const game = (
       win as unknown as {
@@ -22,7 +22,7 @@ describe("Proximity audio (avatars can listen when close)", () => {
     ).game;
     const preloader = game?.scene?.keys?.preloader;
     const network = preloader?.network as
-      | { simulateProximityUpdate: (p: unknown) => void }
+      | { simulateProximityUpdate: (p: unknown) => Promise<void> }
       | undefined;
     return network ?? null;
   }
@@ -65,6 +65,16 @@ describe("Proximity audio (avatars can listen when close)", () => {
     },
   };
 
+  /** Retrying assertion so CI has time for the app to update the count. */
+  function expectAudioProximityCount(expected: number) {
+    cy.window().should((win) =>
+      expect(
+        (win as unknown as { __audioProximityCount?: number })
+          .__audioProximityCount,
+      ).to.equal(expected),
+    );
+  }
+
   it("when another avatar enters proximity, client can listen (audio proximity count increases)", () => {
     cy.visit("/arena", arenaAuth);
     cy.window().then({ timeout: 35000 }, (win) =>
@@ -72,7 +82,7 @@ describe("Proximity audio (avatars can listen when close)", () => {
         { type: "enter", media: "audio", peerId: "peer-1" },
       ]),
     );
-    cy.window().its("__audioProximityCount").should("equal", 1);
+    expectAudioProximityCount(1);
   });
 
   it("when the other avatar leaves proximity, client stops listening (count goes to 0)", () => {
@@ -83,7 +93,7 @@ describe("Proximity audio (avatars can listen when close)", () => {
         { type: "leave", media: "audio", peerId: "peer-1" },
       ]),
     );
-    cy.window().its("__audioProximityCount").should("equal", 0);
+    expectAudioProximityCount(0);
   });
 
   it("when two peers are in proximity, client can listen to both (count is 2)", () => {
@@ -94,6 +104,6 @@ describe("Proximity audio (avatars can listen when close)", () => {
         { type: "enter", media: "audio", peerId: "peer-2" },
       ]),
     );
-    cy.window().its("__audioProximityCount").should("equal", 2);
+    expectAudioProximityCount(2);
   });
 });
