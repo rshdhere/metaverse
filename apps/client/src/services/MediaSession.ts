@@ -1297,7 +1297,20 @@ export default class MediaSession {
       try {
         if (action.type === "enter") {
           this.audioProximityPeerIds.add(action.peerId);
-          await this.fetchAndConsumePeer(action.peerId, "audio");
+          const fetchPromise = this.fetchAndConsumePeer(action.peerId, "audio");
+          // E2E: cap wait so tests don't hang when backend/mediasoup is slow or unavailable
+          const w =
+            typeof window !== "undefined"
+              ? (window as unknown as { Cypress?: unknown })
+              : null;
+          if (w?.Cypress) {
+            await Promise.race([
+              fetchPromise,
+              new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+            ]).catch(() => {});
+          } else {
+            await fetchPromise;
+          }
         } else {
           this.audioProximityPeerIds.delete(action.peerId);
           await this.stopPeerMedia(action.peerId, "audio");

@@ -26,10 +26,11 @@ function getQuoteIndex(): number {
 }
 
 export default function SplitAuthLayout({ children }: { children: ReactNode }) {
-  const [quoteIndex, setQuoteIndex] = useState(getQuoteIndex);
+  // Use fixed 0 for initial render so server and client match (avoids hydration mismatch)
+  const [quoteIndex, setQuoteIndex] = useState(0);
 
   useEffect(() => {
-    // Update quote every 2 minutes
+    setQuoteIndex(getQuoteIndex());
     const intervalId = setInterval(() => {
       setQuoteIndex(getQuoteIndex());
     }, QUOTE_ROTATION_INTERVAL);

@@ -59,9 +59,27 @@ describe("Proximity audio (avatars can listen when close)", () => {
 
   const arenaAuth = {
     onBeforeLoad: (win: Window) => {
-      win.localStorage.setItem("authToken", "e2e-proximity-test-token");
-      win.localStorage.setItem("username", "e2e-user");
-      win.localStorage.setItem("avatarName", "harry");
+      const token = "e2e-proximity-test-token";
+      const username = "e2e-user";
+      const avatarName = "harry";
+      // Set direct e2e auth flag for immediate detection (bypasses async issues)
+      (
+        win as unknown as {
+          __e2eAuth?: { token: string; username: string; avatarName: string };
+        }
+      ).__e2eAuth = {
+        token,
+        username,
+        avatarName,
+      };
+      win.localStorage.setItem("authToken", token);
+      win.localStorage.setItem("username", username);
+      win.localStorage.setItem("avatarName", avatarName);
+      // Set cookie so getStoredCredentials() finds auth even if localStorage is delayed
+      const expires = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000,
+      ).toUTCString();
+      win.document.cookie = `authToken=${token}; path=/; expires=${expires}; SameSite=Lax`;
     },
   };
 
@@ -96,20 +114,14 @@ describe("Proximity audio (avatars can listen when close)", () => {
     expectAudioProximityCount(0);
   });
 
-  it(
-    "when two peers are in proximity, client can listen to both (count is 2)",
-    { defaultCommandTimeout: 35000 },
-    () => {
-      cy.visit("/arena", arenaAuth);
-      cy.window().then((win) =>
-        waitForNetworkAndSimulate(win, [
-          { type: "enter", media: "audio", peerId: "peer-1" },
-          { type: "enter", media: "audio", peerId: "peer-2" },
-        ]),
-      );
-      // Give CI time for both handleProximityUpdate calls to run and sync (no audio device in CI)
-      cy.wait(500, { log: false });
-      expectAudioProximityCount(2);
-    },
-  );
+  it("when two peers are in proximity, client can listen to both (count is 2)", () => {
+    cy.visit("/arena", arenaAuth);
+    cy.window().then((win) =>
+      waitForNetworkAndSimulate(win, [
+        { type: "enter", media: "audio", peerId: "peer-1" },
+        { type: "enter", media: "audio", peerId: "peer-2" },
+      ]),
+    );
+    expectAudioProximityCount(2);
+  });
 });

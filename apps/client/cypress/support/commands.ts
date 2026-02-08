@@ -20,7 +20,10 @@ Cypress.Commands.add("clearAuth", () => {
     win.localStorage.removeItem("token");
     win.localStorage.removeItem("authToken");
     win.localStorage.removeItem("username");
+    win.localStorage.removeItem("avatarName");
     win.sessionStorage.clear();
+    win.document.cookie =
+      "authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 });
 
