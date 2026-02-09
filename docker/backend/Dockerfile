@@ -17,12 +17,16 @@ WORKDIR /app
 FROM base AS builder
 
 # Install native build dependencies required for mediasoup
-# pip is needed for meson build system used by mediasoup
+# - python3/pip: meson build system
+# - make/g++: C++ compilation
+# - nodejs/npm: required to run mediasoup's build scripts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     make \
     g++ \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package manifests for all workspaces
@@ -35,9 +39,12 @@ COPY packages/validators/package.json ./packages/validators/
 COPY tooling/typescript-config/package.json ./tooling/typescript-config/
 COPY tooling/eslint-config/package.json ./tooling/eslint-config/
 
-# Install all dependencies with --trust to run postinstall scripts
-# mediasoup requires postinstall to compile the native worker binary
+# Install all dependencies with bun
 RUN bun install
+
+# Manually build mediasoup worker (bun doesn't reliably run postinstall scripts)
+# mediasoup requires Node.js to run its build scripts
+RUN cd node_modules/mediasoup && npm run worker:build
 
 # Verify mediasoup worker binary was built
 RUN echo "=== Verifying mediasoup worker binary ===" && \
