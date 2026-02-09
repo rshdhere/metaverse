@@ -3,13 +3,27 @@
 # Build context MUST be the repo root (so COPY sees apps/, packages/, etc.):
 # From repo root:    docker build -f docker/backend/Dockerfile -t metaverse-backend .
 
-FROM oven/bun:1-alpine AS base
+# -----------------------------------------------------------------------------
+# Stage: base image (Debian-based for native module compatibility)
+# Alpine uses musl libc which causes issues with native modules like mediasoup
+# -----------------------------------------------------------------------------
+FROM oven/bun:1-debian AS base
 WORKDIR /app
 
 # -----------------------------------------------------------------------------
-# Stage: install dependencies
+# Stage: builder - install dependencies with native build tools
+# This stage compiles native modules like mediasoup worker
 # -----------------------------------------------------------------------------
-FROM base AS deps
+FROM base AS builder
+
+# Install native build dependencies required for mediasoup
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package manifests for all workspaces
 COPY package.json bun.lock* ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/api/package.json ./packages/api/
@@ -18,19 +32,27 @@ COPY packages/store/package.json ./packages/store/
 COPY packages/validators/package.json ./packages/validators/
 COPY tooling/typescript-config/package.json ./tooling/typescript-config/
 COPY tooling/eslint-config/package.json ./tooling/eslint-config/
+
+# Install all dependencies (this will compile mediasoup native worker)
 RUN bun install
+
+# Verify mediasoup worker binary was built
+RUN echo "=== Verifying mediasoup worker binary ===" && \
+    ls -la node_modules/mediasoup/worker/out/Release/ && \
+    test -f node_modules/mediasoup/worker/out/Release/mediasoup-worker && \
+    echo "=== mediasoup-worker binary exists ==="
 
 # -----------------------------------------------------------------------------
 # Stage: generate Prisma client (store is a dependency of api)
 # -----------------------------------------------------------------------------
-FROM deps AS prisma
+FROM builder AS prisma
 COPY packages/store/ ./packages/store/
 WORKDIR /app/packages/store
 RUN bunx prisma generate
 WORKDIR /app
 
 # -----------------------------------------------------------------------------
-# Stage: copy source and run server
+# Stage: runner - final runtime image
 # -----------------------------------------------------------------------------
 FROM base AS runner
 WORKDIR /app
@@ -47,8 +69,8 @@ COPY packages/validators/package.json ./packages/validators/
 COPY tooling/typescript-config/package.json ./tooling/typescript-config/
 COPY tooling/eslint-config/package.json ./tooling/eslint-config/
 
-# Install production dependencies only
-RUN bun install
+# Copy pre-built node_modules from builder stage (includes compiled mediasoup worker)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy source for server and all packages it depends on
 COPY apps/server/ ./apps/server/
@@ -60,6 +82,12 @@ COPY tooling/typescript-config/ ./tooling/typescript-config/
 
 # Overlay generated Prisma client (built in prisma stage; not in context due to .gitignore)
 COPY --from=prisma /app/packages/store/generated ./packages/store/generated
+
+# Final verification that mediasoup worker exists in runtime image
+RUN echo "=== Final verification of mediasoup worker ===" && \
+    ls -la node_modules/mediasoup/worker/out/Release/ && \
+    test -f node_modules/mediasoup/worker/out/Release/mediasoup-worker && \
+    echo "=== mediasoup-worker ready for runtime ==="
 
 ENV NODE_ENV=production
 EXPOSE 8082
