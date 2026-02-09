@@ -371,7 +371,7 @@ export const mediasoupRouter = router({
           },
         ],
         enableUdp: true,
-        enableTcp: true,
+        enableTcp: false,
         preferUdp: true,
         appData: { userId: ctx.user.userId, direction: input.direction },
       });
