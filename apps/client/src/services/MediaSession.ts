@@ -4,6 +4,11 @@ import { getTrpcClient } from "../../app/lib/trpc";
 import { phaserEvents, Event } from "../events/EventCenter";
 import Network from "./Network";
 
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+];
+
 type ProximityAction =
   | {
       type: "consume";
@@ -140,18 +145,20 @@ export default class MediaSession {
       direction: "send",
     });
 
-    this.sendTransport = this.device.createSendTransport(
-      sendTransportInfo as types.TransportOptions,
-    );
+    this.sendTransport = this.device.createSendTransport({
+      ...(sendTransportInfo as types.TransportOptions),
+      iceServers: ICE_SERVERS,
+    });
     this.bindTransportEvents(this.sendTransport);
 
     const recvTransportInfo = await client.mediasoup.createTransport.mutate({
       direction: "recv",
     });
 
-    this.recvTransport = this.device.createRecvTransport(
-      recvTransportInfo as types.TransportOptions,
-    );
+    this.recvTransport = this.device.createRecvTransport({
+      ...(recvTransportInfo as types.TransportOptions),
+      iceServers: ICE_SERVERS,
+    });
     this.bindTransportEvents(this.recvTransport);
   }
 
