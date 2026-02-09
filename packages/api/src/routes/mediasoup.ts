@@ -101,6 +101,11 @@ const meetingStates = new Map<string, MeetingState>();
 const MEETING_TIMEOUT_MS = 15000;
 const MEETING_COOLDOWN_MS = 10000;
 
+const MEDIASOUP_RTC_MIN_PORT =
+  Number(process.env.MEDIASOUP_RTC_MIN_PORT ?? "40000") || 40000;
+const MEDIASOUP_RTC_MAX_PORT =
+  Number(process.env.MEDIASOUP_RTC_MAX_PORT ?? "40100") || 40100;
+
 let worker: Worker | null = null;
 let routerInstance: Router | null = null;
 let routerInitPromise: Promise<Router> | null = null;
@@ -302,7 +307,18 @@ async function getRouter(): Promise<Router> {
   routerInitPromise = (async () => {
     worker = await mediasoup.createWorker({
       logLevel: "warn",
+      rtcMinPort: MEDIASOUP_RTC_MIN_PORT,
+      rtcMaxPort: MEDIASOUP_RTC_MAX_PORT,
     });
+
+    console.log(
+      "[mediasoup] Worker created",
+      JSON.stringify({
+        rtcMinPort: MEDIASOUP_RTC_MIN_PORT,
+        rtcMaxPort: MEDIASOUP_RTC_MAX_PORT,
+        announcedIp: MEDIASOUP_ANNOUNCED_IP || null,
+      }),
+    );
 
     worker.on("died", () => {
       console.error("mediasoup worker died, exiting in 2s...");
@@ -350,7 +366,7 @@ export const mediasoupRouter = router({
       const transport = await router.createWebRtcTransport({
         listenIps: [
           {
-            ip: MEDIASOUP_LISTEN_IP,
+            ip: "0.0.0.0",
             announcedIp: MEDIASOUP_ANNOUNCED_IP || undefined,
           },
         ],
