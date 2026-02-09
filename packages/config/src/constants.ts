@@ -13,18 +13,29 @@ export const BACKEND_URL =
       : // VPS production (frontend → dedicated backend host)
         window.location.hostname === "metaverse.raashed.xyz"
         ? "https://game-server.raashed.xyz"
-        : // K8s production (same-origin API via ingress)
+        : // K8s production (frontend → dedicated backend host)
           window.location.hostname === "k8s-metaverse.raashed.xyz"
-          ? "https://k8s-metaverse.raashed.xyz"
+          ? "https://k8s-game-server.raashed.xyz"
           : // fallback (safe default)
             `https://${window.location.host}`
     : `http://localhost:${BACKEND_PORT}`;
 
 // Frontend
 export const FRONTEND_PORT = 3001;
-export const FRONTEND_URL = isProduction
-  ? "https://metaverse.raashed.xyz"
-  : `http://localhost:${FRONTEND_PORT}`;
+export const FRONTEND_URL =
+  typeof window !== "undefined"
+    ? window.location.hostname === "localhost"
+      ? `http://localhost:${FRONTEND_PORT}`
+      : window.location.hostname === "k8s-metaverse.raashed.xyz"
+        ? "https://k8s-metaverse.raashed.xyz"
+        : window.location.hostname === "metaverse.raashed.xyz"
+          ? "https://metaverse.raashed.xyz"
+          : isProduction
+            ? "https://metaverse.raashed.xyz"
+            : `http://localhost:${FRONTEND_PORT}`
+    : isProduction
+      ? "https://metaverse.raashed.xyz"
+      : `http://localhost:${FRONTEND_PORT}`;
 
 // WebSocket (World Server)
 export const WS_PORT = 8083;
@@ -35,9 +46,9 @@ export const WS_URL =
       : // VPS production (frontend → dedicated WS host)
         window.location.hostname === "metaverse.raashed.xyz"
         ? "wss://game.raashed.xyz/ws"
-        : // K8s production (same-origin WS via ingress)
+        : // K8s production (frontend → dedicated WS host)
           window.location.hostname === "k8s-metaverse.raashed.xyz"
-          ? "wss://k8s-metaverse.raashed.xyz/ws"
+          ? "wss://k8s-game.raashed.xyz/ws"
           : // fallback (safe default)
             `wss://${window.location.host}/ws`
     : `ws://localhost:${WS_PORT}/ws`;
@@ -48,6 +59,9 @@ export const CORS_ORIGINS = [
   "https://metaverse.raashed.xyz",
   "https://game.raashed.xyz",
   "https://raashed.xyz",
+  "https://k8s-metaverse.raashed.xyz",
+  "https://k8s-game-server.raashed.xyz",
+  "https://k8s-game.raashed.xyz",
 ];
 
 // GitHub OAuth URLs
