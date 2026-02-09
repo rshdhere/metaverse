@@ -4,10 +4,57 @@ import { getTrpcClient } from "../../app/lib/trpc";
 import { phaserEvents, Event } from "../events/EventCenter";
 import Network from "./Network";
 
-const ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-];
+/**
+ * ICE Server Configuration for WebRTC
+ *
+ * Why both STUN and TURN?
+ * - STUN: Discovers your public IP (server-reflexive candidates). Fast, low latency.
+ *         Works when direct UDP connectivity exists between peers and SFU.
+ * - TURN: Relays media when direct connectivity fails (relay candidates).
+ *         Required when symmetric NAT, strict firewalls, or K8s networking blocks UDP.
+ *
+ * ICE will try candidates in order of priority: host > srflx > relay
+ * TURN is only used as fallback when STUN-discovered paths fail.
+ */
+function buildIceServers(): RTCIceServer[] {
+  const servers: RTCIceServer[] = [
+    // STUN servers (always enabled for server-reflexive candidate discovery)
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ];
+
+  // TURN server (relay fallback for restricted networks / Kubernetes)
+  // Set these env vars in production to enable TURN:
+  //   NEXT_PUBLIC_TURN_URL=turn:your-turn-server.com:3478
+  //   NEXT_PUBLIC_TURN_USERNAME=username
+  //   NEXT_PUBLIC_TURN_CREDENTIAL=credential
+  const turnUrl = process.env.NEXT_PUBLIC_TURN_URL;
+  const turnUsername = process.env.NEXT_PUBLIC_TURN_USERNAME;
+  const turnCredential = process.env.NEXT_PUBLIC_TURN_CREDENTIAL;
+
+  if (turnUrl && turnUsername && turnCredential) {
+    servers.push({
+      urls: turnUrl,
+      username: turnUsername,
+      credential: turnCredential,
+    });
+
+    // Also add TURNS (TLS) if using standard TURN port
+    // Many TURN servers support both turn: and turns: on different ports
+    const turnsUrl = process.env.NEXT_PUBLIC_TURNS_URL;
+    if (turnsUrl) {
+      servers.push({
+        urls: turnsUrl,
+        username: turnUsername,
+        credential: turnCredential,
+      });
+    }
+  }
+
+  return servers;
+}
+
+const ICE_SERVERS: RTCIceServer[] = buildIceServers();
 
 type ProximityAction =
   | {
