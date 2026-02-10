@@ -49,9 +49,11 @@ COPY tooling/eslint-config/package.json ./tooling/eslint-config/
 # Prisma/engines postinstall is not needed here and can fail under legacy Node.
 RUN bun install --ignore-scripts
 
-# Manually build mediasoup worker (bun doesn't reliably run postinstall scripts)
-# Build the worker explicitly with Bun.
-RUN cd node_modules/mediasoup && bun npm-scripts.mjs worker:build
+# Manually build mediasoup worker (without JS postinstall wrappers).
+# Install Python invoke globally, then run mediasoup's worker task directly.
+RUN python3 -m pip install --upgrade --no-user invoke && \
+    cd node_modules/mediasoup && \
+    python3 -m invoke -r worker mediasoup-worker
 
 # Verify mediasoup worker binary was built
 RUN echo "=== Verifying mediasoup worker binary ===" && \
