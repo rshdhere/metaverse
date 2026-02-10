@@ -117,6 +117,8 @@ type IceServer = {
 };
 
 /**
+ * TURN is optional fallback only.
+ * Direct UDP is the default and preferred path.
  * Get ICE servers configuration.
  * - Kubernetes: Fetches short-lived TURN credentials from Cloudflare
  * - VPS/Local: Returns STUN-only config
@@ -473,8 +475,7 @@ export const mediasoupRouter = router({
       return {
         routerRtpCapabilities: router.rtpCapabilities,
         iceServers,
-        // Force relay mode in Kubernetes (TURN TCP only, no STUN/UDP)
-        forceRelay: RUNTIME === "kubernetes",
+        forceRelay: false,
       };
     }),
 
@@ -501,11 +502,9 @@ export const mediasoupRouter = router({
             announcedIp: MEDIASOUP_ANNOUNCED_IP || undefined,
           },
         ],
-        // Kubernetes: TCP-only for TURN/TCP stability
-        // VPS/local: UDP for direct low-latency connections
-        enableUdp: !isKubernetes,
-        enableTcp: isKubernetes,
-        preferUdp: !isKubernetes,
+        enableUdp: true,
+        enableTcp: true,
+        preferUdp: true,
         enableSctp: isKubernetes ? false : undefined,
         // Lower initial bitrate for TCP to prevent congestion-induced stalls
         initialAvailableOutgoingBitrate: isKubernetes ? 250_000 : undefined,
