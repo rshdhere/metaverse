@@ -124,37 +124,74 @@ async function getIceServers(): Promise<IceServer[]> {
   // Default STUN-only config (works for VPS with direct connectivity)
   const stunServers: IceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
+  // Debug: Log environment state
+  console.log("[ICE] RUNTIME:", RUNTIME);
+  console.log("[ICE] CF_TURN_TOKEN_ID present:", !!CF_TURN_TOKEN_ID);
+  console.log("[ICE] CF_TURN_API_TOKEN present:", !!CF_TURN_API_TOKEN);
+
   // Only fetch TURN credentials in Kubernetes
-  if (RUNTIME !== "kubernetes" || !CF_TURN_TOKEN_ID || !CF_TURN_API_TOKEN) {
+  if (RUNTIME !== "kubernetes") {
+    console.log("[ICE] Skipping TURN: RUNTIME is not 'kubernetes'");
     return stunServers;
   }
 
-  try {
-    const response = await fetch(
-      `https://rtc.live.cloudflare.com/v1/turn/keys/${CF_TURN_TOKEN_ID}/credentials/generate`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${CF_TURN_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ttl: 3600 }),
-      },
+  if (!CF_TURN_TOKEN_ID || !CF_TURN_API_TOKEN) {
+    console.log(
+      "[ICE] Skipping TURN: Missing CF_TURN_TOKEN_ID or CF_TURN_API_TOKEN",
     );
+    return stunServers;
+  }
+
+  const apiUrl = `https://rtc.live.cloudflare.com/v1/turn/keys/${CF_TURN_TOKEN_ID}/credentials/generate`;
+  console.log("[ICE] Cloudflare TURN API URL:", apiUrl);
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${CF_TURN_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ttl: 3600 }),
+    });
+
+    console.log("[ICE] Cloudflare API response status:", response.status);
+
+    const responseText = await response.text();
+    console.log("[ICE] Cloudflare API response body:", responseText);
 
     if (!response.ok) {
       console.error(
-        `Cloudflare TURN API error: ${response.status} ${response.statusText}`,
+        `[ICE] Cloudflare TURN API error: ${response.status} ${response.statusText}`,
       );
       return stunServers;
     }
 
-    const data = (await response.json()) as { iceServers: IceServer[] };
+    const data = JSON.parse(responseText) as { iceServers: IceServer[] };
+
+    if (!data.iceServers || !Array.isArray(data.iceServers)) {
+      console.error(
+        "[ICE] Cloudflare response missing iceServers array:",
+        data,
+      );
+      return stunServers;
+    }
+
+    console.log(
+      "[ICE] Successfully retrieved TURN servers:",
+      data.iceServers.length,
+    );
+
     // Cloudflare returns iceServers array with TURN credentials
     // Prepend STUN for faster connectivity when possible
-    return [...stunServers, ...data.iceServers];
+    const combined = [...stunServers, ...data.iceServers];
+    console.log(
+      "[ICE] Returning combined ICE servers:",
+      JSON.stringify(combined),
+    );
+    return combined;
   } catch (error) {
-    console.error("Failed to fetch Cloudflare TURN credentials:", error);
+    console.error("[ICE] Failed to fetch Cloudflare TURN credentials:", error);
     return stunServers;
   }
 }

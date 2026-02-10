@@ -140,6 +140,8 @@ export default class MediaSession {
       direction: "send",
     });
 
+    console.log("ICE SERVERS FROM BACKEND:", iceServers);
+
     this.sendTransport = this.device.createSendTransport({
       ...(sendTransportInfo as types.TransportOptions),
       iceServers: iceServers as RTCIceServer[],
