@@ -464,24 +464,7 @@ export default class MediaSession {
 
     if (this.forceRelay) {
       // In relay mode keep media graph immutable; only update UI visibility.
-      if (!action.enabled) {
-        for (const [producerId, owner] of this.producerOwners) {
-          if (owner !== action.peerId) continue;
-          const video = this.videoElementsByProducerId.get(producerId);
-          if (video) {
-            video.style.opacity = "0.15";
-          }
-        }
-      } else {
-        for (const [producerId, owner] of this.producerOwners) {
-          if (owner !== action.peerId) continue;
-          const video = this.videoElementsByProducerId.get(producerId);
-          if (video) {
-            video.style.opacity = "1";
-          }
-        }
-      }
-      return;
+      // logic removed to allow full teardown/re-creation on toggle
     }
 
     // When peer disables camera, immediately cleanup their video consumer
@@ -570,12 +553,6 @@ export default class MediaSession {
             this.pendingActions.push(action);
             break;
           }
-          if (this.forceRelay) {
-            console.log(
-              "[WebRTC] Relay mode: skipping resume action to avoid renegotiation",
-            );
-            break;
-          }
           await this.resumeConsumer(action.producerId, action.kind);
           break;
         case "pause":
@@ -583,23 +560,11 @@ export default class MediaSession {
             this.pendingActions.push(action);
             break;
           }
-          if (this.forceRelay) {
-            console.log(
-              "[WebRTC] Relay mode: skipping pause action to avoid renegotiation",
-            );
-            break;
-          }
           await this.pauseConsumer(action.producerId, action.kind);
           break;
         case "stop":
           if (!canHandleMedia) {
             this.pendingActions.push(action);
-            break;
-          }
-          if (this.forceRelay) {
-            console.log(
-              "[WebRTC] Relay mode: skipping stop action to avoid renegotiation",
-            );
             break;
           }
           await this.stopConsumer(action.producerId, action.kind);
@@ -918,10 +883,8 @@ export default class MediaSession {
 
     this.videoRecoveryTimers.set(producerId, timeoutId);
 
-    // In relay mode, never close/re-consume video (immutable media topology).
-    if (this.forceRelay) {
-      return;
-    }
+    // Allowing re-consumption in relay mode now as it is better than dead video.
+    // if (this.forceRelay) return;
 
     // Re-consume timer: Only schedule if NOT in grace period (15s instead of 6s)
     if (!isInGracePeriod) {
@@ -1336,26 +1299,19 @@ export default class MediaSession {
     }
 
     if (this.forceRelay && currentState?.status === "ACTIVE") {
+      // Only log but proceed - we might need to re-fetch if previously failed
       console.log(
-        `[WebRTC] Relay mode: skipping duplicate meetingStart for peer ${peerId}`,
+        `[WebRTC] Relay mode: meetingStart received for active peer ${peerId}`,
       );
-      return;
     }
 
     await this.enableCamera();
 
     // Explicitly fetch ALL media (audio + video) when meeting starts
-
-    if (!this.forceRelay) {
-      try {
-        await this.fetchAndConsumePeer(action.peerId); // No kind filter = all
-      } catch (err) {
-        console.error("Error fetching peer media during meeting start:", err);
-      }
-    } else {
-      console.log(
-        `[WebRTC] Relay mode: skipping meetingStart fetch for peer ${action.peerId}`,
-      );
+    try {
+      await this.fetchAndConsumePeer(action.peerId); // No kind filter = all
+    } catch (err) {
+      console.error("Error fetching peer media during meeting start:", err);
     }
 
     // Delay setting ACTIVE until media is assumed ready (or failed).
@@ -1376,10 +1332,8 @@ export default class MediaSession {
     }
 
     // Note: ensureRemoteVideoForPeer removed since fetchAndConsumePeer above already fetches video
-    // The watchdog below provides fallback retry if video doesn't arrive
-    if (!this.forceRelay) {
-      this.startMeetingVideoWatchdog(peerId);
-    }
+    // The watchdog provides fallback retry if video doesn't arrive
+    this.startMeetingVideoWatchdog(peerId);
 
     phaserEvents.emit(Event.NAVIGATE_TO_SITTING_AREA);
   }
@@ -1418,13 +1372,8 @@ export default class MediaSession {
     }
 
     // In relay mode keep media graph immutable; only update state/UI.
-    if (!this.forceRelay) {
-      await this.stopPeerMedia(action.peerId);
-    } else {
-      console.log(
-        `[WebRTC] Relay mode: skipping meetingEnd media teardown for peer ${action.peerId}`,
-      );
-    }
+    // Actually, we should teardown to free resources, renegotiation is fine now.
+    await this.stopPeerMedia(action.peerId);
 
     // Notify Game scene to return player to original position
     phaserEvents.emit(Event.MEETING_ENDED);
@@ -1469,12 +1418,8 @@ export default class MediaSession {
       }
     } else if (action.media === "video") {
       if (isCypress) return; // Skip video backend calls in Cypress
-      if (this.forceRelay) {
-        console.log(
-          `[WebRTC] Relay mode: skipping video ${action.type} on proximity for peer ${action.peerId}`,
-        );
-        return;
-      }
+      // if (this.forceRelay) return; <-- Removed restriction
+
       if (action.type === "enter") {
         await this.fetchAndConsumePeer(action.peerId, "video");
       } else {

@@ -375,7 +375,9 @@ function enqueueConsumeOrResume(
   );
   if (existingConsumer) {
     existingConsumer.resume();
-    if (!isKubernetes && producer.kind === "video") {
+    // Always request keyframe on resume for video, regardless of runtime
+    // This is critical for the decoder to start rendering
+    if (producer.kind === "video") {
       try {
         existingConsumer.requestKeyFrame();
       } catch (error) {
@@ -821,16 +823,14 @@ export const mediasoupRouter = router({
 
       await consumer.resume();
 
-      if (RUNTIME === "kubernetes" && consumer.kind === "video") {
-        console.log(
-          `[Consumer] Kubernetes relay mode: resumed video consumer without server keyframe request (${consumer.id})`,
-        );
-        return { success: true };
-      }
-
       if (consumer.kind === "video") {
         try {
           await consumer.requestKeyFrame();
+          if (RUNTIME === "kubernetes") {
+            console.log(
+              `[Consumer] K8s relay mode: Resumed video consumer + requested keyframe (${consumer.id})`,
+            );
+          }
         } catch (error) {
           console.warn("Failed to request keyframe on resume:", error);
         }
@@ -848,12 +848,8 @@ export const mediasoupRouter = router({
         return { success: true };
       }
 
-      if (RUNTIME === "kubernetes") {
-        console.log(
-          `[Consumer] Kubernetes relay mode: skipping explicit keyframe request for ${consumer.id}`,
-        );
-        return { success: true };
-      }
+      // Always allow explicit keyframe requests - they are cheap and essential for recovery
+      // if (RUNTIME === "kubernetes") { ... }  <-- REMOVED BLOCK
 
       try {
         await consumer.requestKeyFrame();
@@ -935,17 +931,8 @@ export const mediasoupRouter = router({
       }
 
       if (state.acceptA && state.acceptB) {
-        if (RUNTIME === "kubernetes") {
-          const lastStartedAt = meetingStartDebounceByKey.get(meetingKey) ?? 0;
-          const nowMs = Date.now();
-          if (nowMs - lastStartedAt < 3000) {
-            console.log(
-              `[Meeting] Kubernetes relay mode: skipping duplicate meetingStart for ${meetingKey}`,
-            );
-            return { success: true };
-          }
-          meetingStartDebounceByKey.set(meetingKey, nowMs);
-        }
+        // Remove aggressive debounce that might drop valid meeting starts
+        // if (RUNTIME === "kubernetes") { ... } <-- REMOVED BLOCK
 
         state.active = true;
         state.requestId = "";
