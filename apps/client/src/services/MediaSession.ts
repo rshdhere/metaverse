@@ -40,6 +40,16 @@ type ProximityAction =
       enabled: boolean;
     };
 
+type RelayEncodingParameters = RTCRtpEncodingParameters & {
+  networkPriority?: RTCPriorityType;
+  priority?: RTCPriorityType;
+  adaptivePtime?: boolean;
+};
+
+type RelaySendParameters = RTCRtpSendParameters & {
+  degradationPreference?: RTCDegradationPreference;
+};
+
 export default class MediaSession {
   private device?: Device;
   private sendTransport?: types.Transport;
@@ -154,11 +164,16 @@ export default class MediaSession {
     console.log("[ICE] iceServers from backend:", iceServers);
     console.log("[ICE] forceRelay:", forceRelay);
 
+    // Use a simple STUN configuration on the client so that
+    // host + server-reflexive candidates are allowed and TURN
+    // (if configured elsewhere) is not forced.
+    const rtcIceServers: RTCIceServer[] = [
+      { urls: "stun:stun.l.google.com:19302" },
+    ];
+
     this.sendTransport = this.device.createSendTransport({
       ...(sendTransportInfo as types.TransportOptions),
-      iceServers: iceServers as RTCIceServer[],
-      // Force relay in Kubernetes (TURN TCP only, no STUN/UDP candidates)
-      ...(forceRelay && { iceTransportPolicy: "relay" as const }),
+      iceServers: rtcIceServers,
     });
     this.bindTransportEvents(this.sendTransport);
 
@@ -168,9 +183,7 @@ export default class MediaSession {
 
     this.recvTransport = this.device.createRecvTransport({
       ...(recvTransportInfo as types.TransportOptions),
-      iceServers: iceServers as RTCIceServer[],
-      // Force relay in Kubernetes (TURN TCP only, no STUN/UDP candidates)
-      ...(forceRelay && { iceTransportPolicy: "relay" as const }),
+      iceServers: rtcIceServers,
     });
     this.bindTransportEvents(this.recvTransport);
 
@@ -268,7 +281,7 @@ export default class MediaSession {
 
     this.localVideoStream = stream;
 
-    const produceOptions: any = this.forceRelay
+    const produceOptions = this.forceRelay
       ? {
           track,
           encodings: [
@@ -291,13 +304,14 @@ export default class MediaSession {
         if (!params.encodings || params.encodings.length === 0) {
           params.encodings = [{}];
         }
-        const [encoding] = params.encodings;
+        const relayParams = params as RelaySendParameters;
+        const [encoding] = relayParams.encodings as RelayEncodingParameters[];
         // Force Chrome into conservative, non-probing behavior for TURN/TCP
-        (encoding as any).networkPriority = "low";
-        (encoding as any).priority = "low";
-        (encoding as any).adaptivePtime = false;
-        (params as any).degradationPreference = "maintain-framerate";
-        await sender.setParameters(params);
+        encoding.networkPriority = "low";
+        encoding.priority = "low";
+        encoding.adaptivePtime = false;
+        relayParams.degradationPreference = "maintain-framerate";
+        await sender.setParameters(relayParams);
         console.log(
           "[WebRTC] Updated RTP sender params for TCP TURN (low priority, maintain-framerate)",
         );
