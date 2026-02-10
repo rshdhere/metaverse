@@ -11,6 +11,8 @@ export const createDeviceOutputSchema = z.object({
   routerRtpCapabilities: z.unknown(),
   // ICE servers for WebRTC (STUN/TURN)
   iceServers: z.array(iceServerSchema),
+  // Force relay mode (TURN only, no STUN/direct) - used in Kubernetes
+  forceRelay: z.boolean().optional(),
 });
 
 export const createTransportInputSchema = z.object({

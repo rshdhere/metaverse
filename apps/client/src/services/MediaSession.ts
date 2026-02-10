@@ -128,7 +128,7 @@ export default class MediaSession {
 
   private async initializeDeviceAndTransports() {
     const client = getTrpcClient();
-    const { routerRtpCapabilities, iceServers } =
+    const { routerRtpCapabilities, iceServers, forceRelay } =
       await client.mediasoup.createDevice.query();
 
     this.device = new Device();
@@ -140,13 +140,14 @@ export default class MediaSession {
       direction: "send",
     });
 
-    console.log("ICE SERVERS FROM BACKEND:", iceServers);
+    console.log("[ICE] iceServers from backend:", iceServers);
+    console.log("[ICE] forceRelay:", forceRelay);
 
     this.sendTransport = this.device.createSendTransport({
       ...(sendTransportInfo as types.TransportOptions),
       iceServers: iceServers as RTCIceServer[],
-      // Uncomment for debugging: forces TURN relay (bypasses STUN/direct)
-      // iceTransportPolicy: "relay",
+      // Force relay in Kubernetes (TURN TCP only, no STUN/UDP candidates)
+      ...(forceRelay && { iceTransportPolicy: "relay" as const }),
     });
     this.bindTransportEvents(this.sendTransport);
 
@@ -157,8 +158,8 @@ export default class MediaSession {
     this.recvTransport = this.device.createRecvTransport({
       ...(recvTransportInfo as types.TransportOptions),
       iceServers: iceServers as RTCIceServer[],
-      // Uncomment for debugging: forces TURN relay (bypasses STUN/direct)
-      // iceTransportPolicy: "relay",
+      // Force relay in Kubernetes (TURN TCP only, no STUN/UDP candidates)
+      ...(forceRelay && { iceTransportPolicy: "relay" as const }),
     });
     this.bindTransportEvents(this.recvTransport);
   }

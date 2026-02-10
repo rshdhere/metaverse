@@ -186,14 +186,30 @@ async function getIceServers(): Promise<IceServer[]> {
       turnServers.length,
     );
 
-    // Cloudflare returns iceServers with TURN credentials
-    // Prepend STUN for faster connectivity when possible
-    const combined = [...stunServers, ...turnServers];
+    // In Kubernetes: Use ONLY TURN over TCP for stability (no STUN, no UDP)
+    // Filter to keep only turns: URLs with transport=tcp
+    const tcpOnlyServers: IceServer[] = turnServers.map((server) => {
+      const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+      let tcpUrls = urls.filter(
+        (url) => url.startsWith("turns:") && url.includes("transport=tcp"),
+      );
+      // If no TCP URLs found, construct one as fallback
+      if (tcpUrls.length === 0) {
+        tcpUrls = ["turns:turn.cloudflare.com:5349?transport=tcp"];
+      }
+      const finalUrls: string | string[] =
+        tcpUrls.length === 1 ? tcpUrls[0]! : tcpUrls;
+      return {
+        ...server,
+        urls: finalUrls,
+      };
+    });
+
     console.log(
-      "[ICE] Returning combined ICE servers:",
-      JSON.stringify(combined),
+      "[ICE] Returning TCP-only TURN servers (K8s):",
+      JSON.stringify(tcpOnlyServers),
     );
-    return combined;
+    return tcpOnlyServers;
   } catch (error) {
     console.error("[ICE] Failed to fetch Cloudflare TURN credentials:", error);
     return stunServers;
@@ -453,6 +469,8 @@ export const mediasoupRouter = router({
       return {
         routerRtpCapabilities: router.rtpCapabilities,
         iceServers,
+        // Force relay mode in Kubernetes (TURN TCP only, no STUN/UDP)
+        forceRelay: RUNTIME === "kubernetes",
       };
     }),
 
