@@ -7,7 +7,15 @@
 # Stage: base image (Debian-based for native module compatibility)
 # Alpine uses musl libc which causes issues with native modules like mediasoup
 # -----------------------------------------------------------------------------
-FROM oven/bun:1-debian AS base
+FROM oven/bun:1.1.8 AS base
+
+# Ensure system CA certificates are present so HTTPS (e.g. Kubernetes, TURN, etc.)
+# works correctly inside the container.
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # -----------------------------------------------------------------------------
