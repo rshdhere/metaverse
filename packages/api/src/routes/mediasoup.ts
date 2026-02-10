@@ -101,6 +101,7 @@ type MeetingState = {
 };
 
 const meetingStates = new Map<string, MeetingState>();
+const meetingStartDebounceByKey = new Map<string, number>();
 const MEETING_TIMEOUT_MS = 15000;
 const MEETING_COOLDOWN_MS = 10000;
 
@@ -727,21 +728,28 @@ export const mediasoupRouter = router({
         });
       }
 
+      const existingConsumer = peerState.consumersByProducerId.get(
+        input.producerId,
+      );
+      if (existingConsumer && !existingConsumer.closed) {
+        if (RUNTIME === "kubernetes") {
+          console.log(
+            `[Consumer] Kubernetes relay mode: reusing existing consumer for producer=${input.producerId}`,
+          );
+        }
+        return {
+          id: existingConsumer.id,
+          producerId: input.producerId,
+          kind: existingConsumer.kind,
+          rtpParameters: existingConsumer.rtpParameters,
+        };
+      }
+
       const consumer = await transport.consume({
         producerId: input.producerId,
         rtpCapabilities: input.rtpCapabilities as ConsumerRtpCapabilities,
         paused: true,
       });
-
-      // In Kubernetes (TURN/TCP) ignore RTCP PLI/FIR to avoid keyframe storms.
-      if (RUNTIME === "kubernetes") {
-        (consumer as any).on("rtcp", () => {
-          // Intentionally no-op: keyframes are driven by client logic for TCP TURN.
-          return;
-        });
-      }
-
-      // Log the producer-consumer pairing for debugging
 
       peerState.consumers.set(consumer.id, consumer);
       peerState.consumersByProducerId.set(input.producerId, consumer);
@@ -813,6 +821,13 @@ export const mediasoupRouter = router({
 
       await consumer.resume();
 
+      if (RUNTIME === "kubernetes" && consumer.kind === "video") {
+        console.log(
+          `[Consumer] Kubernetes relay mode: resumed video consumer without server keyframe request (${consumer.id})`,
+        );
+        return { success: true };
+      }
+
       if (consumer.kind === "video") {
         try {
           await consumer.requestKeyFrame();
@@ -830,6 +845,13 @@ export const mediasoupRouter = router({
       const peerState = getPeerState(ctx.user.userId);
       const consumer = peerState.consumers.get(input.consumerId);
       if (!consumer || consumer.kind !== "video") {
+        return { success: true };
+      }
+
+      if (RUNTIME === "kubernetes") {
+        console.log(
+          `[Consumer] Kubernetes relay mode: skipping explicit keyframe request for ${consumer.id}`,
+        );
         return { success: true };
       }
 
@@ -913,12 +935,23 @@ export const mediasoupRouter = router({
       }
 
       if (state.acceptA && state.acceptB) {
+        if (RUNTIME === "kubernetes") {
+          const lastStartedAt = meetingStartDebounceByKey.get(meetingKey) ?? 0;
+          const nowMs = Date.now();
+          if (nowMs - lastStartedAt < 3000) {
+            console.log(
+              `[Meeting] Kubernetes relay mode: skipping duplicate meetingStart for ${meetingKey}`,
+            );
+            return { success: true };
+          }
+          meetingStartDebounceByKey.set(meetingKey, nowMs);
+        }
+
         state.active = true;
         state.requestId = "";
         state.expiresAt = 0;
         meetingStates.set(meetingKey, state);
         setMeetingActive(state.userA, state.userB, true);
-        enqueueMeetingStart(state.userA, state.userB);
         enqueueMeetingStart(state.userA, state.userB);
 
         enqueueMeetingMedia(state.userA, state.userB);
