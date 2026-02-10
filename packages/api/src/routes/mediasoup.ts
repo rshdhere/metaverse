@@ -367,13 +367,14 @@ function enqueueConsumeOrResume(
   producerUserId: string,
   producer: Producer,
 ) {
+  const isKubernetes = RUNTIME === "kubernetes";
   const consumerState = peers.get(consumerUserId);
   const existingConsumer = consumerState?.consumersByProducerId.get(
     producer.id,
   );
   if (existingConsumer) {
     existingConsumer.resume();
-    if (producer.kind === "video") {
+    if (!isKubernetes && producer.kind === "video") {
       try {
         existingConsumer.requestKeyFrame();
       } catch (error) {
@@ -498,18 +499,31 @@ export const mediasoupRouter = router({
           },
         ],
         // Kubernetes: TCP-only for TURN/TCP stability
-        // VPS: UDP for direct low-latency connections
+        // VPS/local: UDP for direct low-latency connections
         enableUdp: !isKubernetes,
         enableTcp: isKubernetes,
         preferUdp: !isKubernetes,
+        enableSctp: isKubernetes ? false : undefined,
         // Lower initial bitrate for TCP to prevent congestion-induced stalls
-        initialAvailableOutgoingBitrate: isKubernetes ? 300_000 : 1_000_000,
+        initialAvailableOutgoingBitrate: isKubernetes ? 250_000 : undefined,
         appData: { userId: ctx.user.userId, direction: input.direction },
       });
 
       if (isKubernetes) {
+        try {
+          await transport.setMaxIncomingBitrate(300_000);
+          console.log(
+            `[Transport] Set maxIncomingBitrate=300kbps for TCP transport id=${transport.id}`,
+          );
+        } catch (error) {
+          console.warn(
+            "[Transport] Failed to set maxIncomingBitrate on TCP transport:",
+            error,
+          );
+        }
+
         console.log(
-          `[Transport] TCP transport created: id=${transport.id}, initialBitrate=300kbps`,
+          `[Transport] TCP transport created: id=${transport.id}, initialOutgoingBitrate=250kbps, maxIncomingBitrate=300kbps`,
         );
       }
 
@@ -566,36 +580,75 @@ export const mediasoupRouter = router({
       const isKubernetes = RUNTIME === "kubernetes";
       let rtpParameters = input.rtpParameters as RtpParameters;
 
-      // In Kubernetes: Cap video bitrate for TURN/TCP stability
-      // Prevents congestion-induced stalls over TCP relay
-      if (isKubernetes && input.kind === "video") {
-        const maxVideoBitrate = 500_000; // 500 kbps max for TCP stability
-        console.log(
-          `[Producer] Applying video bitrate cap: ${maxVideoBitrate / 1000}kbps (K8s mode)`,
+      // In Kubernetes: prevent more than one video producer per peer.
+      // Ignore duplicate produce(video) calls to avoid thrashing TCP TURN.
+      if (isKubernetes && input.kind === "video" && peerState.videoProducer) {
+        console.warn(
+          `[Producer] Rejecting duplicate video producer for user=${ctx.user.userId} (existingProducerId=${peerState.videoProducer.id})`,
         );
-
-        // Clone and modify encodings to cap bitrate
-        rtpParameters = {
-          ...rtpParameters,
-          encodings: rtpParameters.encodings?.map((encoding) => ({
-            ...encoding,
-            maxBitrate: Math.min(
-              encoding.maxBitrate ?? maxVideoBitrate,
-              maxVideoBitrate,
-            ),
-          })),
+        return {
+          producerId: peerState.videoProducer.id,
+          kind: "video" as const,
         };
       }
 
-      const producer = await transport.produce({
+      // In Kubernetes: Cap video bitrate and disable simulcast / temporal layers
+      // - Single encoding only
+      // - maxBitrate hard cap: 350 kbps
+      // - No scalabilityMode (disables temporal layers)
+      if (isKubernetes && input.kind === "video") {
+        const maxVideoBitrate = 350_000; // 350 kbps max for TCP stability
+        console.log(
+          `[Producer] Applying TCP-safe video settings (K8s mode): maxBitrate=${maxVideoBitrate / 1000}kbps`,
+        );
+
+        const baseEncoding =
+          rtpParameters.encodings && rtpParameters.encodings[0]
+            ? rtpParameters.encodings[0]
+            : {};
+
+        const singleEncoding = {
+          ...baseEncoding,
+          maxBitrate: Math.min(
+            (baseEncoding as any).maxBitrate ?? maxVideoBitrate,
+            maxVideoBitrate,
+          ),
+          scalabilityMode: undefined,
+        };
+
+        rtpParameters = {
+          ...rtpParameters,
+          encodings: [singleEncoding],
+        };
+      }
+
+      const codecOptions =
+        isKubernetes && input.kind === "video"
+          ? {
+              // Conservative VP8 behavior for TURN/TCP
+              videoGoogleStartBitrate: 250_000,
+              videoGoogleMaxBitrate: 350_000,
+              // Approximate 4s keyframe interval
+              videoGoogleMaxKeyframeInterval: 4,
+            }
+          : undefined;
+
+      const produceOptions: any = {
         kind: input.kind,
         rtpParameters,
         appData: input.appData as AppData,
-      });
+      };
+      if (codecOptions) {
+        produceOptions.codecOptions = codecOptions;
+      }
+
+      const producer = await transport.produce(produceOptions);
 
       if (isKubernetes && input.kind === "video") {
         console.log(
-          `[Producer] Video producer created: id=${producer.id}, kind=${producer.kind}, encodings=${JSON.stringify(rtpParameters.encodings)}`,
+          `[Producer] Video producer created (K8s TCP mode): id=${producer.id}, encodings=${JSON.stringify(
+            rtpParameters.encodings,
+          )}`,
         );
       }
 
@@ -679,6 +732,14 @@ export const mediasoupRouter = router({
         rtpCapabilities: input.rtpCapabilities as ConsumerRtpCapabilities,
         paused: true,
       });
+
+      // In Kubernetes (TURN/TCP) ignore RTCP PLI/FIR to avoid keyframe storms.
+      if (RUNTIME === "kubernetes") {
+        (consumer as any).on("rtcp", () => {
+          // Intentionally no-op: keyframes are driven by client logic for TCP TURN.
+          return;
+        });
+      }
 
       // Log the producer-consumer pairing for debugging
 

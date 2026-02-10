@@ -44,6 +44,7 @@ export default class MediaSession {
   private device?: Device;
   private sendTransport?: types.Transport;
   private recvTransport?: types.Transport;
+  private forceRelay = false;
   private audioProducer?: types.Producer;
   private videoProducer?: types.Producer;
   private videoProducerId?: string;
@@ -130,6 +131,8 @@ export default class MediaSession {
     const client = getTrpcClient();
     const { routerRtpCapabilities, iceServers, forceRelay } =
       await client.mediasoup.createDevice.query();
+
+    this.forceRelay = !!forceRelay;
 
     this.device = new Device();
     await this.device.load({
@@ -229,9 +232,17 @@ export default class MediaSession {
     }
     if (!this.sendTransport || this.videoProducer) return;
 
+    const videoConstraints = this.forceRelay
+      ? {
+          width: { ideal: 640, max: 640 },
+          height: { ideal: 360, max: 360 },
+          frameRate: { ideal: 20, max: 20 },
+        }
+      : true;
+
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: true,
+      video: videoConstraints,
     });
     const track = stream.getVideoTracks()[0];
     if (!track) {
@@ -244,9 +255,47 @@ export default class MediaSession {
     };
 
     this.localVideoStream = stream;
-    this.videoProducer = await this.sendTransport.produce({ track });
+
+    const produceOptions: any = this.forceRelay
+      ? {
+          track,
+          encodings: [
+            {
+              maxBitrate: 350_000,
+              maxFramerate: 20,
+            },
+          ],
+        }
+      : { track };
+
+    this.videoProducer = await this.sendTransport.produce(produceOptions);
     this.videoProducerId = this.videoProducer.id;
     this.cameraEnabled = true;
+
+    if (this.forceRelay && this.videoProducer.rtpSender) {
+      try {
+        const sender = this.videoProducer.rtpSender as RTCRtpSender;
+        const params = sender.getParameters();
+        if (!params.encodings || params.encodings.length === 0) {
+          params.encodings = [{}];
+        }
+        const [encoding] = params.encodings;
+        // Force Chrome into conservative, non-probing behavior for TURN/TCP
+        (encoding as any).networkPriority = "low";
+        (encoding as any).priority = "low";
+        (encoding as any).adaptivePtime = false;
+        (params as any).degradationPreference = "maintain-framerate";
+        await sender.setParameters(params);
+        console.log(
+          "[WebRTC] Updated RTP sender params for TCP TURN (low priority, maintain-framerate)",
+        );
+      } catch (error) {
+        console.warn(
+          "[WebRTC] Failed to set RTP sender parameters for TCP TURN:",
+          error,
+        );
+      }
+    }
 
     this.attachLocalPreview(stream);
     this.network.sendCameraToggle(true);
