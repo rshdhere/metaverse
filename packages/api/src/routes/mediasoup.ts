@@ -110,6 +110,53 @@ const MEDIASOUP_RTC_MIN_PORT =
 const MEDIASOUP_RTC_MAX_PORT =
   Number(process.env.MEDIASOUP_RTC_MAX_PORT ?? "40100") || 40100;
 
+type KubernetesClientModule = typeof import("@kubernetes/client-node");
+
+let mediasoupAnnouncedIpPromise: Promise<string | undefined> | null = null;
+
+async function resolveMediasoupAnnouncedIp(): Promise<string | undefined> {
+  if (!mediasoupAnnouncedIpPromise) {
+    mediasoupAnnouncedIpPromise = (async () => {
+      if (RUNTIME !== "kubernetes") {
+        return MEDIASOUP_ANNOUNCED_IP || undefined;
+      }
+
+      const nodeName = process.env.K8S_NODE_NAME;
+      if (!nodeName) {
+        throw new Error(
+          "[mediasoup] K8S_NODE_NAME is required when RUNTIME is kubernetes",
+        );
+      }
+
+      let k8s: KubernetesClientModule;
+      try {
+        k8s =
+          (await import("@kubernetes/client-node")) as KubernetesClientModule;
+      } catch {
+        throw new Error(
+          "[mediasoup] @kubernetes/client-node is required when RUNTIME is kubernetes",
+        );
+      }
+
+      const kubeConfig = new k8s.KubeConfig();
+      kubeConfig.loadFromCluster();
+      const coreV1Api = kubeConfig.makeApiClient(k8s.CoreV1Api);
+      const node = await coreV1Api.readNode({ name: nodeName });
+      const externalIp = node.metadata?.labels?.["external-ip"];
+
+      if (!externalIp) {
+        throw new Error(
+          `[mediasoup] Missing node label "external-ip" for node "${nodeName}"`,
+        );
+      }
+
+      return externalIp;
+    })();
+  }
+
+  return mediasoupAnnouncedIpPromise;
+}
+
 type IceServer = {
   urls: string | string[];
   username?: string;
@@ -421,6 +468,11 @@ async function getRouter(): Promise<Router> {
   if (routerInitPromise) return routerInitPromise;
 
   routerInitPromise = (async () => {
+    const announcedIp = await resolveMediasoupAnnouncedIp();
+    console.log(
+      `[mediasoup] announcedIp resolved to: ${announcedIp ?? "undefined"}`,
+    );
+
     worker = await mediasoup.createWorker({
       logLevel: "warn",
       rtcMinPort: MEDIASOUP_RTC_MIN_PORT,
@@ -432,7 +484,6 @@ async function getRouter(): Promise<Router> {
       JSON.stringify({
         rtcMinPort: MEDIASOUP_RTC_MIN_PORT,
         rtcMaxPort: MEDIASOUP_RTC_MAX_PORT,
-        announcedIp: MEDIASOUP_ANNOUNCED_IP || null,
       }),
     );
 
@@ -484,6 +535,7 @@ export const mediasoupRouter = router({
     .output(transportParamsSchema)
     .mutation(async ({ ctx, input }) => {
       const router = await getRouter();
+      const announcedIp = await resolveMediasoupAnnouncedIp();
 
       // In Kubernetes: Use TCP-only transport for TURN/TCP stability
       // In VPS/local: Use UDP for low-latency direct connections
@@ -499,7 +551,7 @@ export const mediasoupRouter = router({
         listenIps: [
           {
             ip: "0.0.0.0",
-            announcedIp: MEDIASOUP_ANNOUNCED_IP || undefined,
+            announcedIp,
           },
         ],
         enableUdp: true,

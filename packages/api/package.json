@@ -26,6 +26,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@kubernetes/client-node": "^1.4.0",
     "@repo/config": "workspace:*",
     "@repo/store": "workspace:*",
     "@repo/validators": "workspace:*",
