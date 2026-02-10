@@ -167,24 +167,28 @@ async function getIceServers(): Promise<IceServer[]> {
       return stunServers;
     }
 
-    const data = JSON.parse(responseText) as { iceServers: IceServer[] };
+    const data = JSON.parse(responseText) as {
+      iceServers: IceServer | IceServer[];
+    };
 
-    if (!data.iceServers || !Array.isArray(data.iceServers)) {
-      console.error(
-        "[ICE] Cloudflare response missing iceServers array:",
-        data,
-      );
+    if (!data.iceServers) {
+      console.error("[ICE] Cloudflare response missing iceServers:", data);
       return stunServers;
     }
 
+    // Cloudflare returns iceServers as object, WebRTC expects array
+    const turnServers: IceServer[] = Array.isArray(data.iceServers)
+      ? data.iceServers
+      : [data.iceServers];
+
     console.log(
       "[ICE] Successfully retrieved TURN servers:",
-      data.iceServers.length,
+      turnServers.length,
     );
 
-    // Cloudflare returns iceServers array with TURN credentials
+    // Cloudflare returns iceServers with TURN credentials
     // Prepend STUN for faster connectivity when possible
-    const combined = [...stunServers, ...data.iceServers];
+    const combined = [...stunServers, ...turnServers];
     console.log(
       "[ICE] Returning combined ICE servers:",
       JSON.stringify(combined),
