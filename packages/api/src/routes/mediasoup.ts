@@ -4,6 +4,9 @@ import {
   WORLD_SERVER_SECRET,
   MEDIASOUP_LISTEN_IP,
   MEDIASOUP_ANNOUNCED_IP,
+  RUNTIME,
+  CF_TURN_TOKEN_ID,
+  CF_TURN_API_TOKEN,
 } from "@repo/config";
 import {
   closeConsumerInputSchema,
@@ -105,6 +108,56 @@ const MEDIASOUP_RTC_MIN_PORT =
   Number(process.env.MEDIASOUP_RTC_MIN_PORT ?? "40000") || 40000;
 const MEDIASOUP_RTC_MAX_PORT =
   Number(process.env.MEDIASOUP_RTC_MAX_PORT ?? "40100") || 40100;
+
+type IceServer = {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+};
+
+/**
+ * Get ICE servers configuration.
+ * - Kubernetes: Fetches short-lived TURN credentials from Cloudflare
+ * - VPS/Local: Returns STUN-only config
+ */
+async function getIceServers(): Promise<IceServer[]> {
+  // Default STUN-only config (works for VPS with direct connectivity)
+  const stunServers: IceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+
+  // Only fetch TURN credentials in Kubernetes
+  if (RUNTIME !== "kubernetes" || !CF_TURN_TOKEN_ID || !CF_TURN_API_TOKEN) {
+    return stunServers;
+  }
+
+  try {
+    const response = await fetch(
+      `https://rtc.live.cloudflare.com/v1/turn/keys/${CF_TURN_TOKEN_ID}/credentials/generate`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${CF_TURN_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ttl: 3600 }),
+      },
+    );
+
+    if (!response.ok) {
+      console.error(
+        `Cloudflare TURN API error: ${response.status} ${response.statusText}`,
+      );
+      return stunServers;
+    }
+
+    const data = (await response.json()) as { iceServers: IceServer[] };
+    // Cloudflare returns iceServers array with TURN credentials
+    // Prepend STUN for faster connectivity when possible
+    return [...stunServers, ...data.iceServers];
+  } catch (error) {
+    console.error("Failed to fetch Cloudflare TURN credentials:", error);
+    return stunServers;
+  }
+}
 
 let worker: Worker | null = null;
 let routerInstance: Router | null = null;
@@ -355,7 +408,11 @@ export const mediasoupRouter = router({
     .output(createDeviceOutputSchema)
     .query(async () => {
       const router = await getRouter();
-      return { routerRtpCapabilities: router.rtpCapabilities };
+      const iceServers = await getIceServers();
+      return {
+        routerRtpCapabilities: router.rtpCapabilities,
+        iceServers,
+      };
     }),
 
   createTransport: protectedProcedure

@@ -79,6 +79,13 @@ export const MEDIASOUP_ANNOUNCED_IP = getEnvVar(
   false,
 );
 
+// Runtime environment (set to "kubernetes" in K8s deployment)
+export const RUNTIME = getEnvVar("RUNTIME", false) || "vps";
+
+// Cloudflare TURN (only used when RUNTIME === "kubernetes")
+export const CF_TURN_TOKEN_ID = getEnvVar("CF_TURN_TOKEN_ID", false);
+export const CF_TURN_API_TOKEN = getEnvVar("CF_TURN_API_TOKEN", false);
+
 // Export all env vars as a single object for convenience
 export const env = {
   DATABASE_URL,
@@ -90,4 +97,7 @@ export const env = {
   RESEND_API_KEY,
   MEDIASOUP_LISTEN_IP,
   MEDIASOUP_ANNOUNCED_IP,
+  RUNTIME,
+  CF_TURN_TOKEN_ID,
+  CF_TURN_API_TOKEN,
 } as const;

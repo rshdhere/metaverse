@@ -1,8 +1,16 @@
 import { z } from "zod";
 
+const iceServerSchema = z.object({
+  urls: z.union([z.string(), z.array(z.string())]),
+  username: z.string().optional(),
+  credential: z.string().optional(),
+});
+
 export const createDeviceOutputSchema = z.object({
   // mediasoup Router RTP capabilities (opaque to the client)
   routerRtpCapabilities: z.unknown(),
+  // ICE servers for WebRTC (STUN/TURN)
+  iceServers: z.array(iceServerSchema),
 });
 
 export const createTransportInputSchema = z.object({
