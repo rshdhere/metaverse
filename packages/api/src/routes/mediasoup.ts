@@ -479,6 +479,17 @@ export const mediasoupRouter = router({
     .output(transportParamsSchema)
     .mutation(async ({ ctx, input }) => {
       const router = await getRouter();
+
+      // In Kubernetes: Use TCP-only transport for TURN/TCP stability
+      // In VPS/local: Use UDP for low-latency direct connections
+      const isKubernetes = RUNTIME === "kubernetes";
+
+      if (isKubernetes) {
+        console.log(
+          `[Transport] Creating TCP-only transport for ${input.direction} (K8s mode)`,
+        );
+      }
+
       const transport = await router.createWebRtcTransport({
         listenIps: [
           {
@@ -486,11 +497,21 @@ export const mediasoupRouter = router({
             announcedIp: MEDIASOUP_ANNOUNCED_IP || undefined,
           },
         ],
-        enableUdp: true,
-        enableTcp: false,
-        preferUdp: true,
+        // Kubernetes: TCP-only for TURN/TCP stability
+        // VPS: UDP for direct low-latency connections
+        enableUdp: !isKubernetes,
+        enableTcp: isKubernetes,
+        preferUdp: !isKubernetes,
+        // Lower initial bitrate for TCP to prevent congestion-induced stalls
+        initialAvailableOutgoingBitrate: isKubernetes ? 300_000 : 1_000_000,
         appData: { userId: ctx.user.userId, direction: input.direction },
       });
+
+      if (isKubernetes) {
+        console.log(
+          `[Transport] TCP transport created: id=${transport.id}, initialBitrate=300kbps`,
+        );
+      }
 
       transport.on("dtlsstatechange", (state: string) => {
         if (state === "closed") {
@@ -542,11 +563,41 @@ export const mediasoupRouter = router({
         });
       }
 
+      const isKubernetes = RUNTIME === "kubernetes";
+      let rtpParameters = input.rtpParameters as RtpParameters;
+
+      // In Kubernetes: Cap video bitrate for TURN/TCP stability
+      // Prevents congestion-induced stalls over TCP relay
+      if (isKubernetes && input.kind === "video") {
+        const maxVideoBitrate = 500_000; // 500 kbps max for TCP stability
+        console.log(
+          `[Producer] Applying video bitrate cap: ${maxVideoBitrate / 1000}kbps (K8s mode)`,
+        );
+
+        // Clone and modify encodings to cap bitrate
+        rtpParameters = {
+          ...rtpParameters,
+          encodings: rtpParameters.encodings?.map((encoding) => ({
+            ...encoding,
+            maxBitrate: Math.min(
+              encoding.maxBitrate ?? maxVideoBitrate,
+              maxVideoBitrate,
+            ),
+          })),
+        };
+      }
+
       const producer = await transport.produce({
         kind: input.kind,
-        rtpParameters: input.rtpParameters as RtpParameters,
+        rtpParameters,
         appData: input.appData as AppData,
       });
+
+      if (isKubernetes && input.kind === "video") {
+        console.log(
+          `[Producer] Video producer created: id=${producer.id}, kind=${producer.kind}, encodings=${JSON.stringify(rtpParameters.encodings)}`,
+        );
+      }
 
       if (producer.kind === "video") {
         if (
