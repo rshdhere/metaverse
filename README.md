@@ -1,65 +1,58 @@
 <div align="center">
-
   <p>
-    <img src="./apps/client/public/turborepo-icon-seeklogo.svg" alt="Turborepo" width="52" />
     <img src="https://bun.sh/logo.svg" alt="Bun" width="58" />
+    <img src="./apps/client/public/turborepo-icon-seeklogo.svg" alt="Turborepo" width="52" />
+    <img src="https://raw.githubusercontent.com/argoproj/argo-cd/master/docs/assets/logo.png" alt="Argo CD" width="56" />
     <img src="https://raw.githubusercontent.com/colinhacks/zod/main/logo.svg" alt="Zod" width="58" />
     <img src="https://trpc.io/img/logo.svg" alt="tRPC" width="52" />
+    <img src="https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.svg" alt="Kubernetes" width="56" />
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original.svg" alt="Go" width="52" />
     <img src="https://www.prisma.io/favicon.ico" alt="Prisma" width="52" />
   </p>
-
 </div>
 
-<div align="center">
+<h2 align="center">
+  2D METAVERSE
+</h2>
 
-## TURBOREPO + BUN + ZOD + TRPC + PRISMA
+<p align="center">
+In this space, people can hold meetings, collaborate, and communicate in real-time using voice and video, just like a office but in a browser. It offers an accessible alternative to gather.town while still enabling immersive social and professional interactions.
+</p>
 
-
-
-[![tRPC](https://github.com/user-attachments/assets/9565f06a-eb4f-48fc-9020-a7a8f0b3d6bd)](https://trpc.io)
-
-
-
-
+![metavers_github](https://github.com/user-attachments/assets/9b1ad394-aad1-4514-af95-cf2e6c95d85d)
 
 
-</div>
 
-## 1. Install Dependencies
 
-From the root of the monorepo, install all workspace dependencies :
+## Test Credentials
 
-```bash
-bun install
-```
+> [!TIP]
+> Use the following credentials to explore the platform instantly.
+>
+> **Email**
+> ```bash
+> dummy.samaltman@gmail.com
+> ```
+>
+> **Password**
+> ```bash
+> ClaudeBetter<3
+> ```
 
-## 2. Generate Prisma-Client
+---
+## Proof of Work
+ - Deployed on a Dedicated-VPS `metaverse.raashed.xyz` & A K8s cluster (for a limited time `k8s-metaverse.raashed.xyz`)
+ - ArgoCD Overview - https://youtu.be/LGtbMtsLiRU
+ - On a K8s Cluster - https://youtu.be/g7NB7Lq5Jhg
+ - Gitops Repository - https://github.com/rshdhere/staging-ops
 
-move to the `/store` package and generate the prisma-client :
 
-```bash
-bun run prisma:generate
-```
+## Tech Stack
 
-## 3. Environment variables
-
-move to the `/config` package and add your `.env` :
-
-```bash
-BACKEND_PORT=3001
-JWT_SECRET=your-jwt-secret
-DATABASE_URL=your-database-connection-string
-RESEND_API_KEY=your-resend-api-key
-CLIENT_ID_GITHUB=your-github-client-id
-CLIENT_SECRET_GITHUB=your-github-client-secret
-```
-## 4. Change address for email service
-
-move to the `/api` package, Inside `src/email.ts` change the "from-address" and update the "bold-tag" to your address/domain from **resend** and your labs page or your service name accordingly
-
-```bash
-from: "your-resend-email/domain"
-<b>your-name/your-email-service</b>!
-
-```
+- **Backend:** tRPC, Go
+- **Monorepo:** Turborepo
+- **Runtime:** Bun
+- **Database:** Prisma
+- **Validation:** Zod
+- **Infra:** VPS & K8s
 
