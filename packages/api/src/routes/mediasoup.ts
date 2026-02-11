@@ -54,11 +54,14 @@ type ConsumerRtpCapabilities = TransportConsumeParams["rtpCapabilities"];
 
 type PeerState = {
   transports: Map<string, WebRtcTransport>;
+  sendTransportId?: string;
+  recvTransportId?: string;
   audioProducers: Map<string, Producer>;
   videoProducer?: Producer;
   videoEnabled: boolean;
   consumers: Map<string, Consumer>;
   consumersByProducerId: Map<string, Consumer>;
+  consumerTransportByProducerId: Map<string, string>;
 };
 
 type ProximityAction =
@@ -310,13 +313,29 @@ function getPeerState(userId: string): PeerState {
   if (existing) return existing;
   const state: PeerState = {
     transports: new Map(),
+    sendTransportId: undefined,
+    recvTransportId: undefined,
     audioProducers: new Map(),
     videoEnabled: false,
     consumers: new Map(),
     consumersByProducerId: new Map(),
+    consumerTransportByProducerId: new Map(),
   };
   peers.set(userId, state);
   return state;
+}
+
+function removeConsumerMappings(
+  peerState: PeerState,
+  consumerId: string,
+  producerId: string,
+) {
+  peerState.consumers.delete(consumerId);
+  const mappedConsumer = peerState.consumersByProducerId.get(producerId);
+  if (mappedConsumer?.id === consumerId) {
+    peerState.consumersByProducerId.delete(producerId);
+    peerState.consumerTransportByProducerId.delete(producerId);
+  }
 }
 
 function getAudioProximitySet(userId: string): Set<string> {
@@ -571,6 +590,7 @@ export const mediasoupRouter = router({
     .mutation(async ({ ctx, input }) => {
       const router = await getRouter();
       const announcedIp = await resolveMediasoupAnnouncedIp();
+      const peerState = getPeerState(ctx.user.userId);
 
       // In Kubernetes: Use TCP-only transport for TURN/TCP stability
       // In VPS/local: Use UDP for low-latency direct connections
@@ -580,6 +600,41 @@ export const mediasoupRouter = router({
         console.log(
           `[Transport] Creating TCP-only transport for ${input.direction} (K8s mode)`,
         );
+      }
+
+      const previousTransportId =
+        input.direction === "send"
+          ? peerState.sendTransportId
+          : peerState.recvTransportId;
+
+      if (previousTransportId) {
+        const previousTransport = peerState.transports.get(previousTransportId);
+        if (previousTransport && !previousTransport.closed) {
+          try {
+            previousTransport.close();
+          } catch (error) {
+            console.warn(
+              `[Transport] Failed to close previous ${input.direction} transport (${previousTransportId}) for user=${ctx.user.userId}:`,
+              error,
+            );
+          }
+        }
+        peerState.transports.delete(previousTransportId);
+      }
+
+      // A fresh recv transport must not reuse consumers created on a previous
+      // transport, otherwise browser SDP can fail with duplicate m= mids.
+      if (input.direction === "recv" && peerState.consumers.size > 0) {
+        for (const consumer of peerState.consumers.values()) {
+          try {
+            consumer.close();
+          } catch {
+            // Ignore cleanup errors while replacing recv transport.
+          }
+        }
+        peerState.consumers.clear();
+        peerState.consumersByProducerId.clear();
+        peerState.consumerTransportByProducerId.clear();
       }
 
       const transport = await router.createWebRtcTransport({
@@ -619,11 +674,22 @@ export const mediasoupRouter = router({
       transport.on("dtlsstatechange", (state: string) => {
         if (state === "closed") {
           transport.close();
+          peerState.transports.delete(transport.id);
+          if (peerState.sendTransportId === transport.id) {
+            peerState.sendTransportId = undefined;
+          }
+          if (peerState.recvTransportId === transport.id) {
+            peerState.recvTransportId = undefined;
+          }
         }
       });
 
-      const peerState = getPeerState(ctx.user.userId);
       peerState.transports.set(transport.id, transport);
+      if (input.direction === "send") {
+        peerState.sendTransportId = transport.id;
+      } else {
+        peerState.recvTransportId = transport.id;
+      }
 
       return {
         id: transport.id,
@@ -819,18 +885,47 @@ export const mediasoupRouter = router({
       const existingConsumer = peerState.consumersByProducerId.get(
         input.producerId,
       );
-      if (existingConsumer && !existingConsumer.closed) {
-        if (RUNTIME === "kubernetes") {
-          console.log(
-            `[Consumer] Kubernetes relay mode: reusing existing consumer for producer=${input.producerId}`,
-          );
+      if (existingConsumer) {
+        const existingTransportId = peerState.consumerTransportByProducerId.get(
+          input.producerId,
+        );
+
+        if (
+          !existingConsumer.closed &&
+          existingTransportId === input.transportId
+        ) {
+          if (RUNTIME === "kubernetes") {
+            console.log(
+              `[Consumer] Kubernetes relay mode: reusing existing consumer for producer=${input.producerId}`,
+            );
+          }
+          return {
+            id: existingConsumer.id,
+            producerId: input.producerId,
+            kind: existingConsumer.kind,
+            rtpParameters: existingConsumer.rtpParameters,
+          };
         }
-        return {
-          id: existingConsumer.id,
-          producerId: input.producerId,
-          kind: existingConsumer.kind,
-          rtpParameters: existingConsumer.rtpParameters,
-        };
+
+        if (
+          !existingConsumer.closed &&
+          existingTransportId !== input.transportId
+        ) {
+          console.warn(
+            `[Consumer] Replacing stale consumer for producer=${input.producerId} (oldTransport=${existingTransportId ?? "unknown"}, newTransport=${input.transportId})`,
+          );
+          try {
+            existingConsumer.close();
+          } catch {
+            // Ignore close errors and continue with map cleanup/re-create.
+          }
+        }
+
+        removeConsumerMappings(
+          peerState,
+          existingConsumer.id,
+          input.producerId,
+        );
       }
 
       const consumer = await transport.consume({
@@ -841,6 +936,10 @@ export const mediasoupRouter = router({
 
       peerState.consumers.set(consumer.id, consumer);
       peerState.consumersByProducerId.set(input.producerId, consumer);
+      peerState.consumerTransportByProducerId.set(
+        input.producerId,
+        input.transportId,
+      );
 
       // Only auto-resume AUDIO consumers on the server
       // Video MUST stay paused until client explicitly calls resumeConsumer
@@ -850,13 +949,11 @@ export const mediasoupRouter = router({
       }
 
       consumer.on("transportclose", () => {
-        peerState.consumers.delete(consumer.id);
-        peerState.consumersByProducerId.delete(input.producerId);
+        removeConsumerMappings(peerState, consumer.id, input.producerId);
       });
 
       consumer.on("producerclose", () => {
-        peerState.consumers.delete(consumer.id);
-        peerState.consumersByProducerId.delete(input.producerId);
+        removeConsumerMappings(peerState, consumer.id, input.producerId);
       });
 
       return {
@@ -878,8 +975,7 @@ export const mediasoupRouter = router({
       }
 
       consumer.close();
-      peerState.consumers.delete(input.consumerId);
-      peerState.consumersByProducerId.delete(consumer.producerId);
+      removeConsumerMappings(peerState, input.consumerId, consumer.producerId);
       return { success: true };
     }),
 
