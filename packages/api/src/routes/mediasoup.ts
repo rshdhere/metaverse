@@ -589,9 +589,9 @@ export const mediasoupRouter = router({
             announcedIp,
           },
         ],
-        enableUdp: true,
+        enableUdp: !isKubernetes,
         enableTcp: true,
-        preferUdp: true,
+        preferUdp: !isKubernetes,
         enableSctp: isKubernetes ? false : undefined,
         // Lower initial bitrate for TCP to prevent congestion-induced stalls
         initialAvailableOutgoingBitrate: isKubernetes ? 250_000 : undefined,

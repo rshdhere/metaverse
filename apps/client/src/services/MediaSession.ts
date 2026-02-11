@@ -164,16 +164,40 @@ export default class MediaSession {
     console.log("[ICE] iceServers from backend:", iceServers);
     console.log("[ICE] forceRelay:", forceRelay);
 
-    // Use a simple STUN configuration on the client so that
-    // host + server-reflexive candidates are allowed and TURN
-    // (if configured elsewhere) is not forced.
-    const rtcIceServers: RTCIceServer[] = [
-      { urls: "stun:stun.l.google.com:19302" },
-    ];
+    const rtcIceServers =
+      iceServers.length > 0
+        ? iceServers.map((server) => ({
+            urls: server.urls,
+            username: server.username,
+            credential: server.credential,
+          }))
+        : [{ urls: "stun:stun.l.google.com:19302" }];
+
+    const hasStunServer = rtcIceServers.some((server) => {
+      const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+      return urls.some((url) => url.startsWith("stun:"));
+    });
+    const hasTurnServer = rtcIceServers.some((server) => {
+      const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+      return urls.some(
+        (url) => url.startsWith("turn:") || url.startsWith("turns:"),
+      );
+    });
+
+    // In relay-first environments (TURN only), force relay candidates so
+    // browsers do not waste time on unreachable host/srflx paths.
+    const shouldForceRelay = !!forceRelay || (hasTurnServer && !hasStunServer);
+    const relayAdditionalSettings = shouldForceRelay
+      ? ({ iceTransportPolicy: "relay" } as const)
+      : undefined;
 
     this.sendTransport = this.device.createSendTransport({
       ...(sendTransportInfo as types.TransportOptions),
       iceServers: rtcIceServers,
+      additionalSettings: {
+        ...(sendTransportInfo as types.TransportOptions).additionalSettings,
+        ...(relayAdditionalSettings ?? {}),
+      },
     });
     this.bindTransportEvents(this.sendTransport);
 
@@ -184,6 +208,10 @@ export default class MediaSession {
     this.recvTransport = this.device.createRecvTransport({
       ...(recvTransportInfo as types.TransportOptions),
       iceServers: rtcIceServers,
+      additionalSettings: {
+        ...(recvTransportInfo as types.TransportOptions).additionalSettings,
+        ...(relayAdditionalSettings ?? {}),
+      },
     });
     this.bindTransportEvents(this.recvTransport);
 
