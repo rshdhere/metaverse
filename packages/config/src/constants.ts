@@ -11,11 +11,11 @@ export const BACKEND_URL =
     ? window.location.hostname === "localhost"
       ? `http://localhost:${BACKEND_PORT}`
       : // VPS production (frontend → dedicated backend host)
-        window.location.hostname === "metaverse.raashed.xyz"
-        ? "https://game-server.raashed.xyz"
+        window.location.hostname === "metaverse.raashed.cloud"
+        ? "https://game-server.raashed.cloud"
         : // K8s production (frontend → dedicated backend host)
-          window.location.hostname === "k8s-metaverse.raashed.xyz"
-          ? "https://k8s-game-server.raashed.xyz"
+          window.location.hostname === "k8s-metaverse.raashed.cloud"
+          ? "https://k8s-game-server.raashed.cloud"
           : // fallback (safe default)
             `https://${window.location.host}`
     : `http://localhost:${BACKEND_PORT}`;
@@ -26,15 +26,15 @@ export const FRONTEND_URL =
   typeof window !== "undefined"
     ? window.location.hostname === "localhost"
       ? `http://localhost:${FRONTEND_PORT}`
-      : window.location.hostname === "k8s-metaverse.raashed.xyz"
-        ? "https://k8s-metaverse.raashed.xyz"
-        : window.location.hostname === "metaverse.raashed.xyz"
-          ? "https://metaverse.raashed.xyz"
+      : window.location.hostname === "k8s-metaverse.raashed.cloud"
+        ? "https://k8s-metaverse.raashed.cloud"
+        : window.location.hostname === "metaverse.raashed.cloud"
+          ? "https://metaverse.raashed.cloud"
           : isProduction
-            ? "https://metaverse.raashed.xyz"
+            ? "https://metaverse.raashed.cloud"
             : `http://localhost:${FRONTEND_PORT}`
     : isProduction
-      ? "https://metaverse.raashed.xyz"
+      ? "https://metaverse.raashed.cloud"
       : `http://localhost:${FRONTEND_PORT}`;
 
 // WebSocket (World Server)
@@ -44,11 +44,11 @@ export const WS_URL =
     ? window.location.hostname === "localhost"
       ? `ws://localhost:${WS_PORT}/ws`
       : // VPS production (frontend → dedicated WS host)
-        window.location.hostname === "metaverse.raashed.xyz"
-        ? "wss://game.raashed.xyz/ws"
+        window.location.hostname === "metaverse.raashed.cloud"
+        ? "wss://game.raashed.cloud/ws"
         : // K8s production (frontend → dedicated WS host)
-          window.location.hostname === "k8s-metaverse.raashed.xyz"
-          ? "wss://k8s-game.raashed.xyz/ws"
+          window.location.hostname === "k8s-metaverse.raashed.cloud"
+          ? "wss://k8s-game.raashed.cloud/ws"
           : // fallback (safe default)
             `wss://${window.location.host}/ws`
     : `ws://localhost:${WS_PORT}/ws`;
@@ -56,12 +56,12 @@ export const WS_URL =
 // CORS allowed origins
 export const CORS_ORIGINS = [
   "http://localhost:3001",
-  "https://metaverse.raashed.xyz",
-  "https://game.raashed.xyz",
-  "https://raashed.xyz",
-  "https://k8s-metaverse.raashed.xyz",
-  "https://k8s-game-server.raashed.xyz",
-  "https://k8s-game.raashed.xyz",
+  "https://metaverse.raashed.cloud",
+  "https://game.raashed.cloud",
+  "https://raashed.cloud",
+  "https://k8s-metaverse.raashed.cloud",
+  "https://k8s-game-server.raashed.cloud",
+  "https://k8s-game.raashed.cloud",
 ];
 
 // GitHub OAuth URLs

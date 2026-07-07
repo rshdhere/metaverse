@@ -12,7 +12,7 @@ export async function sendVerificationEmail(
 
   try {
     const { error } = await resend.emails.send({
-      from: "auth@updates.raashed.xyz",
+      from: "auth@mail.raashed.cloud",
       to: email,
       subject: "Verify your email address",
       html: `
