@@ -54,8 +54,25 @@ jobs:
             APP_DIR="${VPS_APP_DIR:-$HOME/metaverse}"
             cd "$APP_DIR"
 
-            # ---------- Load shell ----------
+            # ---------- Load shell + PATH ----------
             [ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc" || true
+            export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+            export PATH="$BUN_INSTALL/bin:/usr/local/go/bin:$PATH"
+
+            # ---------- Prerequisites (bootstrapped on VPS; no sudo in CI) ----------
+            for cmd in git bun node npm pm2 go; do
+              if ! command -v "$cmd" >/dev/null 2>&1; then
+                echo "Missing required command: $cmd"
+                echo "Install it on the VPS before running deploy."
+                exit 1
+              fi
+            done
+
+            echo "Node: $(node --version)"
+            echo "npm: $(npm --version)"
+            echo "Bun: $(bun --version)"
+            echo "PM2: $(pm2 --version)"
+            echo "Go: $(go version)"
 
             # ---------- Git Pull ----------
             git fetch origin
@@ -69,44 +86,8 @@ jobs:
               exit 1
             fi
 
-            # ---------- Node + npm (FOR PM2 ONLY) ----------
-            if ! command -v node >/dev/null 2>&1; then
-              echo "Installing Node.js..."
-              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-
-            echo "Node: $(node --version)"
-            echo "npm: $(npm --version)"
-
-            # ---------- PM2 (INSTALLATION) ----------
-            echo "Installing PM2..."
-            sudo npm install -g pm2
-
-            echo "PM2 version:"
-            pm2 --version
-
-            # ---------- Bun ----------
-            export BUN_INSTALL="$HOME/.bun"
-            export PATH="$BUN_INSTALL/bin:$PATH"
-
-            if ! command -v bun >/dev/null 2>&1; then
-              curl -fsSL https://bun.sh/install | bash
-              export PATH="$BUN_INSTALL/bin:$PATH"
-            fi
-
-            echo "Bun: $(bun --version)"
-
-            # ---------- System Deps (Pix for Mediasoup build) ----------
-            echo "Installing system dependencies..."
-            # Prevent interactive prompts during apt install
-            export DEBIAN_FRONTEND=noninteractive
-            sudo apt-get update || true
-            sudo apt-get install -y python3-pip build-essential || true
-
-            # ---------- Stop PM2 (Fix for ETXTBSY) ----------
+            # ---------- Stop PM2 (fix for ETXTBSY during mediasoup rebuild) ----------
             echo "Stopping PM2 to release file locks..."
-            # We stop to ensure binary files aren't locked during npm rebuild
             pm2 stop metaverse-client metaverse-server || true
 
             # ---------- Install deps ----------
@@ -136,8 +117,14 @@ jobs:
 
             # ---------- Go World WS ----------
             cd apps/world
-            go version
             GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o world-server
-            sudo systemctl restart world
-            sudo systemctl status world --no-pager
+
+            # Requires one-time VPS setup:
+            # echo 'rshdhere ALL=(ALL) NOPASSWD: /usr/bin/systemctl' | sudo tee /etc/sudoers.d/rshdhere-deploy
+            if ! sudo -n systemctl restart world; then
+              echo "Failed to restart world.service."
+              echo "Configure passwordless sudo for systemctl on the VPS, then re-run deploy."
+              exit 1
+            fi
+            sudo -n systemctl status world --no-pager
             cd "$APP_DIR"
