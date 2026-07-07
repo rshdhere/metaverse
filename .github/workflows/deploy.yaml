@@ -88,7 +88,7 @@ jobs:
 
             # ---------- Stop PM2 (fix for ETXTBSY during mediasoup rebuild) ----------
             echo "Stopping PM2 to release file locks..."
-            pm2 stop metaverse-client metaverse-server || true
+            pm2 stop metaverse-client metaverse-server metaverse-world || true
 
             # ---------- Install deps ----------
             bun install
@@ -108,23 +108,14 @@ jobs:
             bun run build
             cd "$APP_DIR"
 
+            # ---------- Build World WS ----------
+            cd apps/world
+            GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o world-server
+            cd "$APP_DIR"
+
             # ---------- Server ----------
             echo "Server is Bun-native, no build step."
 
-            # ---------- PM2 reload ----------
+            # ---------- PM2 reload (client, server, world — no sudo) ----------
             pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
             pm2 save
-
-            # ---------- Go World WS ----------
-            cd apps/world
-            GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o world-server
-
-            # Requires one-time VPS setup:
-            # echo 'rshdhere ALL=(ALL) NOPASSWD: /usr/bin/systemctl' | sudo tee /etc/sudoers.d/rshdhere-deploy
-            if ! sudo -n systemctl restart world; then
-              echo "Failed to restart world.service."
-              echo "Configure passwordless sudo for systemctl on the VPS, then re-run deploy."
-              exit 1
-            fi
-            sudo -n systemctl status world --no-pager
-            cd "$APP_DIR"

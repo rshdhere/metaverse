@@ -27,6 +27,19 @@ module.exports = {
       autorestart: true,
       watch: false,
     },
+
+    {
+      name: "metaverse-world",
+      cwd: "./apps/world",
+      script: "./world-server",
+      interpreter: "none",
+      env: {
+        WS_PORT: "8083",
+        BACKEND_URL: "http://127.0.0.1:8082",
+      },
+      autorestart: true,
+      watch: false,
+    },
   ],
 };
 
