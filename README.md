@@ -27,17 +27,12 @@ In this space, people can hold meetings, collaborate, and communicate in real-ti
 ## Test Credentials
 
 > [!TIP]
-> Use the following credentials to explore the platform instantly.
+> Use the quick-login buttons on `/login`, or sign in manually with:
 >
-> **Email**
-> ```bash
-> dummy.samaltman@gmail.com
-> ```
->
-> **Password**
-> ```bash
-> ClaudeBetter<3
-> ```
+> | Account | Email | Password |
+> |---------|-------|----------|
+> | test-credential-01 | `test-credential-01@metaverse.raashed.cloud` | `TestCredential01!` |
+> | test-credential-02 | `test-credential-02@metaverse.raashed.cloud` | `TestCredential02!` |
 
 ---
 ## Proof of Work

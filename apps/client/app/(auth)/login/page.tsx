@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { GITHUB_OAUTH_URL } from "@repo/config/constants";
+import { GITHUB_OAUTH_URL, TEST_CREDENTIALS } from "@repo/config/constants";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import SplitAuthLayout from "@/components/auth/SplitAuthLayout";
@@ -119,6 +119,16 @@ function LoginContent() {
     }
   };
 
+  const handleTestCredentialLogin = (
+    testEmail: string,
+    testPassword: string,
+  ) => {
+    setShowResendOption(false);
+    setEmail(testEmail);
+    setPassword(testPassword);
+    login.mutate({ email: testEmail, password: testPassword });
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">
@@ -161,6 +171,23 @@ function LoginContent() {
             Or continue with email
           </span>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {TEST_CREDENTIALS.map((credential) => (
+          <Button
+            key={credential.label}
+            type="button"
+            variant="outline"
+            disabled={login.isPending}
+            onClick={() =>
+              handleTestCredentialLogin(credential.email, credential.password)
+            }
+            className="w-full cursor-pointer text-xs sm:text-sm"
+          >
+            {credential.label}
+          </Button>
+        ))}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
