@@ -36,7 +36,7 @@ In this space, people can hold meetings, collaborate, and communicate in real-ti
 
 ---
 ## Proof of Work
- - Deployed on a Dedicated-VPS `metaverse.raashed.xyz` & A K8s cluster (for a limited time `k8s-metaverse.raashed.xyz`)
+ - Deployed on a Dedicated-VPS `metaverse.raashed.cloud` & A K8s cluster (for a limited time `k8s-metaverse.raashed.cloud`)
  - ArgoCD Overview - https://youtu.be/LGtbMtsLiRU
  - On a K8s Cluster - https://youtu.be/g7NB7Lq5Jhg
  - Gitops Repository - https://github.com/rshdhere/staging-ops
