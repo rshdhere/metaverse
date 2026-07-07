@@ -6,7 +6,7 @@ export const userInputValidation = z
       .string()
       .email({ message: "email-id should be valid" })
       .min(5, { message: "email should have atleast 05 charachters" })
-      .max(40, { message: "email shouldn't have more than 50 charachters" }),
+      .max(50, { message: "email shouldn't have more than 50 characters" }),
 
     password: z
       .string()
