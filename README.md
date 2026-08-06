@@ -31,13 +31,13 @@ In this space, people can hold meetings, collaborate, and communicate in real-ti
 >
 > | Account | Email | Password |
 > |---------|-------|----------|
-> | test-credential-01 | `test-credential-01@metaverse.raashed.cloud` | `TestCredential01!` |
-> | test-credential-02 | `test-credential-02@metaverse.raashed.cloud` | `TestCredential02!` |
+> | test-credential-01 | `test-credential-01@metaverse.raashed.com` | `TestCredential01!` |
+> | test-credential-02 | `test-credential-02@metaverse.raashed.com` | `TestCredential02!` |
 
 ---
 ## Proof of Work
- - Deployed on a Dedicated-VPS — `metaverse.raashed.cloud`
- - Deployed on a Kubernetes Cluster (for a limited time) — `k8s-metaverse.raashed.cloud`
+ - Deployed on a Dedicated-VPS — `metaverse.raashed.com`
+ - Deployed on a Kubernetes Cluster (for a limited time) — `k8s-metaverse.raashed.com`
  - ArgoCD Overview - https://youtu.be/LGtbMtsLiRU
  - On a Kubernetes Cluster - https://youtu.be/g7NB7Lq5Jhg
  - Gitops Repository - https://github.com/rshdhere/ops
